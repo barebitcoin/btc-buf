@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package barebitcoin.bitcoind.v22;
 
-service Bitcoin {
+service BitcoinService {
   rpc GetBlockchainInfo(GetBlockchainInfoRequest) returns (GetBlockchainInfoResponse);
 }
 

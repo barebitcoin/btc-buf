@@ -108,7 +108,7 @@ func (b *Bitcoind) Listen(ctx context.Context, address string) error {
 	log.Printf("gRPC: enabling reflection")
 	reflection.Register(grpcServer)
 
-	v22.RegisterBitcoinServer(grpcServer, b)
+	v22.RegisterBitcoinServiceServer(grpcServer, b)
 
 	errChan := make(chan error, 1)
 
@@ -129,4 +129,4 @@ func (b *Bitcoind) Listen(ctx context.Context, address string) error {
 	}
 }
 
-var _ v22.BitcoinServer = new(Bitcoind)
+var _ v22.BitcoinServiceServer = new(Bitcoind)
