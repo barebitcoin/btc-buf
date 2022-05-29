@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package barebitcoin.bitcoind.v22;
+package bitcoin.bitcoind.v1alpha;
 
 service BitcoinService {
   rpc GetBlockchainInfo(GetBlockchainInfoRequest) returns (GetBlockchainInfoResponse);

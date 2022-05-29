@@ -1,16 +1,16 @@
 version: v1
-managed: 
+managed:
   enabled: true
-  go_package_prefix: 
+  go_package_prefix:
     default: github.com/barebitcoin/btc-buf
 
-plugins: 
+plugins:
   - remote: buf.build/library/plugins/go:v1.27.1-1
     out: gen
     opt: paths=source_relative
 
   - remote: buf.build/library/plugins/go-grpc:v1.1.0-2
     out: gen
-    opt: 
+    opt:
       - paths=source_relative
       - require_unimplemented_servers=false
