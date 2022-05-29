@@ -1,6 +1,6 @@
 # `btc-buf`
 
-| The last goddamn time I'm coding up a RPC client for Bitcoin Core.
+> The last goddamn time I'm coding up a RPC client for Bitcoin Core.
 
 `btc-buf` is a lightweight wrapper that sits in front of a Bitcoin Core node,
 and serves its API over gRPC. It's intended to follow best-practice gRPC
