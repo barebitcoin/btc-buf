@@ -2,17 +2,15 @@ package main
 
 import (
 	"context"
-	"errors"
 	"os"
 	"os/signal"
 	"runtime/debug"
 
 	"github.com/barebitcoin/btc-buf/server"
-	"github.com/jessevdk/go-flags"
 	"github.com/rs/zerolog/log"
 )
 
-func realMain(cfg config) error {
+func realMain(cfg *config) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -40,16 +38,9 @@ func realMain(cfg config) error {
 }
 
 func main() {
-	var cfg config
-	if _, err := flags.Parse(&cfg); err != nil {
-		// help was requested, avoid print and non-zero exit code
-		if flagErr := new(flags.Error); errors.As(
-			err, &flagErr,
-		) && flagErr.Type == flags.ErrHelp {
-			return
-		}
-
-		log.Fatal().Err(err).Msg("could not parse config")
+	cfg, err := readConfig()
+	if err != nil {
+		log.Fatal().Err(err).Msg("main: could not read config")
 	}
 
 	if info, ok := debug.ReadBuildInfo(); ok {
@@ -60,8 +51,7 @@ func main() {
 			Msgf("starting %s", os.Args[0])
 	}
 
-	err := realMain(cfg)
-	if err != nil {
+	if err := realMain(cfg); err != nil {
 		log.Fatal().Err(err).Msg("main: received error")
 	}
 }
