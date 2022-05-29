@@ -88,6 +88,7 @@ func (b *Bitcoind) GetBlockchainInfo(ctx context.Context, req *v22.GetBlockchain
 
 func (b *Bitcoind) Stop() {
 	if b.server == nil {
+		log.Warn().Msg("gRPC: stop called on empty server")
 		return
 	}
 
@@ -102,12 +103,12 @@ func (b *Bitcoind) Listen(ctx context.Context, address string) error {
 	}
 	defer listener.Close()
 
-	grpcServer := grpc.NewServer()
+	b.server = grpc.NewServer()
 
 	log.Printf("gRPC: enabling reflection")
-	reflection.Register(grpcServer)
+	reflection.Register(b.server)
 
-	v22.RegisterBitcoinServiceServer(grpcServer, b)
+	v22.RegisterBitcoinServiceServer(b.server, b)
 
 	errChan := make(chan error, 1)
 
@@ -116,7 +117,7 @@ func (b *Bitcoind) Listen(ctx context.Context, address string) error {
 			Stringer("address", listener.Addr()).
 			Msg("gRPC: serving")
 
-		if err := grpcServer.Serve(listener); err != nil {
+		if err := b.server.Serve(listener); err != nil {
 			errChan <- fmt.Errorf("gRPC serve: %w", err)
 		}
 	}()
