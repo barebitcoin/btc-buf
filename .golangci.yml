@@ -1,0 +1,17 @@
+linters:
+  enable:
+    - depguard
+    - exportloopref
+    - gofumpt
+    - ifshort
+    - unconvert
+    - unparam
+    - wsl # might be too much?
+
+linters-settings:
+  depguard:
+    list-type: denylist
+    # include standard library packages
+    include-go-root: true
+    packages-with-error-message:
+      - log: "use zerolog"
