@@ -25,6 +25,7 @@ type bitcoindConfig struct {
 
 func readConfig() (*config, error) {
 	var err error
+
 	var cfg config
 	if _, err := flags.Parse(&cfg); err != nil {
 		// help was requested, avoid print and non-zero exit code
@@ -40,6 +41,7 @@ func readConfig() (*config, error) {
 	if cfg.Bitcoind.Pass == "" && cfg.Bitcoind.User == "" {
 		log.Debug().
 			Msg("config: empty bitcoind.pass and bitcoind.user, defaulting to cookie")
+
 		cfg.Bitcoind.Cookie = true
 	}
 
@@ -47,6 +49,7 @@ func readConfig() (*config, error) {
 		log.Debug().
 			Str("network", cfg.Bitcoind.Network).
 			Msg("config: reading bitcoind cookie data")
+
 		if cfg.Bitcoind.Pass != "" ||
 			cfg.Bitcoind.User != "" {
 			return nil, fmt.Errorf("cannot set username or password when specifying bitcoind.cookie")
@@ -64,10 +67,12 @@ func readConfig() (*config, error) {
 		if err != nil {
 			return nil, fmt.Errorf("could not read cookie: %w", err)
 		}
+
 		user, pass, found := strings.Cut(string(cookie), ":")
 		if !found {
 			return nil, fmt.Errorf("could not parse cookie: %s", string(cookie))
 		}
+
 		cfg.Bitcoind.User = user
 		cfg.Bitcoind.Pass = pass
 	}

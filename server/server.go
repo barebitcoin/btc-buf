@@ -34,9 +34,7 @@ func NewBitcoind(
 		Host:         host,
 	}
 
-	var notifiationHandler *rpcclient.NotificationHandlers
-	client, err := rpcclient.New(&conf, notifiationHandler)
-
+	client, err := rpcclient.New(&conf, nil)
 	if err != nil {
 		return nil, fmt.Errorf("could not create RPC client: %w", err)
 	}
@@ -83,6 +81,7 @@ func (b *Bitcoind) GetBlockchainInfo(ctx context.Context, req *v22.GetBlockchain
 			ChainWork:            info.ChainWork,
 			InitialBlockDownload: info.InitialBlockDownload,
 		}
+
 		return &res, nil
 	}
 }
@@ -116,6 +115,7 @@ func (b *Bitcoind) Listen(ctx context.Context, address string) error {
 		log.Info().
 			Stringer("address", listener.Addr()).
 			Msg("gRPC: serving")
+
 		if err := grpcServer.Serve(listener); err != nil {
 			errChan <- fmt.Errorf("gRPC serve: %w", err)
 		}

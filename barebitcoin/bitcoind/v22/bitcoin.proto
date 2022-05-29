@@ -8,8 +8,8 @@ service BitcoinService {
 
 message GetBlockchainInfoRequest {}
 message GetBlockchainInfoResponse {
-    string best_block_hash = 1;
-    string chain = 2;
-    string chain_work = 3;
-    bool initial_block_download = 4; 
+  string best_block_hash = 1;
+  string chain = 2;
+  string chain_work = 3;
+  bool initial_block_download = 4;
 }

@@ -14,8 +14,8 @@ func realMain(cfg *config) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	sig := make(chan os.Signal)
-	signal.Notify(sig, os.Interrupt, os.Kill)
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, os.Interrupt)
 
 	go func() {
 		signal := <-sig
