@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net"
 
-	v22 "github.com/barebitcoin/btc-buf/gen/barebitcoin/bitcoind/v22"
+	bitcoind "github.com/barebitcoin/btc-buf/gen/bitcoin/bitcoind/v1alpha"
 	"github.com/btcsuite/btcd/btcjson"
 	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/rs/zerolog/log"
@@ -42,7 +42,9 @@ func NewBitcoind(
 	server := &Bitcoind{rpc: client}
 
 	// Do a request, to verify we can reach Bitcoin Core
-	info, err := server.GetBlockchainInfo(ctx, &v22.GetBlockchainInfoRequest{})
+	info, err := server.GetBlockchainInfo(
+		ctx, &bitcoind.GetBlockchainInfoRequest{},
+	)
 	if err != nil {
 		return nil, fmt.Errorf("could not connect to bitcoind: %w", err)
 	}
@@ -55,7 +57,9 @@ func NewBitcoind(
 }
 
 // GetBlockchainInfo implements bitcoindv22.BitcoinServer
-func (b *Bitcoind) GetBlockchainInfo(ctx context.Context, req *v22.GetBlockchainInfoRequest) (*v22.GetBlockchainInfoResponse, error) {
+func (b *Bitcoind) GetBlockchainInfo(
+	ctx context.Context, req *bitcoind.GetBlockchainInfoRequest,
+) (*bitcoind.GetBlockchainInfoResponse, error) {
 	chainInfo := make(chan *btcjson.GetBlockChainInfoResult)
 	errs := make(chan error)
 	fut := b.rpc.GetBlockChainInfoAsync()
@@ -75,7 +79,7 @@ func (b *Bitcoind) GetBlockchainInfo(ctx context.Context, req *v22.GetBlockchain
 	case err := <-errs:
 		return nil, err
 	case info := <-chainInfo:
-		res := v22.GetBlockchainInfoResponse{
+		res := bitcoind.GetBlockchainInfoResponse{
 			BestBlockHash:        info.BestBlockHash,
 			Chain:                info.Chain,
 			ChainWork:            info.ChainWork,
@@ -108,7 +112,7 @@ func (b *Bitcoind) Listen(ctx context.Context, address string) error {
 	log.Printf("gRPC: enabling reflection")
 	reflection.Register(b.server)
 
-	v22.RegisterBitcoinServiceServer(b.server, b)
+	bitcoind.RegisterBitcoinServiceServer(b.server, b)
 
 	errChan := make(chan error, 1)
 
@@ -130,4 +134,4 @@ func (b *Bitcoind) Listen(ctx context.Context, address string) error {
 	}
 }
 
-var _ v22.BitcoinServiceServer = new(Bitcoind)
+var _ bitcoind.BitcoinServiceServer = new(Bitcoind)
