@@ -4,6 +4,7 @@ go 1.18
 
 require (
 	github.com/btcsuite/btcd v0.22.1
+	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0
 	github.com/jessevdk/go-flags v1.5.0
 	github.com/rs/zerolog v1.26.1
 	google.golang.org/grpc v1.46.2
