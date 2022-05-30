@@ -11,4 +11,4 @@ jobs:
         with:
           against: "https://github.com/${GITHUB_REPOSITORY}.git#branch=master"
       - name: check Buf formatting
-        run: buf format --exit-code barebitcoin
+        run: buf format --exit-code proto

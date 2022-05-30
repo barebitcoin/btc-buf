@@ -4,7 +4,7 @@ build:
 	go build -v -o ./$(BIN) .
 
 proto-format: 
-	buf format -w barebitcoin
+	buf format -w proto
 
 clean: 
 	rm -rf $(BIN) gen
