@@ -8,9 +8,12 @@ import (
 	bitcoind "github.com/barebitcoin/btc-buf/gen/bitcoin/bitcoind/v1alpha"
 	"github.com/btcsuite/btcd/btcjson"
 	"github.com/btcsuite/btcd/rpcclient"
+	recovery "github.com/grpc-ecosystem/go-grpc-middleware/recovery"
 	"github.com/rs/zerolog/log"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/reflection"
+	"google.golang.org/grpc/status"
 )
 
 type Bitcoind struct {
@@ -107,7 +110,12 @@ func (b *Bitcoind) Listen(ctx context.Context, address string) error {
 	}
 	defer listener.Close()
 
-	b.server = grpc.NewServer()
+	b.server = grpc.NewServer(grpc.ChainUnaryInterceptor(
+		recovery.UnaryServerInterceptor(
+			recovery.WithRecoveryHandlerContext(recoveryHandler),
+		),
+		serverLogger(),
+	))
 
 	log.Printf("gRPC: enabling reflection")
 	reflection.Register(b.server)
@@ -135,3 +143,14 @@ func (b *Bitcoind) Listen(ctx context.Context, address string) error {
 }
 
 var _ bitcoind.BitcoinServiceServer = new(Bitcoind)
+
+func recoveryHandler(ctx context.Context, panic any) error {
+	log.Error().
+		Interface("panic", panic).
+		Str("panicType", fmt.Sprintf("%T", panic)).
+		Msg("gRPC: panicked")
+
+	msg := fmt.Sprintf("encountered internal error: %v", panic)
+
+	return status.Error(codes.Internal, msg)
+}
