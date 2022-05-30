@@ -24,8 +24,6 @@ type bitcoindConfig struct {
 }
 
 func readConfig() (*config, error) {
-	var err error
-
 	var cfg config
 	if _, err := flags.Parse(&cfg); err != nil {
 		// help was requested, avoid print and non-zero exit code
@@ -45,6 +43,11 @@ func readConfig() (*config, error) {
 		cfg.Bitcoind.Cookie = true
 	}
 
+	net, ok := nets[cfg.Bitcoind.Network]
+	if !ok {
+		return nil, fmt.Errorf("unknown bitcoin network: %q", cfg.Bitcoind.Network)
+	}
+
 	if cfg.Bitcoind.Cookie {
 		log.Debug().
 			Str("network", cfg.Bitcoind.Network).
@@ -55,7 +58,7 @@ func readConfig() (*config, error) {
 			return nil, fmt.Errorf("cannot set username or password when specifying bitcoind.cookie")
 		}
 
-		path, err := cookiePath(cfg.Bitcoind.Network)
+		path, err := cookiePath(net)
 		if err != nil {
 			return nil, fmt.Errorf("could not find cookie path: %w", err)
 		}
@@ -81,47 +84,49 @@ func readConfig() (*config, error) {
 		log.Debug().Str("network", cfg.Bitcoind.Network).
 			Msg("config: empty bitcoind.host, inferring from network")
 
-		cfg.Bitcoind.Host, err = defaultRpcHost(cfg.Bitcoind.Network)
-		if err != nil {
-			return nil, err
-		}
+		cfg.Bitcoind.Host = net.defaultRpcHost
 	}
 
 	return &cfg, nil
 }
 
-func defaultRpcHost(network string) (string, error) {
-	switch network {
-	case "mainnet":
-		return "localhost:8332", nil
-	case "testnet":
-		return "localhost:18332", nil
-	case "regtest":
-		return "localhost:18443", nil
-	case "signet":
-		return "localhost:38332", nil
-	default:
-		return "", fmt.Errorf("unknown network: %q", network)
-	}
-}
-
-func cookiePath(network string) (string, error) {
+func cookiePath(network bitcoinNet) (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", err
 	}
 
-	switch network {
-	// empty net segment!
-	case "mainnet":
-		network = ""
-	case "regtest":
-		network = "regtest"
-	case "testnet", "testnet3":
-		network = "testnet3"
-	default:
-		return "", fmt.Errorf("unknown network: %q", network)
-	}
+	return filepath.Join(home, ".bitcoin", network.path, ".cookie"), nil
+}
 
-	return filepath.Join(home, ".bitcoin", network, ".cookie"), nil
+type bitcoinNet struct {
+	path           string
+	defaultRpcHost string
+}
+
+var (
+	mainnet = bitcoinNet{
+		path:           "",
+		defaultRpcHost: "localhost8332",
+	}
+	testnet = bitcoinNet{
+		path:           "testnet3",
+		defaultRpcHost: "localhost:18332",
+	}
+	regtest = bitcoinNet{
+		path:           "regtest",
+		defaultRpcHost: "localhost:18443",
+	}
+	signet = bitcoinNet{
+		path:           "signet",
+		defaultRpcHost: "localhost:38332",
+	}
+)
+
+var nets = map[string]bitcoinNet{
+	"mainnet":  mainnet,
+	"testnet":  testnet,
+	"testnet3": testnet,
+	"regtest":  regtest,
+	"signet":   signet,
 }
