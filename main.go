@@ -34,7 +34,7 @@ func realMain(cfg *config) error {
 
 	defer bitcoind.Stop()
 
-	return bitcoind.Listen(ctx, "localhost:5080")
+	return bitcoind.Listen(ctx, cfg.Listen)
 }
 
 func main() {
