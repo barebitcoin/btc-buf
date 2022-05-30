@@ -114,6 +114,7 @@ func (b *Bitcoind) Listen(ctx context.Context, address string) error {
 		recovery.UnaryServerInterceptor(
 			recovery.WithRecoveryHandlerContext(recoveryHandler),
 		),
+		serverLogger(),
 	))
 
 	log.Printf("gRPC: enabling reflection")
