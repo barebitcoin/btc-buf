@@ -184,6 +184,7 @@ func recoveryHandler(ctx context.Context, panic any) error {
 
 	return status.Error(codes.Internal, msg)
 }
+
 func handleBtcJsonErrors(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
 	resp, err = handler(ctx, req)
 
@@ -196,6 +197,9 @@ func handleBtcJsonErrors(ctx context.Context, req interface{}, info *grpc.UnaryS
 	case btcjson.ErrRPCWalletNotSpecified:
 		// Actually don't think this is supported in rpcclient...
 		err = status.Error(codes.Unimplemented, "support for multiple wallets not yet supported")
+
+	case btcjson.ErrRPCWalletNotFound:
+		err = status.Error(codes.FailedPrecondition, rpcErr.Message)
 
 	default:
 		log.Warn().Msgf("unknown btcjson error: %s", rpcErr)
