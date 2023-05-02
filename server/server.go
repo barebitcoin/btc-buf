@@ -2,6 +2,7 @@ package server
 
 import (
 	context "context"
+	"errors"
 	"fmt"
 	"net"
 
@@ -142,6 +143,7 @@ func (b *Bitcoind) Listen(ctx context.Context, address string) error {
 		recovery.UnaryServerInterceptor(
 			recovery.WithRecoveryHandlerContext(recoveryHandler),
 		),
+		handleBtcJsonErrors,
 		serverLogger(),
 	))
 
@@ -181,4 +183,23 @@ func recoveryHandler(ctx context.Context, panic any) error {
 	msg := fmt.Sprintf("encountered internal error: %v", panic)
 
 	return status.Error(codes.Internal, msg)
+}
+func handleBtcJsonErrors(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
+	resp, err = handler(ctx, req)
+
+	rpcErr := new(btcjson.RPCError)
+	if !errors.As(err, &rpcErr) {
+		return resp, err
+	}
+
+	switch rpcErr.Code {
+	case btcjson.ErrRPCWalletNotSpecified:
+		// Actually don't think this is supported in rpcclient...
+		err = status.Error(codes.Unimplemented, "support for multiple wallets not yet supported")
+
+	default:
+		log.Warn().Msgf("unknown btcjson error: %s", rpcErr)
+	}
+
+	return resp, err
 }
