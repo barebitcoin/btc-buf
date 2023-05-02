@@ -4,6 +4,8 @@ package bitcoin.bitcoind.v1alpha;
 
 service BitcoinService {
   rpc GetBlockchainInfo(GetBlockchainInfoRequest) returns (GetBlockchainInfoResponse);
+
+  rpc GetNewAddress(GetNewAddressRequest) returns (GetNewAddressResponse);
 }
 
 message GetBlockchainInfoRequest {}
@@ -12,4 +14,13 @@ message GetBlockchainInfoResponse {
   string chain = 2;
   string chain_work = 3;
   bool initial_block_download = 4;
+}
+
+message GetNewAddressRequest {
+  string label = 1;
+  string address_type = 2;
+}
+
+message GetNewAddressResponse {
+  string address = 1;
 }

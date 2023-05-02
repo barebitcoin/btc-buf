@@ -19,6 +19,7 @@ const _ = grpc.SupportPackageIsVersion7
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type BitcoinServiceClient interface {
 	GetBlockchainInfo(ctx context.Context, in *GetBlockchainInfoRequest, opts ...grpc.CallOption) (*GetBlockchainInfoResponse, error)
+	GetNewAddress(ctx context.Context, in *GetNewAddressRequest, opts ...grpc.CallOption) (*GetNewAddressResponse, error)
 }
 
 type bitcoinServiceClient struct {
@@ -38,11 +39,21 @@ func (c *bitcoinServiceClient) GetBlockchainInfo(ctx context.Context, in *GetBlo
 	return out, nil
 }
 
+func (c *bitcoinServiceClient) GetNewAddress(ctx context.Context, in *GetNewAddressRequest, opts ...grpc.CallOption) (*GetNewAddressResponse, error) {
+	out := new(GetNewAddressResponse)
+	err := c.cc.Invoke(ctx, "/bitcoin.bitcoind.v1alpha.BitcoinService/GetNewAddress", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // BitcoinServiceServer is the server API for BitcoinService service.
 // All implementations should embed UnimplementedBitcoinServiceServer
 // for forward compatibility
 type BitcoinServiceServer interface {
 	GetBlockchainInfo(context.Context, *GetBlockchainInfoRequest) (*GetBlockchainInfoResponse, error)
+	GetNewAddress(context.Context, *GetNewAddressRequest) (*GetNewAddressResponse, error)
 }
 
 // UnimplementedBitcoinServiceServer should be embedded to have forward compatible implementations.
@@ -51,6 +62,9 @@ type UnimplementedBitcoinServiceServer struct {
 
 func (UnimplementedBitcoinServiceServer) GetBlockchainInfo(context.Context, *GetBlockchainInfoRequest) (*GetBlockchainInfoResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetBlockchainInfo not implemented")
+}
+func (UnimplementedBitcoinServiceServer) GetNewAddress(context.Context, *GetNewAddressRequest) (*GetNewAddressResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetNewAddress not implemented")
 }
 
 // UnsafeBitcoinServiceServer may be embedded to opt out of forward compatibility for this service.
@@ -82,6 +96,24 @@ func _BitcoinService_GetBlockchainInfo_Handler(srv interface{}, ctx context.Cont
 	return interceptor(ctx, in, info, handler)
 }
 
+func _BitcoinService_GetNewAddress_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetNewAddressRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BitcoinServiceServer).GetNewAddress(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/bitcoin.bitcoind.v1alpha.BitcoinService/GetNewAddress",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BitcoinServiceServer).GetNewAddress(ctx, req.(*GetNewAddressRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // BitcoinService_ServiceDesc is the grpc.ServiceDesc for BitcoinService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -92,6 +124,10 @@ var BitcoinService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetBlockchainInfo",
 			Handler:    _BitcoinService_GetBlockchainInfo_Handler,
+		},
+		{
+			MethodName: "GetNewAddress",
+			Handler:    _BitcoinService_GetNewAddress_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
