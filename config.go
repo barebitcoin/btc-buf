@@ -109,7 +109,7 @@ type bitcoinNet struct {
 var (
 	mainnet = bitcoinNet{
 		path:           "",
-		defaultRpcHost: "localhost8332",
+		defaultRpcHost: "localhost:8332",
 	}
 	testnet = bitcoinNet{
 		path:           "testnet3",
