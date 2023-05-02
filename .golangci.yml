@@ -3,7 +3,6 @@ linters:
     - depguard
     - exportloopref
     - gofumpt
-    - ifshort
     - unconvert
     - unparam
     - wsl # might be too much?
