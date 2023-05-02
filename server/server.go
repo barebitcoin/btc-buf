@@ -7,6 +7,7 @@ import (
 
 	bitcoind "github.com/barebitcoin/btc-buf/gen/bitcoin/bitcoind/v1alpha"
 	"github.com/btcsuite/btcd/btcjson"
+	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/rpcclient"
 	recovery "github.com/grpc-ecosystem/go-grpc-middleware/recovery"
 	"github.com/rs/zerolog/log"
@@ -14,6 +15,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 )
 
 type Bitcoind struct {
@@ -59,38 +61,64 @@ func NewBitcoind(
 	return server, nil
 }
 
+// By default, the rpcclient calls are not cancelable. This adds that
+// capability (client-side, the actual calls will continue running in the
+// background).
+func withCancel[R any, M proto.Message](
+	ctx context.Context, fetch func() (R, error),
+	transform func(r R) M,
+) (M, error) {
+	ch := make(chan R)
+	errs := make(chan error)
+
+	go func() {
+		info, err := fetch()
+		if err != nil {
+			errs <- err
+		} else {
+			ch <- info
+		}
+	}()
+
+	var msg M
+	select {
+	case <-ctx.Done():
+		return msg, ctx.Err()
+	case err := <-errs:
+		return msg, err
+	case info := <-ch:
+		return transform(info), nil
+	}
+}
+
+// GetNewAddress implements bitcoind.Bitcoin
+func (b *Bitcoind) GetNewAddress(ctx context.Context, req *bitcoind.GetNewAddressRequest) (*bitcoind.GetNewAddressResponse, error) {
+	return withCancel(ctx,
+		func() (btcutil.Address, error) {
+			if req.AddressType != "" {
+				return b.rpc.GetNewAddressType(req.Label, req.AddressType)
+			}
+
+			return b.rpc.GetNewAddress(req.Label)
+		},
+		func(r btcutil.Address) *bitcoind.GetNewAddressResponse {
+			return &bitcoind.GetNewAddressResponse{Address: r.EncodeAddress()}
+		})
+}
+
 // GetBlockchainInfo implements bitcoindv22.BitcoinServer
 func (b *Bitcoind) GetBlockchainInfo(
 	ctx context.Context, req *bitcoind.GetBlockchainInfoRequest,
 ) (*bitcoind.GetBlockchainInfoResponse, error) {
-	chainInfo := make(chan *btcjson.GetBlockChainInfoResult)
-	errs := make(chan error)
-	fut := b.rpc.GetBlockChainInfoAsync()
-
-	go func() {
-		info, err := fut.Receive()
-		if err != nil {
-			errs <- err
-		} else {
-			chainInfo <- info
-		}
-	}()
-
-	select {
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	case err := <-errs:
-		return nil, err
-	case info := <-chainInfo:
-		res := bitcoind.GetBlockchainInfoResponse{
-			BestBlockHash:        info.BestBlockHash,
-			Chain:                info.Chain,
-			ChainWork:            info.ChainWork,
-			InitialBlockDownload: info.InitialBlockDownload,
-		}
-
-		return &res, nil
-	}
+	return withCancel(ctx, b.rpc.GetBlockChainInfo,
+		func(info *btcjson.GetBlockChainInfoResult) *bitcoind.GetBlockchainInfoResponse {
+			return &bitcoind.GetBlockchainInfoResponse{
+				BestBlockHash:        info.BestBlockHash,
+				Chain:                info.Chain,
+				ChainWork:            info.ChainWork,
+				InitialBlockDownload: info.InitialBlockDownload,
+			}
+		})
 }
 
 func (b *Bitcoind) Stop() {
