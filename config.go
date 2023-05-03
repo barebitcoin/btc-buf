@@ -12,7 +12,7 @@ import (
 )
 
 type config struct {
-	Listen string `long:"listen" default:"localhost:5080"`
+	Listen string `long:"listen" description:"interface:port for server" default:"localhost:5080"`
 
 	Bitcoind bitcoindConfig `group:"bitcoind" namespace:"bitcoind"`
 }
