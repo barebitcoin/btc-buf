@@ -2,7 +2,7 @@ name: buf-push
 on:
   push:
     branches:
-      - main
+      - master
 
 jobs:
   push:
