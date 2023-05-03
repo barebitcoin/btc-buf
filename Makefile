@@ -8,3 +8,6 @@ proto-format:
 
 clean: 
 	rm -rf $(BIN) gen
+	
+image: 
+	docker build -t barebitcoin/btc-buf:$(shell git rev-parse --short HEAD) .

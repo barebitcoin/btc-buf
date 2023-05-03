@@ -1,0 +1,13 @@
+.git
+.envrc
+.github
+.golangci.yml
+.idea
+.pre-commit-config.yaml
+.pretterrc
+.vscode
+Dockerfile
+Makefile
+btc-buf
+buf.*
+proto
