@@ -10,4 +10,4 @@ clean:
 	rm -rf $(BIN) gen
 	
 image: 
-	docker build -t barebitcoin/btc-buf:$(shell git rev-parse --short HEAD) .
+	docker buildx build --platform linux/amd64 -t barebitcoin/btc-buf:$(shell git rev-parse --short HEAD) .
