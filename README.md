@@ -10,6 +10,9 @@ This project was created so that I could scratch an itch I've been having for
 some time, and finally get an opportunity to play with the
 [Buf Schema Registry](https://docs.buf.build/bsr/introduction).
 
+Currently only a very small set of RPCs are implemented, and it's very much
+tailored to the needs of the author.
+
 ## Ideas
 
 - Auth. Would macaroons make sense? Could expose access to certain parts of the
