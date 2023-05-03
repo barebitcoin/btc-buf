@@ -14,6 +14,7 @@ import (
 type config struct {
 	Listen string `long:"listen" description:"interface:port for server" default:"localhost:5080"`
 
+	JsonLog  bool           `long:"logging.json" description:"log to JSON format (default human readable)"`
 	Bitcoind bitcoindConfig `group:"bitcoind" namespace:"bitcoind"`
 }
 
@@ -37,6 +38,8 @@ func readConfig() (*config, error) {
 
 		return nil, err
 	}
+
+	configureLogging(&cfg)
 
 	if cfg.Bitcoind.Pass == "" && cfg.Bitcoind.User == "" {
 		log.Debug().
