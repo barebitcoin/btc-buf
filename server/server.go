@@ -29,6 +29,35 @@ type Bitcoind struct {
 	health *health.Server
 }
 
+func newRpcClient(ctx context.Context, conf *rpcclient.ConnConfig) (*rpcclient.Client, error) {
+	var client *rpcclient.Client
+	errs := make(chan error)
+	done := make(chan struct{})
+
+	go func() {
+		c, err := rpcclient.New(conf, nil)
+		if err != nil {
+			errs <- err
+			return
+		}
+		client = c
+		close(done)
+	}()
+
+	go func() {
+		<-ctx.Done()
+		errs <- fmt.Errorf("could not create new RPC client: %w", ctx.Err())
+	}()
+
+	select {
+	case err := <-errs:
+		return nil, err
+	case <-done:
+	}
+
+	return client, nil
+}
+
 func NewBitcoind(
 	ctx context.Context, host, user, pass string,
 ) (*Bitcoind, error) {
@@ -45,9 +74,9 @@ func NewBitcoind(
 		Host:         host,
 	}
 
-	client, err := rpcclient.New(&conf, nil)
+	client, err := newRpcClient(ctx, &conf)
 	if err != nil {
-		return nil, fmt.Errorf("could not create RPC client: %w", err)
+		return nil, err
 	}
 
 	server := &Bitcoind{

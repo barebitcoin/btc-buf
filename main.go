@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/signal"
 	"runtime/debug"
+	"time"
 
 	"github.com/barebitcoin/btc-buf/server"
 	"github.com/rs/zerolog/log"
@@ -25,8 +26,11 @@ func realMain(cfg *config) error {
 		cancel()
 	}()
 
+	clientCtx, clientCancel := context.WithTimeout(ctx, time.Second*10)
+	defer clientCancel()
+
 	bitcoind, err := server.NewBitcoind(
-		ctx, cfg.Bitcoind.Host, cfg.Bitcoind.User, cfg.Bitcoind.Pass,
+		clientCtx, cfg.Bitcoind.Host, cfg.Bitcoind.User, cfg.Bitcoind.Pass,
 	)
 	if err != nil {
 		return err
