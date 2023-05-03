@@ -79,6 +79,8 @@ func NewBitcoind(
 		return nil, err
 	}
 
+	log.Debug().Msg("created RPC client")
+
 	server := &Bitcoind{
 		rpc:    client,
 		health: health.NewServer(),
@@ -89,7 +91,7 @@ func NewBitcoind(
 		ctx, &bitcoind.GetBlockchainInfoRequest{},
 	)
 	if err != nil {
-		return nil, fmt.Errorf("could not connect to bitcoind: %w", err)
+		return nil, fmt.Errorf("could not get initial blockchain info: %w", err)
 	}
 
 	log.Debug().
