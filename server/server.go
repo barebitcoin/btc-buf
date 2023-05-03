@@ -5,15 +5,19 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"time"
 
 	bitcoind "github.com/barebitcoin/btc-buf/gen/bitcoin/bitcoind/v1alpha"
 	"github.com/btcsuite/btcd/btcjson"
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/rpcclient"
 	recovery "github.com/grpc-ecosystem/go-grpc-middleware/recovery"
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/health"
+	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
@@ -22,6 +26,7 @@ import (
 type Bitcoind struct {
 	rpc    *rpcclient.Client
 	server *grpc.Server
+	health *health.Server
 }
 
 func NewBitcoind(
@@ -45,7 +50,10 @@ func NewBitcoind(
 		return nil, fmt.Errorf("could not create RPC client: %w", err)
 	}
 
-	server := &Bitcoind{rpc: client}
+	server := &Bitcoind{
+		rpc:    client,
+		health: health.NewServer(),
+	}
 
 	// Do a request, to verify we can reach Bitcoin Core
 	info, err := server.GetBlockchainInfo(
@@ -129,7 +137,51 @@ func (b *Bitcoind) Stop() {
 	}
 
 	log.Info().Msg("gRPC: stopping server")
+	b.health.Shutdown()
 	b.server.Stop()
+}
+
+func (b *Bitcoind) RunHealthChecks(ctx context.Context) error {
+	log := zerolog.Ctx(ctx)
+	log.Info().Msg("health check: starting")
+
+	ticker := time.NewTicker(time.Second * 5)
+	defer ticker.Stop()
+
+	// Do an initial check before the first tick.
+	b.fetchHealthCheck(ctx)
+
+	for {
+		select {
+		case <-ctx.Done():
+			log.Debug().Msg("stopping health checks")
+			return nil
+
+		case <-ticker.C:
+			b.fetchHealthCheck(ctx)
+		}
+	}
+}
+
+func (b *Bitcoind) fetchHealthCheck(ctx context.Context) {
+	ctx, cancel := context.WithTimeout(ctx, time.Second*3)
+	defer cancel()
+
+	// service := bitcoind.BitcoinService_ServiceDesc.ServiceName
+	service := ""
+
+	log := zerolog.Ctx(ctx)
+	start := time.Now()
+	_, err := b.GetBlockchainInfo(ctx, &bitcoind.GetBlockchainInfoRequest{})
+	if err != nil {
+		b.health.SetServingStatus(service, grpc_health_v1.HealthCheckResponse_NOT_SERVING)
+		log.Err(err).Msg("health check: could not fetch blockchain info")
+		return
+
+	}
+
+	b.health.SetServingStatus(service, grpc_health_v1.HealthCheckResponse_SERVING)
+	log.Trace().Msgf("health check: fetched blockchain info, took %s", time.Since(start))
 }
 
 func (b *Bitcoind) Listen(ctx context.Context, address string) error {
@@ -151,6 +203,7 @@ func (b *Bitcoind) Listen(ctx context.Context, address string) error {
 	reflection.Register(b.server)
 
 	bitcoind.RegisterBitcoinServiceServer(b.server, b)
+	grpc_health_v1.RegisterHealthServer(b.server, b.health)
 
 	errChan := make(chan error, 1)
 

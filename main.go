@@ -32,9 +32,13 @@ func realMain(cfg *config) error {
 		return err
 	}
 
+	errs := make(chan error)
+	go func() { errs <- bitcoind.RunHealthChecks(ctx) }()
+	go func() { errs <- bitcoind.Listen(ctx, cfg.Listen) }()
+
 	defer bitcoind.Stop()
 
-	return bitcoind.Listen(ctx, cfg.Listen)
+	return <-errs
 }
 
 func main() {
