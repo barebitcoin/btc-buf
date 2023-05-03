@@ -19,11 +19,12 @@ type config struct {
 }
 
 type bitcoindConfig struct {
-	User    string `long:"user"`
-	Pass    string `long:"pass"`
-	Host    string `long:"host" description:"host:port to connect to Bitcoin Core on. Inferred from network if not set."`
-	Cookie  bool   `long:"cookie" description:"Read cookie data from the data directory. Not compatible with user and pass options. "`
-	Network string `long:"network" default:"regtest" description:"Network Bitcoin Core is running on. Only used to infer other parameters if not set."`
+	User     string `long:"user"`
+	Pass     string `long:"pass"`
+	PassFile string `long:"passfile" description:"if set, reads password from this file"`
+	Host     string `long:"host" description:"host:port to connect to Bitcoin Core on. Inferred from network if not set."`
+	Cookie   bool   `long:"cookie" description:"Read cookie data from the data directory. Not compatible with user and pass options. "`
+	Network  string `long:"network" default:"regtest" description:"Network Bitcoin Core is running on. Only used to infer other parameters if not set."`
 }
 
 func readConfig() (*config, error) {
@@ -40,6 +41,18 @@ func readConfig() (*config, error) {
 	}
 
 	configureLogging(&cfg)
+
+	if cfg.Bitcoind.Pass != "" && cfg.Bitcoind.PassFile != "" {
+		return nil, errors.New("cannot set both pass and passfile")
+	}
+
+	if cfg.Bitcoind.PassFile != "" {
+		pass, err := os.ReadFile(cfg.Bitcoind.PassFile)
+		if err != nil {
+			return nil, fmt.Errorf("read passfile: %w", err)
+		}
+		cfg.Bitcoind.Pass = strings.TrimSpace(string(pass))
+	}
 
 	if cfg.Bitcoind.Pass == "" && cfg.Bitcoind.User == "" {
 		log.Debug().
