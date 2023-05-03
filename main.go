@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/signal"
 	"runtime/debug"
@@ -33,7 +34,7 @@ func realMain(cfg *config) error {
 		clientCtx, cfg.Bitcoind.Host, cfg.Bitcoind.User, cfg.Bitcoind.Pass,
 	)
 	if err != nil {
-		return err
+		return fmt.Errorf("new server: %w", err)
 	}
 
 	errs := make(chan error)

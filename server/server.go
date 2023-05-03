@@ -90,7 +90,11 @@ func NewBitcoind(
 	info, err := server.GetBlockchainInfo(
 		ctx, &bitcoind.GetBlockchainInfoRequest{},
 	)
-	if err != nil {
+	switch {
+	case status.Code(err) == codes.PermissionDenied:
+		return nil, errors.New("invalid RPC client credentials")
+
+	case err != nil:
 		return nil, fmt.Errorf("could not get initial blockchain info: %w", err)
 	}
 
@@ -108,19 +112,25 @@ func withCancel[R any, M proto.Message](
 	ctx context.Context, fetch func() (R, error),
 	transform func(r R) M,
 ) (M, error) {
+	var msg M
+
 	ch := make(chan R)
 	errs := make(chan error)
 
 	go func() {
 		info, err := fetch()
-		if err != nil {
+		switch {
+		case err != nil && err.Error() == `status code: 401, response: ""`:
+			errs <- status.Error(codes.PermissionDenied, "permission denied")
+
+		case err != nil:
 			errs <- err
-		} else {
+
+		default:
 			ch <- info
 		}
 	}()
 
-	var msg M
 	select {
 	case <-ctx.Done():
 		return msg, ctx.Err()
