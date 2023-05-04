@@ -13,6 +13,44 @@ some time, and finally get an opportunity to play with the
 Currently only a very small set of RPCs are implemented, and it's very much
 tailored to the needs of the author.
 
+## Installing
+
+Build from source. If you don't know how to do that, you probably shouldn't use
+this.
+
+Also available as a Docker image:  
+[`barebitcoin/btc-buf`](https://hub.docker.com/repository/docker/barebitcoin/btc-buf/general).
+
+## Running
+
+```bash
+$ btc-buf -h
+Usage:
+  btc-buf [OPTIONS]
+
+Application Options:
+      --listen=            interface:port for server (default: localhost:5080)
+      --logging.json       log to JSON format (default human readable)
+
+bitcoind:
+      --bitcoind.user=
+      --bitcoind.pass=
+      --bitcoind.passfile= if set, reads password from this file
+      --bitcoind.host=     host:port to connect to Bitcoin Core on. Inferred from network if not set.
+      --bitcoind.cookie    Read cookie data from the data directory. Not compatible with user and pass options.
+      --bitcoind.network=  Network Bitcoin Core is running on. Only used to infer other parameters if not set. (default: regtest)
+```
+
+## Consuming
+
+The API is available on the
+[Buf Schema Registry](https://buf.build/bitcoin/bitcoind/assets/main).
+
+```bash
+# ENDPOINT should be set to the place where you're running this.
+$ buf curl --protocol grpc --schema buf.build/bitcoin/bitcoind $ENDPOINT/bitcoin.bitcoind.v1alpha.BitcoinService/GetBlockchainInfo
+```
+
 ## Ideas
 
 - Auth. Would macaroons make sense? Could expose access to certain parts of the
