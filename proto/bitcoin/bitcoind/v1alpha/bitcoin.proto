@@ -4,6 +4,8 @@ package bitcoin.bitcoind.v1alpha;
 
 import "google/protobuf/timestamp.proto";
 
+option go_package = "github.com/barebitcoin/btc-buf";
+
 service BitcoinService {
   rpc GetBlockchainInfo(GetBlockchainInfoRequest) returns (GetBlockchainInfoResponse);
 
