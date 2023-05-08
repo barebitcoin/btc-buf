@@ -2,8 +2,13 @@ syntax = "proto3";
 
 package bitcoin.bitcoind.v1alpha;
 
+import "google/protobuf/timestamp.proto";
+
 service BitcoinService {
   rpc GetBlockchainInfo(GetBlockchainInfoRequest) returns (GetBlockchainInfoResponse);
+
+  // Fetches in-wallet transactions
+  rpc GetTransaction(GetTransactionRequest) returns (GetTransactionResponse);
 
   // Wallet stuff
   rpc GetNewAddress(GetNewAddressRequest) returns (GetNewAddressResponse);
@@ -55,4 +60,58 @@ message GetWalletInfoResponse {
 message WalletScan {
   int64 duration = 1;
   double progress = 2;
+}
+
+message GetTransactionRequest {
+  string txid = 1;
+  bool include_watchonly = 2;
+  bool verbose = 3;
+}
+
+// Commented fields are not present in btcd/rpcclient
+message GetTransactionResponse {
+  double amount = 1;
+  double fee = 2;
+  int64 confirmations = 3;
+  // bool generated = 4;
+  // bool trusted = 5;
+  string block_hash = 6;
+  // string block_height = 7;
+  int64 block_index = 8;
+  google.protobuf.Timestamp block_time = 9;
+  string txid = 10;
+  // string witness_txid = 11;
+  repeated string wallet_conflicts = 12;
+  // string replaced_by_txid = 13;
+  // string replaces_txid = 14;
+  // string comment = 15;
+  // string to = 16;
+  google.protobuf.Timestamp time = 17;
+  google.protobuf.Timestamp time_received = 18;
+  // string bip125_replaceable = 19;
+  // repeated string parent_descriptors = 20;
+
+  enum Category {
+    CATEGORY_UNSPECIFIED = 0;
+    CATEGORY_SEND = 1;
+    CATEGORY_RECEIVE = 2;
+    CATEGORY_GENERATE = 3;
+    CATEGORY_IMMATURE = 4;
+    CATEGORY_ORPHAN = 5;
+  }
+
+  message Details {
+    bool involves_watch_only = 1;
+    string address = 2;
+    // TODO: enum - send, receive, generate, immature, orphan
+    Category category = 3;
+    double amount = 4;
+    // string label = 5;
+    uint32 vout = 6;
+    double fee = 7;
+    // bool abandoned = 8;
+    // repeated string parent_descriptors = 9;
+  }
+
+  repeated Details details = 21;
 }

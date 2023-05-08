@@ -11,6 +11,7 @@ import (
 	bitcoind "github.com/barebitcoin/btc-buf/gen/bitcoin/bitcoind/v1alpha"
 	"github.com/btcsuite/btcd/btcjson"
 	"github.com/btcsuite/btcd/btcutil"
+	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/rpcclient"
 	recovery "github.com/grpc-ecosystem/go-grpc-middleware/recovery"
 	"github.com/rs/zerolog"
@@ -22,6 +23,7 @@ import (
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type Bitcoind struct {
@@ -236,6 +238,73 @@ func (b *Bitcoind) GetWalletInfo(
 				Scanning:              scanning,
 				Descriptors:           info.Descriptors,
 				ExternalSigner:        info.ExternalSigner,
+			}
+		},
+	)
+}
+
+// GetTransaction implements bitcoindv1alpha.BitcoinServiceServer
+func (b *Bitcoind) GetTransaction(ctx context.Context, c *bitcoind.GetTransactionRequest) (*bitcoind.GetTransactionResponse, error) {
+	if c.Txid == "" {
+		return nil, status.Error(codes.InvalidArgument, `"txid" is a required argument`)
+	}
+
+	hash, err := chainhash.NewHashFromStr(c.Txid)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, "invalid txid")
+	}
+
+	return withCancel(ctx,
+		func() (*btcjson.GetTransactionResult, error) {
+			return b.rpc.GetTransactionWatchOnly(hash, c.IncludeWatchonly)
+		},
+
+		func(res *btcjson.GetTransactionResult) *bitcoind.GetTransactionResponse {
+			var details []*bitcoind.GetTransactionResponse_Details
+			for _, d := range res.Details {
+				category := func(in string) bitcoind.GetTransactionResponse_Category {
+					switch in {
+					case "send":
+						return bitcoind.GetTransactionResponse_CATEGORY_SEND
+					case "receive":
+						return bitcoind.GetTransactionResponse_CATEGORY_RECEIVE
+					case "generate":
+						return bitcoind.GetTransactionResponse_CATEGORY_GENERATE
+					case "immature":
+						return bitcoind.GetTransactionResponse_CATEGORY_IMMATURE
+					case "orphan":
+						return bitcoind.GetTransactionResponse_CATEGORY_ORPHAN
+					default:
+						return 0
+					}
+				}
+				detail := &bitcoind.GetTransactionResponse_Details{
+					InvolvesWatchOnly: d.InvolvesWatchOnly,
+					Address:           d.Address,
+					Category:          category(d.Category),
+					Amount:            d.Amount,
+					Vout:              d.Vout,
+				}
+
+				if d.Fee != nil {
+					detail.Fee = *d.Fee
+				}
+
+				details = append(details, detail)
+			}
+
+			return &bitcoind.GetTransactionResponse{
+				Amount:          res.Amount,
+				Fee:             res.Fee,
+				Confirmations:   res.Confirmations,
+				BlockHash:       res.BlockHash,
+				BlockIndex:      res.BlockIndex,
+				BlockTime:       timestamppb.New(time.Unix(res.BlockTime, 0)),
+				Txid:            res.TxID,
+				WalletConflicts: res.WalletConflicts,
+				Time:            timestamppb.New(time.Unix(res.Time, 0)),
+				TimeReceived:    timestamppb.New(time.Unix(res.TimeReceived, 0)),
+				Details:         details,
 			}
 		},
 	)

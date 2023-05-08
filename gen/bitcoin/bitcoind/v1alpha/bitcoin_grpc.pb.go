@@ -19,6 +19,8 @@ const _ = grpc.SupportPackageIsVersion7
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type BitcoinServiceClient interface {
 	GetBlockchainInfo(ctx context.Context, in *GetBlockchainInfoRequest, opts ...grpc.CallOption) (*GetBlockchainInfoResponse, error)
+	// Fetches in-wallet transactions
+	GetTransaction(ctx context.Context, in *GetTransactionRequest, opts ...grpc.CallOption) (*GetTransactionResponse, error)
 	// Wallet stuff
 	GetNewAddress(ctx context.Context, in *GetNewAddressRequest, opts ...grpc.CallOption) (*GetNewAddressResponse, error)
 	GetWalletInfo(ctx context.Context, in *GetWalletInfoRequest, opts ...grpc.CallOption) (*GetWalletInfoResponse, error)
@@ -35,6 +37,15 @@ func NewBitcoinServiceClient(cc grpc.ClientConnInterface) BitcoinServiceClient {
 func (c *bitcoinServiceClient) GetBlockchainInfo(ctx context.Context, in *GetBlockchainInfoRequest, opts ...grpc.CallOption) (*GetBlockchainInfoResponse, error) {
 	out := new(GetBlockchainInfoResponse)
 	err := c.cc.Invoke(ctx, "/bitcoin.bitcoind.v1alpha.BitcoinService/GetBlockchainInfo", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *bitcoinServiceClient) GetTransaction(ctx context.Context, in *GetTransactionRequest, opts ...grpc.CallOption) (*GetTransactionResponse, error) {
+	out := new(GetTransactionResponse)
+	err := c.cc.Invoke(ctx, "/bitcoin.bitcoind.v1alpha.BitcoinService/GetTransaction", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -64,6 +75,8 @@ func (c *bitcoinServiceClient) GetWalletInfo(ctx context.Context, in *GetWalletI
 // for forward compatibility
 type BitcoinServiceServer interface {
 	GetBlockchainInfo(context.Context, *GetBlockchainInfoRequest) (*GetBlockchainInfoResponse, error)
+	// Fetches in-wallet transactions
+	GetTransaction(context.Context, *GetTransactionRequest) (*GetTransactionResponse, error)
 	// Wallet stuff
 	GetNewAddress(context.Context, *GetNewAddressRequest) (*GetNewAddressResponse, error)
 	GetWalletInfo(context.Context, *GetWalletInfoRequest) (*GetWalletInfoResponse, error)
@@ -75,6 +88,9 @@ type UnimplementedBitcoinServiceServer struct {
 
 func (UnimplementedBitcoinServiceServer) GetBlockchainInfo(context.Context, *GetBlockchainInfoRequest) (*GetBlockchainInfoResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetBlockchainInfo not implemented")
+}
+func (UnimplementedBitcoinServiceServer) GetTransaction(context.Context, *GetTransactionRequest) (*GetTransactionResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetTransaction not implemented")
 }
 func (UnimplementedBitcoinServiceServer) GetNewAddress(context.Context, *GetNewAddressRequest) (*GetNewAddressResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetNewAddress not implemented")
@@ -108,6 +124,24 @@ func _BitcoinService_GetBlockchainInfo_Handler(srv interface{}, ctx context.Cont
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(BitcoinServiceServer).GetBlockchainInfo(ctx, req.(*GetBlockchainInfoRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _BitcoinService_GetTransaction_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetTransactionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BitcoinServiceServer).GetTransaction(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/bitcoin.bitcoind.v1alpha.BitcoinService/GetTransaction",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BitcoinServiceServer).GetTransaction(ctx, req.(*GetTransactionRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -158,6 +192,10 @@ var BitcoinService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetBlockchainInfo",
 			Handler:    _BitcoinService_GetBlockchainInfo_Handler,
+		},
+		{
+			MethodName: "GetTransaction",
+			Handler:    _BitcoinService_GetTransaction_Handler,
 		},
 		{
 			MethodName: "GetNewAddress",
