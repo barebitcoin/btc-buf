@@ -15,6 +15,7 @@ type config struct {
 	Listen string `long:"listen" description:"interface:port for server" default:"localhost:5080"`
 
 	JsonLog  bool           `long:"logging.json" description:"log to JSON format (default human readable)"`
+	LogLevel string         `long:"logging.level" description:"log level" default:"debug"`
 	Bitcoind bitcoindConfig `group:"bitcoind" namespace:"bitcoind"`
 }
 
@@ -40,7 +41,9 @@ func readConfig() (*config, error) {
 		return nil, err
 	}
 
-	configureLogging(&cfg)
+	if err := configureLogging(&cfg); err != nil {
+		return nil, err
+	}
 
 	if cfg.Bitcoind.Pass != "" && cfg.Bitcoind.PassFile != "" {
 		return nil, errors.New("cannot set both pass and passfile")
