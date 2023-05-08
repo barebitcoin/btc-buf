@@ -26,7 +26,7 @@ type bitcoindConfig struct {
 	Host     string `long:"host" description:"host:port to connect to Bitcoin Core on. Inferred from network if not set."`
 	Cookie   bool   `long:"cookie" description:"Read cookie data from the data directory. Not compatible with user and pass options. "`
 	Network  string `long:"network" default:"regtest" description:"Network Bitcoin Core is running on. Only used to infer other parameters if not set."`
-	Wallet   string `long:"wallet" default:"equivalent to -rpcwallet in bitcoin-cli"`
+	Wallet   string `long:"wallet" description:"equivalent to -rpcwallet in bitcoin-cli"`
 }
 
 func readConfig() (*config, error) {
