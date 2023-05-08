@@ -11,3 +11,6 @@ clean:
 	
 image: 
 	docker buildx build --platform linux/amd64 -t barebitcoin/btc-buf:$(shell git rev-parse --short HEAD) .
+	
+image-push: image
+	docker push barebitcoin/btc-buf:$(shell git rev-parse --short HEAD) 
