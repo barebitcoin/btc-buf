@@ -26,6 +26,7 @@ type bitcoindConfig struct {
 	Host     string `long:"host" description:"host:port to connect to Bitcoin Core on. Inferred from network if not set."`
 	Cookie   bool   `long:"cookie" description:"Read cookie data from the data directory. Not compatible with user and pass options. "`
 	Network  string `long:"network" default:"regtest" description:"Network Bitcoin Core is running on. Only used to infer other parameters if not set."`
+	Wallet   string `long:"wallet" default:"equivalent to -rpcwallet in bitcoin-cli"`
 }
 
 func readConfig() (*config, error) {
@@ -106,6 +107,13 @@ func readConfig() (*config, error) {
 			Msg("config: empty bitcoind.host, inferring from network")
 
 		cfg.Bitcoind.Host = net.defaultRpcHost
+	}
+
+	if cfg.Bitcoind.Wallet != "" {
+		cfg.Bitcoind.Host = fmt.Sprintf(
+			"%s/wallet/%s",
+			cfg.Bitcoind.Host, cfg.Bitcoind.Wallet,
+		)
 	}
 
 	return &cfg, nil

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"strings"
 	"time"
 
 	bitcoind "github.com/barebitcoin/btc-buf/gen/bitcoin/bitcoind/v1alpha"
@@ -102,7 +103,45 @@ func NewBitcoind(
 		Stringer("info", info).
 		Msg("got bitcoind info")
 
+	// Means a specific wallet was specified in the config. Verify
+	// that it exists and is loaded.
+	if strings.Contains(host, "/wallet") {
+		_, wallet, _ := strings.Cut(host, "/wallet/")
+		log.Debug().
+			Str("host", host).
+			Str("wallet", wallet).
+			Msg("bitcoind host contains wallet, verifying wallet exists")
+
+		_, err := server.GetWalletInfo(ctx, &bitcoind.GetWalletInfoRequest{})
+		switch {
+		// Great stuff, wallet exists
+		case err == nil:
+
+		case bitcoindErrorCode(err) == btcjson.ErrRPCWalletNotFound:
+			log.Debug().Err(err).Msg("could not get wallet, trying loading")
+
+			if _, err := server.rpc.LoadWallet(wallet); err == nil {
+				log.Info().Msgf("loaded wallet: %s", wallet)
+				break
+			}
+
+			return nil, fmt.Errorf("wallet %q does not exist or is not loaded", wallet)
+
+		default:
+			return nil, fmt.Errorf("get wallet info: %w", err)
+		}
+	}
+
 	return server, nil
+}
+
+func bitcoindErrorCode(err error) btcjson.RPCErrorCode {
+	rpcErr := new(btcjson.RPCError)
+	if !errors.As(err, &rpcErr) {
+		return 0
+	}
+
+	return rpcErr.Code
 }
 
 // By default, the rpcclient calls are not cancelable. This adds that
@@ -169,6 +208,37 @@ func (b *Bitcoind) GetBlockchainInfo(
 				InitialBlockDownload: info.InitialBlockDownload,
 			}
 		})
+}
+
+// GetWalletInfo implements bitcoindv1alpha.BitcoinServiceServer
+func (b *Bitcoind) GetWalletInfo(
+	ctx context.Context, req *bitcoind.GetWalletInfoRequest,
+) (*bitcoind.GetWalletInfoResponse, error) {
+	return withCancel(ctx, b.rpc.GetWalletInfo,
+		func(info *btcjson.GetWalletInfoResult) *bitcoind.GetWalletInfoResponse {
+			var scanning *bitcoind.WalletScan
+			if info, ok := info.Scanning.Value.(btcjson.ScanProgress); ok {
+				scanning = &bitcoind.WalletScan{
+					Duration: int64(info.Duration),
+					Progress: info.Progress,
+				}
+			}
+			return &bitcoind.GetWalletInfoResponse{
+				WalletName:            info.WalletName,
+				WalletVersion:         int64(info.WalletVersion),
+				Format:                info.Format,
+				TxCount:               int64(info.TransactionCount),
+				KeyPoolSize:           int64(info.KeyPoolSize),
+				KeyPoolSizeHdInternal: int64(*info.KeyPoolSizeHDInternal),
+				PayTxFee:              info.PayTransactionFee,
+				PrivateKeysEnabled:    info.PrivateKeysEnabled,
+				AvoidReuse:            info.AvoidReuse,
+				Scanning:              scanning,
+				Descriptors:           info.Descriptors,
+				ExternalSigner:        info.ExternalSigner,
+			}
+		},
+	)
 }
 
 func (b *Bitcoind) Stop() {
@@ -289,8 +359,7 @@ func handleBtcJsonErrors(ctx context.Context, req interface{}, info *grpc.UnaryS
 
 	switch rpcErr.Code {
 	case btcjson.ErrRPCWalletNotSpecified:
-		// Actually don't think this is supported in rpcclient...
-		err = status.Error(codes.Unimplemented, "support for multiple wallets not yet supported")
+		err = status.Error(codes.FailedPrecondition, "btc-buf must be started with the --bitcoind.wallet flag")
 
 	case btcjson.ErrRPCWalletNotFound:
 		err = status.Error(codes.FailedPrecondition, rpcErr.Message)

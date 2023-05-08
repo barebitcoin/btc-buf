@@ -5,7 +5,9 @@ package bitcoin.bitcoind.v1alpha;
 service BitcoinService {
   rpc GetBlockchainInfo(GetBlockchainInfoRequest) returns (GetBlockchainInfoResponse);
 
+  // Wallet stuff
   rpc GetNewAddress(GetNewAddressRequest) returns (GetNewAddressResponse);
+  rpc GetWalletInfo(GetWalletInfoRequest) returns (GetWalletInfoResponse);
 }
 
 message GetBlockchainInfoRequest {}
@@ -23,4 +25,34 @@ message GetNewAddressRequest {
 
 message GetNewAddressResponse {
   string address = 1;
+}
+
+message GetWalletInfoRequest {}
+
+message GetWalletInfoResponse {
+  string wallet_name = 1;
+  int64 wallet_version = 2;
+  string format = 3;
+
+  // The following fields are left out, as they are deprecated.
+  // double balance = 4;
+  // double unconfirmed_balance = 5;
+  // double immature_balance = 6;
+
+  int64 tx_count = 7;
+  int64 key_pool_size = 8;
+  int64 key_pool_size_hd_internal = 9;
+  double pay_tx_fee = 10;
+  bool private_keys_enabled = 11;
+  bool avoid_reuse = 12;
+
+  // Not set if no scan is in progress.
+  WalletScan scanning = 13;
+  bool descriptors = 14;
+  bool external_signer = 15;
+}
+
+message WalletScan {
+  int64 duration = 1;
+  double progress = 2;
 }
