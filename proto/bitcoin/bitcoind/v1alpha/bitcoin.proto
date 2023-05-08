@@ -72,12 +72,12 @@ message GetTransactionRequest {
 message GetTransactionResponse {
   double amount = 1;
   double fee = 2;
-  int64 confirmations = 3;
+  uint32 confirmations = 3;
   // bool generated = 4;
   // bool trusted = 5;
   string block_hash = 6;
   // string block_height = 7;
-  int64 block_index = 8;
+  uint32 block_index = 8;
   google.protobuf.Timestamp block_time = 9;
   string txid = 10;
   // string witness_txid = 11;

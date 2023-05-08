@@ -296,9 +296,9 @@ func (b *Bitcoind) GetTransaction(ctx context.Context, c *bitcoind.GetTransactio
 			return &bitcoind.GetTransactionResponse{
 				Amount:          res.Amount,
 				Fee:             res.Fee,
-				Confirmations:   res.Confirmations,
+				Confirmations:   uint32(res.Confirmations),
 				BlockHash:       res.BlockHash,
-				BlockIndex:      res.BlockIndex,
+				BlockIndex:      uint32(res.BlockIndex),
 				BlockTime:       timestamppb.New(time.Unix(res.BlockTime, 0)),
 				Txid:            res.TxID,
 				WalletConflicts: res.WalletConflicts,
