@@ -449,6 +449,9 @@ func handleBtcJsonErrors(ctx context.Context, req interface{}, info *grpc.UnaryS
 	case btcjson.ErrRPCWalletNotFound:
 		err = status.Error(codes.FailedPrecondition, rpcErr.Message)
 
+	case btcjson.ErrRPCInvalidAddressOrKey:
+		err = status.Error(codes.NotFound, rpcErr.Message)
+
 	default:
 		log.Warn().Msgf("unknown btcjson error: %s", rpcErr)
 	}
