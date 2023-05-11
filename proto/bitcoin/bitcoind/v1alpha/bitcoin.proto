@@ -26,13 +26,21 @@ message GetBlockchainInfoResponse {
 message GetNewAddressRequest {
   string label = 1;
   string address_type = 2;
+
+  // Only needs to be set if dealing with multiple wallets at the same time.
+  // TODO: better suited as a header?
+  string wallet = 3;
 }
 
 message GetNewAddressResponse {
   string address = 1;
 }
 
-message GetWalletInfoRequest {}
+message GetWalletInfoRequest {
+  // Only needs to be set if dealing with multiple wallets at the same time.
+  // TODO: better suited as a header?
+  string wallet = 1;
+}
 
 message GetWalletInfoResponse {
   string wallet_name = 1;
@@ -66,6 +74,7 @@ message GetTransactionRequest {
   string txid = 1;
   bool include_watchonly = 2;
   bool verbose = 3;
+  string wallet = 4;
 }
 
 // Commented fields are not present in btcd/rpcclient

@@ -27,38 +27,10 @@ import (
 )
 
 type Bitcoind struct {
+	conf   rpcclient.ConnConfig
 	rpc    *rpcclient.Client
 	server *grpc.Server
 	health *health.Server
-}
-
-func newRpcClient(ctx context.Context, conf *rpcclient.ConnConfig) (*rpcclient.Client, error) {
-	var client *rpcclient.Client
-	errs := make(chan error)
-	done := make(chan struct{})
-
-	go func() {
-		c, err := rpcclient.New(conf, nil)
-		if err != nil {
-			errs <- err
-			return
-		}
-		client = c
-		close(done)
-	}()
-
-	go func() {
-		<-ctx.Done()
-		errs <- fmt.Errorf("could not create new RPC client: %w", ctx.Err())
-	}()
-
-	select {
-	case err := <-errs:
-		return nil, err
-	case <-done:
-	}
-
-	return client, nil
 }
 
 func NewBitcoind(
@@ -77,7 +49,7 @@ func NewBitcoind(
 		Host:         host,
 	}
 
-	client, err := newRpcClient(ctx, &conf)
+	client, err := rpcclient.New(&conf, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -85,6 +57,7 @@ func NewBitcoind(
 	log.Debug().Msg("created RPC client")
 
 	server := &Bitcoind{
+		conf:   conf,
 		rpc:    client,
 		health: health.NewServer(),
 	}
@@ -182,15 +155,41 @@ func withCancel[R any, M proto.Message](
 	}
 }
 
+func (b *Bitcoind) rpcForWallet(ctx context.Context, wallet string) (*rpcclient.Client, error) {
+	if wallet == "" {
+		return b.rpc, nil
+	}
+
+	conf := b.conf // make sure to not copy the original conf
+	hostWithoutWallet, _, _ := strings.Cut(conf.Host, "/wallet")
+	conf.Host = fmt.Sprintf("%s/wallet/%s", hostWithoutWallet, wallet)
+
+	zerolog.Ctx(ctx).Debug().
+		Str("wallet", wallet).
+		Msg("making wallet-specific call")
+
+	rpc, err := rpcclient.New(&conf, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return rpc, nil
+}
+
 // GetNewAddress implements bitcoind.Bitcoin
 func (b *Bitcoind) GetNewAddress(ctx context.Context, req *bitcoind.GetNewAddressRequest) (*bitcoind.GetNewAddressResponse, error) {
+	rpc, err := b.rpcForWallet(ctx, req.Wallet)
+	if err != nil {
+		return nil, err
+	}
+
 	return withCancel(ctx,
 		func() (btcutil.Address, error) {
 			if req.AddressType != "" {
-				return b.rpc.GetNewAddressType(req.Label, req.AddressType)
+				return rpc.GetNewAddressType(req.Label, req.AddressType)
 			}
 
-			return b.rpc.GetNewAddress(req.Label)
+			return rpc.GetNewAddress(req.Label)
 		},
 		func(r btcutil.Address) *bitcoind.GetNewAddressResponse {
 			return &bitcoind.GetNewAddressResponse{Address: r.EncodeAddress()}
@@ -216,7 +215,12 @@ func (b *Bitcoind) GetBlockchainInfo(
 func (b *Bitcoind) GetWalletInfo(
 	ctx context.Context, req *bitcoind.GetWalletInfoRequest,
 ) (*bitcoind.GetWalletInfoResponse, error) {
-	return withCancel(ctx, b.rpc.GetWalletInfo,
+	rpc, err := b.rpcForWallet(ctx, req.Wallet)
+	if err != nil {
+		return nil, err
+	}
+
+	return withCancel(ctx, rpc.GetWalletInfo,
 		func(info *btcjson.GetWalletInfoResult) *bitcoind.GetWalletInfoResponse {
 			var scanning *bitcoind.WalletScan
 			if info, ok := info.Scanning.Value.(btcjson.ScanProgress); ok {
@@ -254,9 +258,14 @@ func (b *Bitcoind) GetTransaction(ctx context.Context, c *bitcoind.GetTransactio
 		return nil, status.Error(codes.InvalidArgument, "invalid txid")
 	}
 
+	rpc, err := b.rpcForWallet(ctx, c.Wallet)
+	if err != nil {
+		return nil, err
+	}
+
 	return withCancel(ctx,
 		func() (*btcjson.GetTransactionResult, error) {
-			return b.rpc.GetTransactionWatchOnly(hash, c.IncludeWatchonly)
+			return rpc.GetTransactionWatchOnly(hash, c.IncludeWatchonly)
 		},
 
 		func(res *btcjson.GetTransactionResult) *bitcoind.GetTransactionResponse {
@@ -428,7 +437,14 @@ func handleBtcJsonErrors(ctx context.Context, req interface{}, info *grpc.UnaryS
 
 	switch rpcErr.Code {
 	case btcjson.ErrRPCWalletNotSpecified:
-		err = status.Error(codes.FailedPrecondition, "btc-buf must be started with the --bitcoind.wallet flag")
+
+		// All wallet RPC requests should have a `wallet` string field.
+		type hasWalletParam (interface{ GetWallet() string })
+		msg := "btc-buf must be started with the --bitcoind.wallet flag"
+		if _, ok := req.(hasWalletParam); ok {
+			msg = `wallet must be specified either through the "wallet" parameter or the --bitcoind.wallet flag`
+		}
+		err = status.Error(codes.FailedPrecondition, msg)
 
 	case btcjson.ErrRPCWalletNotFound:
 		err = status.Error(codes.FailedPrecondition, rpcErr.Message)
