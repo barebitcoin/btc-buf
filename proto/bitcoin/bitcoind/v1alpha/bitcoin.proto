@@ -81,7 +81,11 @@ message GetTransactionRequest {
 message GetTransactionResponse {
   double amount = 1;
   double fee = 2;
-  uint32 confirmations = 3;
+
+  // The number of confirmations for the transaction. Negative
+  // confirmations means the transaction conflicted that many
+  // blocks ago.
+  int32 confirmations = 3;
   // bool generated = 4;
   // bool trusted = 5;
   string block_hash = 6;

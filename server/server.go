@@ -314,14 +314,18 @@ func (b *Bitcoind) GetTransaction(ctx context.Context, c *bitcoind.GetTransactio
 					return 0
 				}
 			}
+			var blockTime *timestamppb.Timestamp
+			if res.BlockTime != 0 {
+				blockTime = timestamppb.New(time.Unix(res.BlockTime, 0))
+			}
 
 			return &bitcoind.GetTransactionResponse{
 				Amount:            res.Amount,
 				Fee:               res.Fee,
-				Confirmations:     uint32(res.Confirmations),
+				Confirmations:     int32(res.Confirmations),
 				BlockHash:         res.BlockHash,
 				BlockIndex:        uint32(res.BlockIndex),
-				BlockTime:         timestamppb.New(time.Unix(res.BlockTime, 0)),
+				BlockTime:         blockTime,
 				Txid:              res.TxID,
 				ReplacedByTxid:    res.ReplacedByTXID,
 				ReplacesTxid:      res.ReplacesTXID,
