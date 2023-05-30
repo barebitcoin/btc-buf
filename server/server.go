@@ -310,6 +310,8 @@ func (b *Bitcoind) GetTransaction(ctx context.Context, c *bitcoind.GetTransactio
 				BlockIndex:      uint32(res.BlockIndex),
 				BlockTime:       timestamppb.New(time.Unix(res.BlockTime, 0)),
 				Txid:            res.TxID,
+				ReplacedByTxid:  res.ReplacedByTXID,
+				ReplacesTxid:    res.ReplacesTXID,
 				WalletConflicts: res.WalletConflicts,
 				Time:            timestamppb.New(time.Unix(res.Time, 0)),
 				TimeReceived:    timestamppb.New(time.Unix(res.TimeReceived, 0)),

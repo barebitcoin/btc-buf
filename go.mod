@@ -2,11 +2,12 @@ module github.com/barebitcoin/btc-buf
 
 go 1.18
 
-replace github.com/btcsuite/btcd => github.com/barebitcoin/btcd v0.23.5-0.20230508085609-44acabb798fe
+replace github.com/btcsuite/btcd => github.com/barebitcoin/btcd v0.23.5-0.20230530095723-ea49e0152fc5
 
 require (
 	github.com/btcsuite/btcd v0.23.4
 	github.com/btcsuite/btcd/btcutil v1.1.3
+	github.com/btcsuite/btcd/chaincfg/chainhash v1.0.2
 	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0
 	github.com/jessevdk/go-flags v1.5.0
 	github.com/rs/zerolog v1.26.1
@@ -16,7 +17,6 @@ require (
 
 require (
 	github.com/btcsuite/btcd/btcec/v2 v2.3.2 // indirect
-	github.com/btcsuite/btcd/chaincfg/chainhash v1.0.2 // indirect
 	github.com/btcsuite/btclog v0.0.0-20170628155309-84c8d2346e9f // indirect
 	github.com/btcsuite/go-socks v0.0.0-20170105172521-4720035b7bfd // indirect
 	github.com/btcsuite/websocket v0.0.0-20150119174127-31079b680792 // indirect
