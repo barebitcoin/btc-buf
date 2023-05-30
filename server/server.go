@@ -302,20 +302,34 @@ func (b *Bitcoind) GetTransaction(ctx context.Context, c *bitcoind.GetTransactio
 				details = append(details, detail)
 			}
 
+			replaceable := func(in string) bitcoind.GetTransactionResponse_Replaceable {
+				switch in {
+				case "unknown":
+					return bitcoind.GetTransactionResponse_REPLACEABLE_UNSPECIFIED
+				case "yes":
+					return bitcoind.GetTransactionResponse_REPLACEABLE_YES
+				case "no":
+					return bitcoind.GetTransactionResponse_REPLACEABLE_NO
+				default:
+					return 0
+				}
+			}
+
 			return &bitcoind.GetTransactionResponse{
-				Amount:          res.Amount,
-				Fee:             res.Fee,
-				Confirmations:   uint32(res.Confirmations),
-				BlockHash:       res.BlockHash,
-				BlockIndex:      uint32(res.BlockIndex),
-				BlockTime:       timestamppb.New(time.Unix(res.BlockTime, 0)),
-				Txid:            res.TxID,
-				ReplacedByTxid:  res.ReplacedByTXID,
-				ReplacesTxid:    res.ReplacesTXID,
-				WalletConflicts: res.WalletConflicts,
-				Time:            timestamppb.New(time.Unix(res.Time, 0)),
-				TimeReceived:    timestamppb.New(time.Unix(res.TimeReceived, 0)),
-				Details:         details,
+				Amount:            res.Amount,
+				Fee:               res.Fee,
+				Confirmations:     uint32(res.Confirmations),
+				BlockHash:         res.BlockHash,
+				BlockIndex:        uint32(res.BlockIndex),
+				BlockTime:         timestamppb.New(time.Unix(res.BlockTime, 0)),
+				Txid:              res.TxID,
+				ReplacedByTxid:    res.ReplacedByTXID,
+				ReplacesTxid:      res.ReplacesTXID,
+				WalletConflicts:   res.WalletConflicts,
+				Time:              timestamppb.New(time.Unix(res.Time, 0)),
+				TimeReceived:      timestamppb.New(time.Unix(res.TimeReceived, 0)),
+				Details:           details,
+				Bip125Replaceable: replaceable(res.BIP125Replaceable),
 			}
 		},
 	)

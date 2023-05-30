@@ -97,8 +97,20 @@ message GetTransactionResponse {
   // string to = 16;
   google.protobuf.Timestamp time = 17;
   google.protobuf.Timestamp time_received = 18;
-  // string bip125_replaceable = 19;
+
+  // Whether this transaction signals BIP125 (Replace-by-fee, RBF) replaceability
+  // or has an unconfirmed ancestor signaling BIP125 replaceability. May be unspecified
+  // for unconfirmed transactions not in the mempool because their
+  // unconfirmed ancestors are unknown.
+  Replaceable bip125_replaceable = 19;
+
   // repeated string parent_descriptors = 20;
+
+  enum Replaceable {
+    REPLACEABLE_UNSPECIFIED = 0;
+    REPLACEABLE_YES = 1;
+    REPLACEABLE_NO = 2;
+  }
 
   enum Category {
     CATEGORY_UNSPECIFIED = 0;
