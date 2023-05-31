@@ -320,6 +320,7 @@ func (b *Bitcoind) GetTransaction(ctx context.Context, c *bitcoind.GetTransactio
 			}
 
 			return &bitcoind.GetTransactionResponse{
+				Hex:               res.Hex,
 				Amount:            res.Amount,
 				Fee:               res.Fee,
 				Confirmations:     int32(res.Confirmations),

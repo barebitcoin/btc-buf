@@ -139,4 +139,8 @@ message GetTransactionResponse {
   }
 
   repeated Details details = 21;
+
+  string hex = 22;
+
+  // TODO: add the 'decoded' field.
 }
