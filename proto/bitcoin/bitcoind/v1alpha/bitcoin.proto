@@ -106,6 +106,8 @@ message GetTransactionResponse {
   // or has an unconfirmed ancestor signaling BIP125 replaceability. May be unspecified
   // for unconfirmed transactions not in the mempool because their
   // unconfirmed ancestors are unknown.
+  //
+  // Note that this is always set to 'no' once the transaction is confirmed.
   Replaceable bip125_replaceable = 19;
 
   // repeated string parent_descriptors = 20;
