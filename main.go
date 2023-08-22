@@ -41,7 +41,7 @@ func realMain(cfg *config) error {
 	go func() { errs <- bitcoind.RunHealthChecks(ctx) }()
 	go func() { errs <- bitcoind.Listen(ctx, cfg.Listen) }()
 
-	defer bitcoind.Stop()
+	defer bitcoind.Shutdown(ctx)
 
 	return <-errs
 }

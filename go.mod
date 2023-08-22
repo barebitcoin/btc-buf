@@ -5,14 +5,19 @@ go 1.18
 replace github.com/btcsuite/btcd => github.com/barebitcoin/btcd v0.23.5-0.20230530145250-28f72e4f9dcc
 
 require (
+	connectrpc.com/connect v1.11.0
+	connectrpc.com/grpchealth v1.2.0
+	connectrpc.com/grpcreflect v1.2.0
 	github.com/btcsuite/btcd v0.23.4
 	github.com/btcsuite/btcd/btcutil v1.1.3
 	github.com/btcsuite/btcd/chaincfg/chainhash v1.0.2
-	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0
+	github.com/gorilla/mux v1.8.0
 	github.com/jessevdk/go-flags v1.5.0
+	github.com/oklog/ulid/v2 v2.1.0
 	github.com/rs/zerolog v1.26.1
-	google.golang.org/grpc v1.56.1
-	google.golang.org/protobuf v1.30.0
+	github.com/samber/lo v1.38.1
+	golang.org/x/net v0.11.0
+	google.golang.org/protobuf v1.31.0
 )
 
 require (
@@ -22,10 +27,8 @@ require (
 	github.com/btcsuite/websocket v0.0.0-20150119174127-31079b680792 // indirect
 	github.com/decred/dcrd/crypto/blake256 v1.0.1 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.2.0 // indirect
-	github.com/golang/protobuf v1.5.3 // indirect
 	golang.org/x/crypto v0.10.0 // indirect
-	golang.org/x/net v0.11.0 // indirect
+	golang.org/x/exp v0.0.0-20220303212507-bbda1eaf7a17 // indirect
 	golang.org/x/sys v0.9.0 // indirect
 	golang.org/x/text v0.10.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20230530153820-e85fd2cbaebc // indirect
 )
