@@ -7,7 +7,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"os"
 	"runtime/debug"
 	"strings"
 	"sync"
@@ -21,28 +20,17 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/oklog/ulid/v2"
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"github.com/samber/lo"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 )
 
-var logHumanFriendly = os.Getenv("LOG_HUMAN_FRIENDLY") != ""
-
 func getRequestLogger() *zerolog.Logger {
-	var output io.Writer = os.Stderr
+	l := log.Logger.With().
+		Str("requestId", ulid.Make().String()).
+		Logger()
 
-	if logHumanFriendly {
-		o := zerolog.NewConsoleWriter()
-		o.TimeFormat = "15:04:05.000"
-		o.Out = os.Stderr
-		output = o
-	}
-
-	c := zerolog.New(output).With().
-		Timestamp().
-		Str("requestId", ulid.Make().String())
-
-	l := c.Logger()
 	return &l
 }
 

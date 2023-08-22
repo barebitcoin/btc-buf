@@ -22,6 +22,9 @@ func configureLogging(cfg *config) error {
 		}))
 	}
 
-	zerolog.DefaultContextLogger = &log.Logger
+	l := log.Logger.With().Caller().Logger()
+	log.Logger = l
+
+	zerolog.DefaultContextLogger = &l
 	return nil
 }

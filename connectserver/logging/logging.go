@@ -73,10 +73,6 @@ func Interceptor(conf InterceptorConf) connect.UnaryInterceptorFunc {
 
 			message := fmt.Sprintf("%s: %s", req.Spec().Procedure, describeCode(code))
 
-			if deadline, ok := ctx.Deadline(); ok {
-				fields = fields.Dur("timeout", deadline.Sub(start))
-			}
-
 			if handlerErr != nil {
 				handlerErrMessage := handlerErr.Error()
 
