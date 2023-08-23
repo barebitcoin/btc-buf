@@ -1,7 +1,9 @@
 package server
 
 import (
+	"bytes"
 	context "context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"strings"
@@ -19,6 +21,7 @@ import (
 	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"github.com/samber/lo"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -234,6 +237,66 @@ func (b *Bitcoind) GetWalletInfo(
 				Scanning:              scanning,
 				Descriptors:           info.Descriptors,
 				ExternalSigner:        info.ExternalSigner,
+			}
+		},
+	)
+}
+
+// GetRawTransaction implements bitcoindv1alphaconnect.BitcoinServiceHandler.
+func (b *Bitcoind) GetRawTransaction(ctx context.Context, c *connect.Request[pb.GetRawTransactionRequest]) (*connect.Response[pb.GetRawTransactionResponse], error) {
+	if c.Msg.Txid == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New(`"txid" is a required argument`))
+	}
+
+	hash, err := chainhash.NewHashFromStr(c.Msg.Txid)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("invalid txid"))
+	}
+
+	if !c.Msg.Verbose {
+		return withCancel(ctx,
+			func() (*btcutil.Tx, error) { return b.rpc.GetRawTransaction(hash) },
+			func(tx *btcutil.Tx) *pb.GetRawTransactionResponse {
+				var buf bytes.Buffer
+				if err := tx.MsgTx().Serialize(&buf); err != nil {
+					panic(err)
+				}
+				return &pb.GetRawTransactionResponse{
+					Hex: hex.EncodeToString(buf.Bytes()),
+				}
+			},
+		)
+	}
+
+	return withCancel(ctx,
+		func() (*btcjson.TxRawResult, error) { return b.rpc.GetRawTransactionVerbose(hash) },
+		func(tx *btcjson.TxRawResult) *pb.GetRawTransactionResponse {
+			return &pb.GetRawTransactionResponse{
+				Hex: tx.Hex,
+				Vin: lo.Map(tx.Vin, func(in btcjson.Vin, idx int) *pb.GetRawTransactionResponse_Input {
+					return &pb.GetRawTransactionResponse_Input{
+						Txid: in.Txid,
+						Vout: in.Vout,
+					}
+				}),
+
+				Vout: lo.Map(tx.Vout, func(out btcjson.Vout, idx int) *pb.GetRawTransactionResponse_Output {
+					// Hm, bitcoin-cli says this is a field called `address`,
+					// is btcjson wrong?
+					var address string
+					if len(out.ScriptPubKey.Addresses) != 0 {
+						address = out.ScriptPubKey.Addresses[0]
+					}
+
+					return &pb.GetRawTransactionResponse_Output{
+						Amount: out.Value,
+						N:      out.N,
+						ScriptPubKey: &pb.GetRawTransactionResponse_ScriptPubKey{
+							Type:    out.ScriptPubKey.Type,
+							Address: address,
+						},
+					}
+				}),
 			}
 		},
 	)
