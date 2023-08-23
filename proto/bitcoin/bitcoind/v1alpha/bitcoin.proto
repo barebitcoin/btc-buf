@@ -13,6 +13,9 @@ service BitcoinService {
   // Wallet stuff
   rpc GetNewAddress(GetNewAddressRequest) returns (GetNewAddressResponse);
   rpc GetWalletInfo(GetWalletInfoRequest) returns (GetWalletInfoResponse);
+
+  // Blockchain data stuff
+  rpc GetRawTransaction(GetRawTransactionRequest) returns (GetRawTransactionResponse);
 }
 
 message GetBlockchainInfoRequest {}
@@ -145,4 +148,44 @@ message GetTransactionResponse {
   string hex = 22;
 
   // TODO: add the 'decoded' field.
+}
+
+message GetRawTransactionRequest {
+  // The transaction ID. Required.
+  string txid = 1;
+
+  // If false, returns just the hex string. Otherwise, returns the complete object.
+  bool verbose = 2;
+
+  // The block in which to look for the transaction
+  // TODO: not support by rpcclient
+  // string blockhash = 3;
+}
+
+message GetRawTransactionResponse {
+  message Input {
+    string txid = 1;
+    uint32 vout = 2;
+  }
+
+  message ScriptPubKey {
+    string type = 1;
+    string address = 2;
+  }
+
+  message Output {
+    double amount = 1;
+
+    // The output index
+    uint32 n = 2;
+
+    ScriptPubKey script_pub_key = 3;
+  }
+
+  // The serialized, hex-encoded data for this transaction.
+  string hex = 1;
+
+  repeated Input vin = 2;
+
+  repeated Output vout = 3;
 }
