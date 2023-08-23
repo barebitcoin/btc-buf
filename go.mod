@@ -1,6 +1,6 @@
 module github.com/barebitcoin/btc-buf
 
-go 1.18
+go 1.20
 
 replace github.com/btcsuite/btcd => github.com/barebitcoin/btcd v0.23.5-0.20230530145250-28f72e4f9dcc
 
