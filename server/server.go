@@ -281,11 +281,8 @@ func (b *Bitcoind) GetRawTransaction(ctx context.Context, c *connect.Request[pb.
 				}),
 
 				Vout: lo.Map(tx.Vout, func(out btcjson.Vout, idx int) *pb.GetRawTransactionResponse_Output {
-					// Hm, bitcoin-cli says this is a field called `address`,
-					// is btcjson wrong?
-					var address string
 					if len(out.ScriptPubKey.Addresses) != 0 {
-						address = out.ScriptPubKey.Addresses[0]
+						out.ScriptPubKey.Address = out.ScriptPubKey.Addresses[0]
 					}
 
 					return &pb.GetRawTransactionResponse_Output{
@@ -293,7 +290,7 @@ func (b *Bitcoind) GetRawTransaction(ctx context.Context, c *connect.Request[pb.
 						N:      out.N,
 						ScriptPubKey: &pb.GetRawTransactionResponse_ScriptPubKey{
 							Type:    out.ScriptPubKey.Type,
-							Address: address,
+							Address: out.ScriptPubKey.Address,
 						},
 					}
 				}),
