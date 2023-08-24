@@ -13,6 +13,7 @@ service BitcoinService {
   // Wallet stuff
   rpc GetNewAddress(GetNewAddressRequest) returns (GetNewAddressResponse);
   rpc GetWalletInfo(GetWalletInfoRequest) returns (GetWalletInfoResponse);
+  rpc Send(SendRequest) returns (SendResponse);
 
   // Blockchain data stuff
   rpc GetRawTransaction(GetRawTransactionRequest) returns (GetRawTransactionResponse);
@@ -188,4 +189,21 @@ message GetRawTransactionResponse {
   repeated Input vin = 2;
 
   repeated Output vout = 3;
+}
+
+message SendRequest {
+  // bitcoin address -> BTC amount
+  map<string, double> destinations = 1;
+
+  // Confirmation target in blocks.
+  uint32 conf_target = 2;
+
+  // Only needs to be set if dealing with multiple wallets at the same time.
+  // TODO: better suited as a header?
+  string wallet = 3;
+}
+
+message SendResponse {
+  string txid = 1;
+  bool complete = 2;
 }

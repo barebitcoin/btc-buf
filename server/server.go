@@ -18,6 +18,7 @@ import (
 	"github.com/barebitcoin/btc-buf/server/rpclog"
 	"github.com/btcsuite/btcd/btcjson"
 	"github.com/btcsuite/btcd/btcutil"
+	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/rs/zerolog"
@@ -391,6 +392,54 @@ func (b *Bitcoind) GetTransaction(ctx context.Context, c *connect.Request[pb.Get
 				TimeReceived:      timestamppb.New(time.Unix(res.TimeReceived, 0)),
 				Details:           details,
 				Bip125Replaceable: replaceable(res.BIP125Replaceable),
+			}
+		},
+	)
+}
+
+// Send implements bitcoindv1alphaconnect.BitcoinServiceHandler.
+func (b *Bitcoind) Send(ctx context.Context, c *connect.Request[pb.SendRequest]) (*connect.Response[pb.SendResponse], error) {
+	if len(c.Msg.Destinations) == 0 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("'destinations' is a required argument"))
+	}
+
+	rpc, err := b.rpcForWallet(ctx, c.Msg.Wallet)
+	if err != nil {
+		return nil, err
+	}
+
+	return withCancel[*btcjson.SendResult, pb.SendResponse](ctx,
+		func() (*btcjson.SendResult, error) {
+			outputs := make(map[btcutil.Address]btcutil.Amount)
+			for addr, amount := range c.Msg.Destinations {
+				// TODO: parameterize the network, somehow.
+				parsedAddress, err := btcutil.DecodeAddress(addr, &chaincfg.MainNetParams)
+				if err != nil {
+					return nil, connect.NewError(connect.CodeInvalidArgument,
+						fmt.Errorf("invalid bitcoin address: %s: %w", addr, err),
+					)
+				}
+
+				btcAmount, err := btcutil.NewAmount(amount)
+				if err != nil {
+					return nil, err
+				}
+
+				outputs[parsedAddress] = btcAmount
+			}
+
+			var opts []rpcclient.WalletSendOpt
+			if c.Msg.ConfTarget != 0 {
+				opts = append(opts, rpcclient.WithWalletSendConfirmationTarget(
+					int(c.Msg.ConfTarget),
+				))
+			}
+			return rpc.WalletSend(outputs, opts...)
+		},
+
+		func(r *btcjson.SendResult) *pb.SendResponse {
+			return &pb.SendResponse{
+				Txid: r.TxID,
 			}
 		},
 	)
