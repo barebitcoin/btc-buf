@@ -476,22 +476,29 @@ func handleBtcJsonErrors() connect.Interceptor {
 				return resp, err
 			}
 
-			switch rpcErr.Code {
-			case btcjson.ErrRPCWalletNotSpecified:
+			switch {
+			// This is a -4 in the btcd lib, but a -6 in Bitcoin Core...
+			case rpcErr.Message == "Insufficient funds":
+				err = connect.NewError(connect.CodeFailedPrecondition, errors.New(rpcErr.Message))
+
+			case rpcErr.Code == btcjson.ErrRPCWalletNotSpecified:
 
 				// All wallet RPC requests should have a `wallet` string field.
-				type hasWalletParam (interface{ GetWallet() string })
+				type hasWalletParam interface{ GetWallet() string }
 				msg := "btc-buf must be started with the --bitcoind.wallet flag"
 				if _, ok := req.(hasWalletParam); ok {
 					msg = `wallet must be specified either through the "wallet" parameter or the --bitcoind.wallet flag`
 				}
 				err = connect.NewError(connect.CodeFailedPrecondition, errors.New(msg))
 
-			case btcjson.ErrRPCWalletNotFound:
+			case rpcErr.Code == btcjson.ErrRPCWalletNotFound:
 				err = connect.NewError(connect.CodeFailedPrecondition, errors.New(rpcErr.Message))
 
-			case btcjson.ErrRPCInvalidAddressOrKey:
+			case rpcErr.Code == btcjson.ErrRPCInvalidAddressOrKey:
 				err = connect.NewError(connect.CodeNotFound, errors.New(rpcErr.Message))
+
+			case rpcErr.Code == btcjson.ErrRPCInvalidParameter:
+				err = connect.NewError(connect.CodeInvalidArgument, errors.New(rpcErr.Message))
 
 			default:
 				log.Warn().Msgf("unknown btcjson error: %s", rpcErr)
