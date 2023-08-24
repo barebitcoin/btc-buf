@@ -15,6 +15,7 @@ import (
 	"github.com/barebitcoin/btc-buf/connectserver/logging"
 	pb "github.com/barebitcoin/btc-buf/gen/bitcoin/bitcoind/v1alpha"
 	rpc "github.com/barebitcoin/btc-buf/gen/bitcoin/bitcoind/v1alpha/bitcoindv1alphaconnect"
+	"github.com/barebitcoin/btc-buf/server/rpclog"
 	"github.com/btcsuite/btcd/btcjson"
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
@@ -38,6 +39,9 @@ func NewBitcoind(
 		Str("host", host).
 		Str("user", user).
 		Msg("connecting to bitcoind")
+
+	// TODO: would be really nice to have this per request
+	rpcclient.UseLogger(&rpclog.Logger{Logger: zerolog.Ctx(ctx)})
 
 	conf := rpcclient.ConnConfig{
 		User:         user,
