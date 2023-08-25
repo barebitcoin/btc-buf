@@ -13,8 +13,8 @@ import (
 )
 
 func realMain(cfg *config) error {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx, cancel := context.WithCancelCause(context.Background())
+	defer cancel(context.Canceled)
 
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, os.Interrupt)
@@ -24,7 +24,7 @@ func realMain(cfg *config) error {
 		log.Info().
 			Stringer("signal", signal).
 			Msg("received signal, canceling context")
-		cancel()
+		cancel(fmt.Errorf("received %s signal", signal))
 	}()
 
 	clientCtx, clientCancel := context.WithTimeout(ctx, time.Second*10)
@@ -38,10 +38,23 @@ func realMain(cfg *config) error {
 	}
 
 	errs := make(chan error)
-	go func() { errs <- bitcoind.RunHealthChecks(ctx) }()
-	go func() { errs <- bitcoind.Listen(ctx, cfg.Listen) }()
+	go func() {
+		if err := bitcoind.RunHealthChecks(ctx); err != nil {
+			errs <- err
+		}
+	}()
 
-	defer bitcoind.Shutdown(ctx)
+	go func() {
+		if err := bitcoind.Listen(ctx, cfg.Listen); err != nil {
+			errs <- err
+		}
+	}()
+	go func() {
+		<-ctx.Done()
+		bitcoind.Shutdown(ctx)
+
+		errs <- context.Cause(ctx)
+	}()
 
 	return <-errs
 }

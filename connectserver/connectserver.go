@@ -145,7 +145,8 @@ func (s *Server) Serve(ctx context.Context, address string) error {
 	s.health = grpchealth.NewStaticChecker(services...)
 	s.mux.Handle(grpchealth.NewHandler(s.health))
 
-	lis, err := net.Listen("tcp", address)
+	var lc net.ListenConfig
+	lis, err := lc.Listen(ctx, "tcp", address)
 	if err != nil {
 		return fmt.Errorf("could not listen: %w", err)
 	}
@@ -170,7 +171,12 @@ func (s *Server) Serve(ctx context.Context, address string) error {
 		Handler:           s.Handler(),
 		ReadHeaderTimeout: time.Minute,
 	}
-	return s.server.Serve(lis)
+
+	if err := s.server.Serve(lis); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		return fmt.Errorf("serve: %w", err)
+	}
+
+	return nil
 }
 
 func (s *Server) SetHealthStatus(service string, status grpchealth.Status) {
