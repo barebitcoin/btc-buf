@@ -530,6 +530,9 @@ func handleBtcJsonErrors() connect.Interceptor {
 			case rpcErr.Message == "Insufficient funds":
 				err = connect.NewError(connect.CodeFailedPrecondition, errors.New(rpcErr.Message))
 
+			case rpcErr.Code == btcjson.ErrRPCWallet && rpcErr.Message == "Transaction amount too small":
+				err = connect.NewError(connect.CodeInvalidArgument, errors.New(rpcErr.Message))
+
 			case rpcErr.Code == btcjson.ErrRPCWalletNotSpecified:
 
 				// All wallet RPC requests should have a `wallet` string field.
