@@ -14,6 +14,7 @@ service BitcoinService {
   rpc GetNewAddress(GetNewAddressRequest) returns (GetNewAddressResponse);
   rpc GetWalletInfo(GetWalletInfoRequest) returns (GetWalletInfoResponse);
   rpc Send(SendRequest) returns (SendResponse);
+  rpc EstimateSmartFee(EstimateSmartFeeRequest) returns (EstimateSmartFeeResponse);
 
   // Blockchain data stuff
   rpc GetRawTransaction(GetRawTransactionRequest) returns (GetRawTransactionResponse);
@@ -206,4 +207,25 @@ message SendRequest {
 message SendResponse {
   string txid = 1;
   bool complete = 2;
+}
+message EstimateSmartFeeRequest {
+  int64 conf_target = 1;
+
+  enum EstimateMode {
+    ESTIMATE_MODE_UNSPECIFIED = 0;
+    ESTIMATE_MODE_ECONOMICAL = 1;
+    ESTIMATE_MODE_CONSERVATIVE = 2;
+  }
+  EstimateMode estimate_mode = 2;
+}
+
+message EstimateSmartFeeResponse {
+  // Estimate fee rate in BTC/kvB (only present if no errors were encountered)
+  double fee_rate = 1;
+
+  // Errors encountered during processing (if there are any)
+  repeated string errors = 2;
+
+  // Block number where estimate was found.
+  int64 blocks = 3;
 }

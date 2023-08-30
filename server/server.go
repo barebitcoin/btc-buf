@@ -445,6 +445,35 @@ func (b *Bitcoind) Send(ctx context.Context, c *connect.Request[pb.SendRequest])
 	)
 }
 
+// EstimateSmartFee implements bitcoindv1alphaconnect.BitcoinServiceHandler.
+func (b *Bitcoind) EstimateSmartFee(ctx context.Context, c *connect.Request[pb.EstimateSmartFeeRequest]) (*connect.Response[pb.EstimateSmartFeeResponse], error) {
+	return withCancel[*btcjson.EstimateSmartFeeResult, pb.EstimateSmartFeeResponse](
+		ctx,
+		func() (*btcjson.EstimateSmartFeeResult, error) {
+			var estimateMode *btcjson.EstimateSmartFeeMode
+			if c.Msg.EstimateMode != pb.EstimateSmartFeeRequest_ESTIMATE_MODE_UNSPECIFIED {
+				switch c.Msg.EstimateMode {
+				case pb.EstimateSmartFeeRequest_ESTIMATE_MODE_ECONOMICAL:
+					estimateMode = &btcjson.EstimateModeEconomical
+				case pb.EstimateSmartFeeRequest_ESTIMATE_MODE_CONSERVATIVE:
+					estimateMode = &btcjson.EstimateModeConservative
+				default:
+					return nil, fmt.Errorf("unexpected estimate mode: %s", c.Msg.EstimateMode)
+				}
+			}
+			return b.rpc.EstimateSmartFee(c.Msg.ConfTarget, estimateMode)
+		},
+
+		func(r *btcjson.EstimateSmartFeeResult) *pb.EstimateSmartFeeResponse {
+			return &pb.EstimateSmartFeeResponse{
+				Errors:  r.Errors,
+				Blocks:  r.Blocks,
+				FeeRate: lo.FromPtr(r.FeeRate),
+			}
+		},
+	)
+}
+
 func (b *Bitcoind) Shutdown(ctx context.Context) {
 	if b.server == nil {
 		log.Warn().Msg("shutdown called on empty server")
