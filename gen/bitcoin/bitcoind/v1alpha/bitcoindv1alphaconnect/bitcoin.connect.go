@@ -45,6 +45,9 @@ const (
 	// BitcoinServiceGetWalletInfoProcedure is the fully-qualified name of the BitcoinService's
 	// GetWalletInfo RPC.
 	BitcoinServiceGetWalletInfoProcedure = "/bitcoin.bitcoind.v1alpha.BitcoinService/GetWalletInfo"
+	// BitcoinServiceGetBalancesProcedure is the fully-qualified name of the BitcoinService's
+	// GetBalances RPC.
+	BitcoinServiceGetBalancesProcedure = "/bitcoin.bitcoind.v1alpha.BitcoinService/GetBalances"
 	// BitcoinServiceSendProcedure is the fully-qualified name of the BitcoinService's Send RPC.
 	BitcoinServiceSendProcedure = "/bitcoin.bitcoind.v1alpha.BitcoinService/Send"
 	// BitcoinServiceEstimateSmartFeeProcedure is the fully-qualified name of the BitcoinService's
@@ -63,6 +66,7 @@ type BitcoinServiceClient interface {
 	// Wallet stuff
 	GetNewAddress(context.Context, *connect.Request[v1alpha.GetNewAddressRequest]) (*connect.Response[v1alpha.GetNewAddressResponse], error)
 	GetWalletInfo(context.Context, *connect.Request[v1alpha.GetWalletInfoRequest]) (*connect.Response[v1alpha.GetWalletInfoResponse], error)
+	GetBalances(context.Context, *connect.Request[v1alpha.GetBalancesRequest]) (*connect.Response[v1alpha.GetBalancesResponse], error)
 	Send(context.Context, *connect.Request[v1alpha.SendRequest]) (*connect.Response[v1alpha.SendResponse], error)
 	EstimateSmartFee(context.Context, *connect.Request[v1alpha.EstimateSmartFeeRequest]) (*connect.Response[v1alpha.EstimateSmartFeeResponse], error)
 	// Blockchain data stuff
@@ -99,6 +103,11 @@ func NewBitcoinServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			baseURL+BitcoinServiceGetWalletInfoProcedure,
 			opts...,
 		),
+		getBalances: connect.NewClient[v1alpha.GetBalancesRequest, v1alpha.GetBalancesResponse](
+			httpClient,
+			baseURL+BitcoinServiceGetBalancesProcedure,
+			opts...,
+		),
 		send: connect.NewClient[v1alpha.SendRequest, v1alpha.SendResponse](
 			httpClient,
 			baseURL+BitcoinServiceSendProcedure,
@@ -123,6 +132,7 @@ type bitcoinServiceClient struct {
 	getTransaction    *connect.Client[v1alpha.GetTransactionRequest, v1alpha.GetTransactionResponse]
 	getNewAddress     *connect.Client[v1alpha.GetNewAddressRequest, v1alpha.GetNewAddressResponse]
 	getWalletInfo     *connect.Client[v1alpha.GetWalletInfoRequest, v1alpha.GetWalletInfoResponse]
+	getBalances       *connect.Client[v1alpha.GetBalancesRequest, v1alpha.GetBalancesResponse]
 	send              *connect.Client[v1alpha.SendRequest, v1alpha.SendResponse]
 	estimateSmartFee  *connect.Client[v1alpha.EstimateSmartFeeRequest, v1alpha.EstimateSmartFeeResponse]
 	getRawTransaction *connect.Client[v1alpha.GetRawTransactionRequest, v1alpha.GetRawTransactionResponse]
@@ -146,6 +156,11 @@ func (c *bitcoinServiceClient) GetNewAddress(ctx context.Context, req *connect.R
 // GetWalletInfo calls bitcoin.bitcoind.v1alpha.BitcoinService.GetWalletInfo.
 func (c *bitcoinServiceClient) GetWalletInfo(ctx context.Context, req *connect.Request[v1alpha.GetWalletInfoRequest]) (*connect.Response[v1alpha.GetWalletInfoResponse], error) {
 	return c.getWalletInfo.CallUnary(ctx, req)
+}
+
+// GetBalances calls bitcoin.bitcoind.v1alpha.BitcoinService.GetBalances.
+func (c *bitcoinServiceClient) GetBalances(ctx context.Context, req *connect.Request[v1alpha.GetBalancesRequest]) (*connect.Response[v1alpha.GetBalancesResponse], error) {
+	return c.getBalances.CallUnary(ctx, req)
 }
 
 // Send calls bitcoin.bitcoind.v1alpha.BitcoinService.Send.
@@ -172,6 +187,7 @@ type BitcoinServiceHandler interface {
 	// Wallet stuff
 	GetNewAddress(context.Context, *connect.Request[v1alpha.GetNewAddressRequest]) (*connect.Response[v1alpha.GetNewAddressResponse], error)
 	GetWalletInfo(context.Context, *connect.Request[v1alpha.GetWalletInfoRequest]) (*connect.Response[v1alpha.GetWalletInfoResponse], error)
+	GetBalances(context.Context, *connect.Request[v1alpha.GetBalancesRequest]) (*connect.Response[v1alpha.GetBalancesResponse], error)
 	Send(context.Context, *connect.Request[v1alpha.SendRequest]) (*connect.Response[v1alpha.SendResponse], error)
 	EstimateSmartFee(context.Context, *connect.Request[v1alpha.EstimateSmartFeeRequest]) (*connect.Response[v1alpha.EstimateSmartFeeResponse], error)
 	// Blockchain data stuff
@@ -204,6 +220,11 @@ func NewBitcoinServiceHandler(svc BitcoinServiceHandler, opts ...connect.Handler
 		svc.GetWalletInfo,
 		opts...,
 	)
+	bitcoinServiceGetBalancesHandler := connect.NewUnaryHandler(
+		BitcoinServiceGetBalancesProcedure,
+		svc.GetBalances,
+		opts...,
+	)
 	bitcoinServiceSendHandler := connect.NewUnaryHandler(
 		BitcoinServiceSendProcedure,
 		svc.Send,
@@ -229,6 +250,8 @@ func NewBitcoinServiceHandler(svc BitcoinServiceHandler, opts ...connect.Handler
 			bitcoinServiceGetNewAddressHandler.ServeHTTP(w, r)
 		case BitcoinServiceGetWalletInfoProcedure:
 			bitcoinServiceGetWalletInfoHandler.ServeHTTP(w, r)
+		case BitcoinServiceGetBalancesProcedure:
+			bitcoinServiceGetBalancesHandler.ServeHTTP(w, r)
 		case BitcoinServiceSendProcedure:
 			bitcoinServiceSendHandler.ServeHTTP(w, r)
 		case BitcoinServiceEstimateSmartFeeProcedure:
@@ -258,6 +281,10 @@ func (UnimplementedBitcoinServiceHandler) GetNewAddress(context.Context, *connec
 
 func (UnimplementedBitcoinServiceHandler) GetWalletInfo(context.Context, *connect.Request[v1alpha.GetWalletInfoRequest]) (*connect.Response[v1alpha.GetWalletInfoResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("bitcoin.bitcoind.v1alpha.BitcoinService.GetWalletInfo is not implemented"))
+}
+
+func (UnimplementedBitcoinServiceHandler) GetBalances(context.Context, *connect.Request[v1alpha.GetBalancesRequest]) (*connect.Response[v1alpha.GetBalancesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("bitcoin.bitcoind.v1alpha.BitcoinService.GetBalances is not implemented"))
 }
 
 func (UnimplementedBitcoinServiceHandler) Send(context.Context, *connect.Request[v1alpha.SendRequest]) (*connect.Response[v1alpha.SendResponse], error) {

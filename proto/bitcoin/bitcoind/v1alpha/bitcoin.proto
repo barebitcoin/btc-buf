@@ -13,6 +13,7 @@ service BitcoinService {
   // Wallet stuff
   rpc GetNewAddress(GetNewAddressRequest) returns (GetNewAddressResponse);
   rpc GetWalletInfo(GetWalletInfoRequest) returns (GetWalletInfoResponse);
+  rpc GetBalances(GetBalancesRequest) returns (GetBalancesResponse);
   rpc Send(SendRequest) returns (SendResponse);
   rpc EstimateSmartFee(EstimateSmartFeeRequest) returns (EstimateSmartFeeResponse);
 
@@ -68,6 +69,42 @@ message GetWalletInfoResponse {
   WalletScan scanning = 13;
   bool descriptors = 14;
   bool external_signer = 15;
+}
+
+message GetBalancesRequest {
+  string wallet = 1;
+}
+
+message GetBalancesResponse {
+  // balances from outputs that the wallet can sign
+  message Mine {
+    // trusted balance (outputs created by the wallet or confirmed outputs)
+    double trusted = 1;
+
+    // untrusted pending balance (outputs created by others that are in the mempool)
+    double untrusted_pending = 2;
+
+    // balance from immature coinbase outputs
+    double immature = 3;
+
+    // only present if avoid_reuse is set) balance from coins sent to addresses that were previously spent from (potentially privacy violating
+    double used = 4;
+  }
+
+  // watchonly balances (not present if wallet does not watch anything)
+  message Watchonly {
+    // trusted balance (outputs created by the wallet or confirmed outputs)
+    double trusted = 1;
+
+    // untrusted pending balance (outputs created by others that are in the mempool)
+    double untrusted_pending = 2;
+
+    // balance from immature coinbase outputs
+    double immature = 3;
+  }
+
+  Mine mine = 1;
+  Watchonly watchonly = 2;
 }
 
 message WalletScan {

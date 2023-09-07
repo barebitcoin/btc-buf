@@ -474,6 +474,36 @@ func (b *Bitcoind) EstimateSmartFee(ctx context.Context, c *connect.Request[pb.E
 	)
 }
 
+// GetBalances implements bitcoindv1alphaconnect.BitcoinServiceHandler.
+func (b *Bitcoind) GetBalances(ctx context.Context, c *connect.Request[pb.GetBalancesRequest]) (*connect.Response[pb.GetBalancesResponse], error) {
+	rpc, err := b.rpcForWallet(ctx, c.Msg.Wallet)
+	if err != nil {
+		return nil, err
+	}
+	return withCancel[*btcjson.GetBalancesResult, pb.GetBalancesResponse](
+		ctx, rpc.GetBalances,
+		func(r *btcjson.GetBalancesResult) *pb.GetBalancesResponse {
+			var watchonly *pb.GetBalancesResponse_Watchonly
+			if r.WatchOnly != nil {
+				watchonly = &pb.GetBalancesResponse_Watchonly{
+					Trusted:          r.WatchOnly.Trusted,
+					UntrustedPending: r.WatchOnly.UntrustedPending,
+					Immature:         r.WatchOnly.Immature,
+				}
+			}
+			return &pb.GetBalancesResponse{
+				Mine: &pb.GetBalancesResponse_Mine{
+					Trusted:          r.Mine.Trusted,
+					UntrustedPending: r.Mine.UntrustedPending,
+					Immature:         r.Mine.Immature,
+					// TODO: not present in rpcclient?
+					// Used: ,
+				},
+				Watchonly: watchonly,
+			}
+		})
+}
+
 func (b *Bitcoind) Shutdown(ctx context.Context) {
 	if b.server == nil {
 		log.Warn().Msg("shutdown called on empty server")
