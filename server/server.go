@@ -567,7 +567,7 @@ func handleBtcJsonErrors() connect.Interceptor {
 				// All wallet RPC requests should have a `wallet` string field.
 				type hasWalletParam interface{ GetWallet() string }
 				msg := "btc-buf must be started with the --bitcoind.wallet flag"
-				if _, ok := req.(hasWalletParam); ok {
+				if _, ok := req.Any().(hasWalletParam); ok {
 					msg = `wallet must be specified either through the "wallet" parameter or the --bitcoind.wallet flag`
 				}
 				err = connect.NewError(connect.CodeFailedPrecondition, errors.New(msg))
