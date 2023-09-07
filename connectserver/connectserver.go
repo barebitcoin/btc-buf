@@ -304,5 +304,7 @@ func recoverFrom(ctx context.Context, panic any) error {
 		Interface("panic", panic).
 		Msg("recovered while serving Connect")
 
+	fmt.Println(string(debug.Stack()))
+
 	return err
 }
