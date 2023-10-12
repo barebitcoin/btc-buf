@@ -5,8 +5,8 @@ go 1.20
 replace github.com/btcsuite/btcd => github.com/barebitcoin/btcd v0.23.5-0.20230824091659-a3902e49b811
 
 require (
-	connectrpc.com/connect v1.11.0
-	connectrpc.com/grpchealth v1.2.0
+	connectrpc.com/connect v1.11.1
+	connectrpc.com/grpchealth v1.3.0
 	connectrpc.com/grpcreflect v1.2.0
 	github.com/btcsuite/btcd v0.23.4
 	github.com/btcsuite/btcd/btcutil v1.1.3
