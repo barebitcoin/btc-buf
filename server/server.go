@@ -548,7 +548,8 @@ func (b *Bitcoind) fetchHealthCheck(ctx context.Context) {
 	_, err := b.GetBlockchainInfo(ctx, connect.NewRequest(&pb.GetBlockchainInfoRequest{}))
 	if err != nil {
 		b.server.SetHealthStatus(service, grpchealth.StatusNotServing)
-		log.Err(err).Msg("health check: could not fetch blockchain info")
+		// Makes for noisy logs. You'll notice it anyways, when things start crashing!
+		log.Info().Err(err).Msg("health check: could not fetch blockchain info")
 		return
 
 	}
