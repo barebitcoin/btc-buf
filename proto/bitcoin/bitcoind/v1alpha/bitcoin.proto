@@ -239,6 +239,10 @@ message SendRequest {
   // Only needs to be set if dealing with multiple wallets at the same time.
   // TODO: better suited as a header?
   string wallet = 3;
+
+  // Include inputs that are not safe to spend (unconfirmed transactions from
+  // outside keys and unconfirmed replacement transactions.
+  bool include_unsafe = 4;
 }
 
 message SendResponse {

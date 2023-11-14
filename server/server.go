@@ -2,7 +2,7 @@ package server
 
 import (
 	"bytes"
-	context "context"
+	"context"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -412,8 +412,10 @@ func (b *Bitcoind) Send(ctx context.Context, c *connect.Request[pb.SendRequest])
 		func() (*btcjson.SendResult, error) {
 			outputs := make(map[btcutil.Address]btcutil.Amount)
 			for addr, amount := range c.Msg.Destinations {
-				// TODO: parameterize the network, somehow.
-				parsedAddress, err := btcutil.DecodeAddress(addr, &chaincfg.MainNetParams)
+				// Contrary to popular belief, this parameter does jack shit.
+				// No point in parameterizing.
+				net := &chaincfg.MainNetParams
+				parsedAddress, err := btcutil.DecodeAddress(addr, net)
 				if err != nil {
 					return nil, connect.NewError(connect.CodeInvalidArgument,
 						fmt.Errorf("invalid bitcoin address: %s: %w", addr, err),
@@ -434,6 +436,11 @@ func (b *Bitcoind) Send(ctx context.Context, c *connect.Request[pb.SendRequest])
 					int(c.Msg.ConfTarget),
 				))
 			}
+
+			if c.Msg.IncludeUnsafe {
+				opts = append(opts, rpcclient.WithWalletSendIncludeUnsafe())
+			}
+
 			return rpc.WalletSend(outputs, opts...)
 		},
 
