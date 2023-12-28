@@ -18,7 +18,7 @@ import (
 // generated with a version of connect newer than the one compiled into your binary. You can fix the
 // problem by either regenerating this code with an older version of connect or updating the connect
 // version compiled into your binary.
-const _ = connect.IsAtLeastVersion0_1_0
+const _ = connect.IsAtLeastVersion1_13_0
 
 const (
 	// BitcoinServiceName is the fully-qualified name of the BitcoinService service.
@@ -58,6 +58,19 @@ const (
 	BitcoinServiceGetRawTransactionProcedure = "/bitcoin.bitcoind.v1alpha.BitcoinService/GetRawTransaction"
 )
 
+// These variables are the protoreflect.Descriptor objects for the RPCs defined in this package.
+var (
+	bitcoinServiceServiceDescriptor                 = v1alpha.File_bitcoin_bitcoind_v1alpha_bitcoin_proto.Services().ByName("BitcoinService")
+	bitcoinServiceGetBlockchainInfoMethodDescriptor = bitcoinServiceServiceDescriptor.Methods().ByName("GetBlockchainInfo")
+	bitcoinServiceGetTransactionMethodDescriptor    = bitcoinServiceServiceDescriptor.Methods().ByName("GetTransaction")
+	bitcoinServiceGetNewAddressMethodDescriptor     = bitcoinServiceServiceDescriptor.Methods().ByName("GetNewAddress")
+	bitcoinServiceGetWalletInfoMethodDescriptor     = bitcoinServiceServiceDescriptor.Methods().ByName("GetWalletInfo")
+	bitcoinServiceGetBalancesMethodDescriptor       = bitcoinServiceServiceDescriptor.Methods().ByName("GetBalances")
+	bitcoinServiceSendMethodDescriptor              = bitcoinServiceServiceDescriptor.Methods().ByName("Send")
+	bitcoinServiceEstimateSmartFeeMethodDescriptor  = bitcoinServiceServiceDescriptor.Methods().ByName("EstimateSmartFee")
+	bitcoinServiceGetRawTransactionMethodDescriptor = bitcoinServiceServiceDescriptor.Methods().ByName("GetRawTransaction")
+)
+
 // BitcoinServiceClient is a client for the bitcoin.bitcoind.v1alpha.BitcoinService service.
 type BitcoinServiceClient interface {
 	GetBlockchainInfo(context.Context, *connect.Request[v1alpha.GetBlockchainInfoRequest]) (*connect.Response[v1alpha.GetBlockchainInfoResponse], error)
@@ -86,42 +99,50 @@ func NewBitcoinServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 		getBlockchainInfo: connect.NewClient[v1alpha.GetBlockchainInfoRequest, v1alpha.GetBlockchainInfoResponse](
 			httpClient,
 			baseURL+BitcoinServiceGetBlockchainInfoProcedure,
-			opts...,
+			connect.WithSchema(bitcoinServiceGetBlockchainInfoMethodDescriptor),
+			connect.WithClientOptions(opts...),
 		),
 		getTransaction: connect.NewClient[v1alpha.GetTransactionRequest, v1alpha.GetTransactionResponse](
 			httpClient,
 			baseURL+BitcoinServiceGetTransactionProcedure,
-			opts...,
+			connect.WithSchema(bitcoinServiceGetTransactionMethodDescriptor),
+			connect.WithClientOptions(opts...),
 		),
 		getNewAddress: connect.NewClient[v1alpha.GetNewAddressRequest, v1alpha.GetNewAddressResponse](
 			httpClient,
 			baseURL+BitcoinServiceGetNewAddressProcedure,
-			opts...,
+			connect.WithSchema(bitcoinServiceGetNewAddressMethodDescriptor),
+			connect.WithClientOptions(opts...),
 		),
 		getWalletInfo: connect.NewClient[v1alpha.GetWalletInfoRequest, v1alpha.GetWalletInfoResponse](
 			httpClient,
 			baseURL+BitcoinServiceGetWalletInfoProcedure,
-			opts...,
+			connect.WithSchema(bitcoinServiceGetWalletInfoMethodDescriptor),
+			connect.WithClientOptions(opts...),
 		),
 		getBalances: connect.NewClient[v1alpha.GetBalancesRequest, v1alpha.GetBalancesResponse](
 			httpClient,
 			baseURL+BitcoinServiceGetBalancesProcedure,
-			opts...,
+			connect.WithSchema(bitcoinServiceGetBalancesMethodDescriptor),
+			connect.WithClientOptions(opts...),
 		),
 		send: connect.NewClient[v1alpha.SendRequest, v1alpha.SendResponse](
 			httpClient,
 			baseURL+BitcoinServiceSendProcedure,
-			opts...,
+			connect.WithSchema(bitcoinServiceSendMethodDescriptor),
+			connect.WithClientOptions(opts...),
 		),
 		estimateSmartFee: connect.NewClient[v1alpha.EstimateSmartFeeRequest, v1alpha.EstimateSmartFeeResponse](
 			httpClient,
 			baseURL+BitcoinServiceEstimateSmartFeeProcedure,
-			opts...,
+			connect.WithSchema(bitcoinServiceEstimateSmartFeeMethodDescriptor),
+			connect.WithClientOptions(opts...),
 		),
 		getRawTransaction: connect.NewClient[v1alpha.GetRawTransactionRequest, v1alpha.GetRawTransactionResponse](
 			httpClient,
 			baseURL+BitcoinServiceGetRawTransactionProcedure,
-			opts...,
+			connect.WithSchema(bitcoinServiceGetRawTransactionMethodDescriptor),
+			connect.WithClientOptions(opts...),
 		),
 	}
 }
@@ -203,42 +224,50 @@ func NewBitcoinServiceHandler(svc BitcoinServiceHandler, opts ...connect.Handler
 	bitcoinServiceGetBlockchainInfoHandler := connect.NewUnaryHandler(
 		BitcoinServiceGetBlockchainInfoProcedure,
 		svc.GetBlockchainInfo,
-		opts...,
+		connect.WithSchema(bitcoinServiceGetBlockchainInfoMethodDescriptor),
+		connect.WithHandlerOptions(opts...),
 	)
 	bitcoinServiceGetTransactionHandler := connect.NewUnaryHandler(
 		BitcoinServiceGetTransactionProcedure,
 		svc.GetTransaction,
-		opts...,
+		connect.WithSchema(bitcoinServiceGetTransactionMethodDescriptor),
+		connect.WithHandlerOptions(opts...),
 	)
 	bitcoinServiceGetNewAddressHandler := connect.NewUnaryHandler(
 		BitcoinServiceGetNewAddressProcedure,
 		svc.GetNewAddress,
-		opts...,
+		connect.WithSchema(bitcoinServiceGetNewAddressMethodDescriptor),
+		connect.WithHandlerOptions(opts...),
 	)
 	bitcoinServiceGetWalletInfoHandler := connect.NewUnaryHandler(
 		BitcoinServiceGetWalletInfoProcedure,
 		svc.GetWalletInfo,
-		opts...,
+		connect.WithSchema(bitcoinServiceGetWalletInfoMethodDescriptor),
+		connect.WithHandlerOptions(opts...),
 	)
 	bitcoinServiceGetBalancesHandler := connect.NewUnaryHandler(
 		BitcoinServiceGetBalancesProcedure,
 		svc.GetBalances,
-		opts...,
+		connect.WithSchema(bitcoinServiceGetBalancesMethodDescriptor),
+		connect.WithHandlerOptions(opts...),
 	)
 	bitcoinServiceSendHandler := connect.NewUnaryHandler(
 		BitcoinServiceSendProcedure,
 		svc.Send,
-		opts...,
+		connect.WithSchema(bitcoinServiceSendMethodDescriptor),
+		connect.WithHandlerOptions(opts...),
 	)
 	bitcoinServiceEstimateSmartFeeHandler := connect.NewUnaryHandler(
 		BitcoinServiceEstimateSmartFeeProcedure,
 		svc.EstimateSmartFee,
-		opts...,
+		connect.WithSchema(bitcoinServiceEstimateSmartFeeMethodDescriptor),
+		connect.WithHandlerOptions(opts...),
 	)
 	bitcoinServiceGetRawTransactionHandler := connect.NewUnaryHandler(
 		BitcoinServiceGetRawTransactionProcedure,
 		svc.GetRawTransaction,
-		opts...,
+		connect.WithSchema(bitcoinServiceGetRawTransactionMethodDescriptor),
+		connect.WithHandlerOptions(opts...),
 	)
 	return "/bitcoin.bitcoind.v1alpha.BitcoinService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
