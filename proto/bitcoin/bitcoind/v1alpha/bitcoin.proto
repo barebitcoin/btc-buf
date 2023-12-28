@@ -243,6 +243,11 @@ message SendRequest {
   // Include inputs that are not safe to spend (unconfirmed transactions from
   // outside keys and unconfirmed replacement transactions.
   bool include_unsafe = 4;
+
+  // Outouts to subtract the fee from, specified as as address from the
+  // 'destinations' field. The fee will be equally deducted from the amount of
+  // each specified output.
+  repeated string subtract_fee_from_outputs = 5;
 }
 
 message SendResponse {

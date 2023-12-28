@@ -18,7 +18,6 @@ import (
 	"github.com/barebitcoin/btc-buf/server/rpclog"
 	"github.com/btcsuite/btcd/btcjson"
 	"github.com/btcsuite/btcd/btcutil"
-	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/rs/zerolog"
@@ -410,24 +409,17 @@ func (b *Bitcoind) Send(ctx context.Context, c *connect.Request[pb.SendRequest])
 
 	return withCancel[*btcjson.SendResult, pb.SendResponse](ctx,
 		func() (*btcjson.SendResult, error) {
-			outputs := make(map[btcutil.Address]btcutil.Amount)
+			var outputs []btcjson.SendDestination
 			for addr, amount := range c.Msg.Destinations {
-				// Contrary to popular belief, this parameter does jack shit.
-				// No point in parameterizing.
-				net := &chaincfg.MainNetParams
-				parsedAddress, err := btcutil.DecodeAddress(addr, net)
-				if err != nil {
-					return nil, connect.NewError(connect.CodeInvalidArgument,
-						fmt.Errorf("invalid bitcoin address: %s: %w", addr, err),
-					)
-				}
-
 				btcAmount, err := btcutil.NewAmount(amount)
 				if err != nil {
 					return nil, err
 				}
 
-				outputs[parsedAddress] = btcAmount
+				outputs = append(outputs, btcjson.SendDestination{
+					Address: addr,
+					Amount:  btcAmount,
+				})
 			}
 
 			var opts []rpcclient.WalletSendOpt
@@ -439,6 +431,26 @@ func (b *Bitcoind) Send(ctx context.Context, c *connect.Request[pb.SendRequest])
 
 			if c.Msg.IncludeUnsafe {
 				opts = append(opts, rpcclient.WithWalletSendIncludeUnsafe())
+			}
+
+			var subOutputs []int
+			for _, addr := range c.Msg.SubtractFeeFromOutputs {
+				_, idx, ok := lo.FindIndexOf(outputs, func(item btcjson.SendDestination) bool {
+					return item.Address == addr
+				})
+
+				if !ok {
+					err := fmt.Errorf("unable to find output index for %q", addr)
+					return nil, connect.NewError(connect.CodeInvalidArgument, err)
+				}
+
+				subOutputs = append(subOutputs, idx)
+			}
+
+			if len(subOutputs) != 0 {
+				opts = append(opts,
+					rpcclient.WithWalletSendSubtractFeeFromOutputs(subOutputs),
+				)
 			}
 
 			return rpc.WalletSend(outputs, opts...)
