@@ -5,7 +5,7 @@ go 1.20
 replace github.com/btcsuite/btcd => github.com/barebitcoin/btcd v0.23.5-0.20231114074550-41887b757ddd
 
 require (
-	connectrpc.com/connect v1.12.0
+	connectrpc.com/connect v1.14.0
 	connectrpc.com/grpchealth v1.3.0
 	connectrpc.com/grpcreflect v1.2.0
 	github.com/btcsuite/btcd v0.23.4
@@ -18,7 +18,7 @@ require (
 	github.com/rs/zerolog v1.31.0
 	github.com/samber/lo v1.38.1
 	golang.org/x/net v0.18.0
-	google.golang.org/protobuf v1.31.0
+	google.golang.org/protobuf v1.32.0
 )
 
 require (
