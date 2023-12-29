@@ -463,11 +463,25 @@ func (b *Bitcoind) Send(ctx context.Context, c *connect.Request[pb.SendRequest])
 				)
 			}
 
+			if c.Msg.AddToWallet != nil {
+				opts = append(opts,
+					rpcclient.WithWalletSendAddToWallet(c.Msg.AddToWallet.Value),
+				)
+			}
+
+			if c.Msg.FeeRate != 0 {
+				opts = append(opts,
+					rpcclient.WithWalletSendFeeRate(c.Msg.FeeRate),
+				)
+			}
+
 			return rpc.WalletSend(outputs, opts...)
 		},
 
 		func(r *btcjson.SendResult) *pb.SendResponse {
+			decoded, _ := hex.DecodeString(r.Hex)
 			return &pb.SendResponse{
+				Tx:   rawTransaction(decoded),
 				Txid: r.TxID,
 			}
 		},

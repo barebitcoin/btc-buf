@@ -3,6 +3,7 @@ syntax = "proto3";
 package bitcoin.bitcoind.v1alpha;
 
 import "google/protobuf/timestamp.proto";
+import "google/protobuf/wrappers.proto";
 
 service BitcoinService {
   rpc GetBlockchainInfo(GetBlockchainInfoRequest) returns (GetBlockchainInfoResponse);
@@ -202,24 +203,24 @@ message GetRawTransactionRequest {
   // string blockhash = 3;
 }
 
-  message Input {
-    string txid = 1;
-    uint32 vout = 2;
-  }
+message Input {
+  string txid = 1;
+  uint32 vout = 2;
+}
 
-  message ScriptPubKey {
-    string type = 1;
-    string address = 2;
-  }
+message ScriptPubKey {
+  string type = 1;
+  string address = 2;
+}
 
-  message Output {
-    double amount = 1;
+message Output {
+  double amount = 1;
 
-    // The output index
-    uint32 n = 2;
+  // The output index
+  uint32 n = 2;
 
-    ScriptPubKey script_pub_key = 3;
-  }
+  ScriptPubKey script_pub_key = 3;
+}
 
 message GetRawTransactionResponse {
   RawTransaction tx = 1;
@@ -248,12 +249,32 @@ message SendRequest {
   // 'destinations' field. The fee will be equally deducted from the amount of
   // each specified output.
   repeated string subtract_fee_from_outputs = 5;
+
+  // When false, returns a serialized transaction which will not be added
+  // to the wallet or broadcast.
+  //
+  // This is a 'bool value' instead of a plain bool. This is clunky to
+  // work with, but the alternative would have been to either:
+  //
+  // 1. Have this be a bool with the default value as the opposite of
+  //    Bitcoin Core
+  // 2. Rename the parameter to something else.
+  //
+  // Both of these seem bad.
+  google.protobuf.BoolValue add_to_wallet = 6;
+
+  // Satoshis per virtual byte (sat/vB).
+  double fee_rate = 7;
 }
 
 message SendResponse {
   string txid = 1;
   bool complete = 2;
+
+  // If 'add_to_wallet' is false, the raw transaction with signature(s)
+  RawTransaction tx = 3;
 }
+
 message EstimateSmartFeeRequest {
   int64 conf_target = 1;
 
