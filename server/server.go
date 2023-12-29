@@ -265,7 +265,7 @@ func (b *Bitcoind) GetRawTransaction(ctx context.Context, c *connect.Request[pb.
 					panic(err)
 				}
 				return &pb.GetRawTransactionResponse{
-					Hex: hex.EncodeToString(buf.Bytes()),
+					Tx: rawTransaction(buf.Bytes()),
 				}
 			},
 		)
@@ -274,32 +274,43 @@ func (b *Bitcoind) GetRawTransaction(ctx context.Context, c *connect.Request[pb.
 	return withCancel(ctx,
 		func() (*btcjson.TxRawResult, error) { return b.rpc.GetRawTransactionVerbose(hash) },
 		func(tx *btcjson.TxRawResult) *pb.GetRawTransactionResponse {
+			decoded, _ := hex.DecodeString(tx.Hex)
 			return &pb.GetRawTransactionResponse{
-				Hex: tx.Hex,
-				Vin: lo.Map(tx.Vin, func(in btcjson.Vin, idx int) *pb.GetRawTransactionResponse_Input {
-					return &pb.GetRawTransactionResponse_Input{
-						Txid: in.Txid,
-						Vout: in.Vout,
-					}
-				}),
-
-				Vout: lo.Map(tx.Vout, func(out btcjson.Vout, idx int) *pb.GetRawTransactionResponse_Output {
-					if len(out.ScriptPubKey.Addresses) != 0 {
-						out.ScriptPubKey.Address = out.ScriptPubKey.Addresses[0]
-					}
-
-					return &pb.GetRawTransactionResponse_Output{
-						Amount: out.Value,
-						N:      out.N,
-						ScriptPubKey: &pb.GetRawTransactionResponse_ScriptPubKey{
-							Type:    out.ScriptPubKey.Type,
-							Address: out.ScriptPubKey.Address,
-						},
-					}
-				}),
+				Tx:      rawTransaction(decoded),
+				Inputs:  lo.Map(tx.Vin, inputProto),
+				Outputs: lo.Map(tx.Vout, outputProto),
 			}
 		},
 	)
+}
+
+func rawTransaction(bytes []byte) *pb.RawTransaction {
+	return &pb.RawTransaction{
+		Data: bytes,
+		Hex:  hex.EncodeToString(bytes),
+	}
+}
+
+func inputProto(input btcjson.Vin, _ int) *pb.Input {
+	return &pb.Input{
+		Txid: input.Txid,
+		Vout: input.Vout,
+	}
+}
+
+func outputProto(output btcjson.Vout, _ int) *pb.Output {
+	if len(output.ScriptPubKey.Addresses) != 0 {
+		output.ScriptPubKey.Address = output.ScriptPubKey.Addresses[0]
+	}
+
+	return &pb.Output{
+		Amount: output.Value,
+		N:      output.N,
+		ScriptPubKey: &pb.ScriptPubKey{
+			Type:    output.ScriptPubKey.Type,
+			Address: output.ScriptPubKey.Address,
+		},
+	}
 }
 
 // GetTransaction implements bitcoindv1alpha.BitcoinServiceServer
@@ -463,6 +474,45 @@ func (b *Bitcoind) Send(ctx context.Context, c *connect.Request[pb.SendRequest])
 	)
 }
 
+// DecodeRawTransaction implements bitcoindv1alphaconnect.BitcoinServiceHandler.
+func (b *Bitcoind) DecodeRawTransaction(ctx context.Context, c *connect.Request[pb.DecodeRawTransactionRequest]) (*connect.Response[pb.DecodeRawTransactionResponse], error) {
+	if (len(c.Msg.Tx.Hex) == 0) == (len(c.Msg.Tx.Data) == 0) {
+		err := errors.New("must specify transaction bytes as either raw or hex-encoded")
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+
+	if c.Msg.Tx.Hex != "" {
+		decoded, err := hex.DecodeString(c.Msg.Tx.Hex)
+		if err != nil {
+			err := fmt.Errorf("invalid hex data: %w", err)
+			return nil, connect.NewError(connect.CodeInvalidArgument, err)
+		}
+
+		c.Msg.Tx.Data = decoded
+	}
+
+	return withCancel[*btcjson.TxRawResult, pb.DecodeRawTransactionResponse](
+		ctx,
+		func() (*btcjson.TxRawResult, error) {
+			return b.rpc.DecodeRawTransaction(c.Msg.Tx.Data)
+		},
+
+		func(r *btcjson.TxRawResult) *pb.DecodeRawTransactionResponse {
+			return &pb.DecodeRawTransactionResponse{
+				Txid:        r.Txid,
+				Hash:        r.Hash,
+				Size:        uint32(r.Size),
+				VirtualSize: uint32(r.Vsize),
+				Weight:      uint32(r.Weight),
+				Version:     r.Version,
+				Locktime:    r.LockTime,
+				Inputs:      lo.Map(r.Vin, inputProto),
+				Outputs:     lo.Map(r.Vout, outputProto),
+			}
+		},
+	)
+}
+
 // EstimateSmartFee implements bitcoindv1alphaconnect.BitcoinServiceHandler.
 func (b *Bitcoind) EstimateSmartFee(ctx context.Context, c *connect.Request[pb.EstimateSmartFeeRequest]) (*connect.Response[pb.EstimateSmartFeeResponse], error) {
 	return withCancel[*btcjson.EstimateSmartFeeResult, pb.EstimateSmartFeeResponse](
@@ -584,6 +634,9 @@ func handleBtcJsonErrors() connect.Interceptor {
 				err = connect.NewError(connect.CodeNotFound, errors.New(rpcErr.Message))
 
 			case rpcErr.Code == btcjson.ErrRPCInvalidParameter:
+				err = connect.NewError(connect.CodeInvalidArgument, errors.New(rpcErr.Message))
+
+			case rpcErr.Code == btcjson.ErrRPCDecodeHexString:
 				err = connect.NewError(connect.CodeInvalidArgument, errors.New(rpcErr.Message))
 
 			default:

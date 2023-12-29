@@ -17,8 +17,9 @@ service BitcoinService {
   rpc Send(SendRequest) returns (SendResponse);
   rpc EstimateSmartFee(EstimateSmartFeeRequest) returns (EstimateSmartFeeResponse);
 
-  // Blockchain data stuff
+  // Raw TX stuff
   rpc GetRawTransaction(GetRawTransactionRequest) returns (GetRawTransactionResponse);
+  rpc DecodeRawTransaction(DecodeRawTransactionRequest) returns (DecodeRawTransactionResponse);
 }
 
 message GetBlockchainInfoRequest {}
@@ -197,11 +198,10 @@ message GetRawTransactionRequest {
   bool verbose = 2;
 
   // The block in which to look for the transaction
-  // TODO: not support by rpcclient
+  // TODO: not supported by rpcclient
   // string blockhash = 3;
 }
 
-message GetRawTransactionResponse {
   message Input {
     string txid = 1;
     uint32 vout = 2;
@@ -221,12 +221,12 @@ message GetRawTransactionResponse {
     ScriptPubKey script_pub_key = 3;
   }
 
-  // The serialized, hex-encoded data for this transaction.
-  string hex = 1;
+message GetRawTransactionResponse {
+  RawTransaction tx = 1;
 
-  repeated Input vin = 2;
+  repeated Input inputs = 2;
 
-  repeated Output vout = 3;
+  repeated Output outputs = 3;
 }
 
 message SendRequest {
@@ -274,4 +274,39 @@ message EstimateSmartFeeResponse {
 
   // Block number where estimate was found.
   int64 blocks = 3;
+}
+
+message DecodeRawTransactionRequest {
+  RawTransaction tx = 1;
+}
+
+message RawTransaction {
+  // Raw transaction data
+  bytes data = 1;
+
+  // Hex-encoded raw transaction data
+  string hex = 2;
+}
+
+message DecodeRawTransactionResponse {
+  string txid = 1;
+  string hash = 2;
+
+  // The serialized transaction size
+  uint32 size = 3;
+
+  // The virtual transaction size (differs from
+  // 'size' for witness transactions).
+  uint32 virtual_size = 4;
+
+  // The transaction's weight
+  uint32 weight = 5;
+
+  uint32 version = 6;
+
+  uint32 locktime = 7;
+
+  repeated Input inputs = 8;
+
+  repeated Output outputs = 9;
 }

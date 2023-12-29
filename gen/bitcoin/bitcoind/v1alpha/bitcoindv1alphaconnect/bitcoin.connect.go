@@ -56,19 +56,23 @@ const (
 	// BitcoinServiceGetRawTransactionProcedure is the fully-qualified name of the BitcoinService's
 	// GetRawTransaction RPC.
 	BitcoinServiceGetRawTransactionProcedure = "/bitcoin.bitcoind.v1alpha.BitcoinService/GetRawTransaction"
+	// BitcoinServiceDecodeRawTransactionProcedure is the fully-qualified name of the BitcoinService's
+	// DecodeRawTransaction RPC.
+	BitcoinServiceDecodeRawTransactionProcedure = "/bitcoin.bitcoind.v1alpha.BitcoinService/DecodeRawTransaction"
 )
 
 // These variables are the protoreflect.Descriptor objects for the RPCs defined in this package.
 var (
-	bitcoinServiceServiceDescriptor                 = v1alpha.File_bitcoin_bitcoind_v1alpha_bitcoin_proto.Services().ByName("BitcoinService")
-	bitcoinServiceGetBlockchainInfoMethodDescriptor = bitcoinServiceServiceDescriptor.Methods().ByName("GetBlockchainInfo")
-	bitcoinServiceGetTransactionMethodDescriptor    = bitcoinServiceServiceDescriptor.Methods().ByName("GetTransaction")
-	bitcoinServiceGetNewAddressMethodDescriptor     = bitcoinServiceServiceDescriptor.Methods().ByName("GetNewAddress")
-	bitcoinServiceGetWalletInfoMethodDescriptor     = bitcoinServiceServiceDescriptor.Methods().ByName("GetWalletInfo")
-	bitcoinServiceGetBalancesMethodDescriptor       = bitcoinServiceServiceDescriptor.Methods().ByName("GetBalances")
-	bitcoinServiceSendMethodDescriptor              = bitcoinServiceServiceDescriptor.Methods().ByName("Send")
-	bitcoinServiceEstimateSmartFeeMethodDescriptor  = bitcoinServiceServiceDescriptor.Methods().ByName("EstimateSmartFee")
-	bitcoinServiceGetRawTransactionMethodDescriptor = bitcoinServiceServiceDescriptor.Methods().ByName("GetRawTransaction")
+	bitcoinServiceServiceDescriptor                    = v1alpha.File_bitcoin_bitcoind_v1alpha_bitcoin_proto.Services().ByName("BitcoinService")
+	bitcoinServiceGetBlockchainInfoMethodDescriptor    = bitcoinServiceServiceDescriptor.Methods().ByName("GetBlockchainInfo")
+	bitcoinServiceGetTransactionMethodDescriptor       = bitcoinServiceServiceDescriptor.Methods().ByName("GetTransaction")
+	bitcoinServiceGetNewAddressMethodDescriptor        = bitcoinServiceServiceDescriptor.Methods().ByName("GetNewAddress")
+	bitcoinServiceGetWalletInfoMethodDescriptor        = bitcoinServiceServiceDescriptor.Methods().ByName("GetWalletInfo")
+	bitcoinServiceGetBalancesMethodDescriptor          = bitcoinServiceServiceDescriptor.Methods().ByName("GetBalances")
+	bitcoinServiceSendMethodDescriptor                 = bitcoinServiceServiceDescriptor.Methods().ByName("Send")
+	bitcoinServiceEstimateSmartFeeMethodDescriptor     = bitcoinServiceServiceDescriptor.Methods().ByName("EstimateSmartFee")
+	bitcoinServiceGetRawTransactionMethodDescriptor    = bitcoinServiceServiceDescriptor.Methods().ByName("GetRawTransaction")
+	bitcoinServiceDecodeRawTransactionMethodDescriptor = bitcoinServiceServiceDescriptor.Methods().ByName("DecodeRawTransaction")
 )
 
 // BitcoinServiceClient is a client for the bitcoin.bitcoind.v1alpha.BitcoinService service.
@@ -82,8 +86,9 @@ type BitcoinServiceClient interface {
 	GetBalances(context.Context, *connect.Request[v1alpha.GetBalancesRequest]) (*connect.Response[v1alpha.GetBalancesResponse], error)
 	Send(context.Context, *connect.Request[v1alpha.SendRequest]) (*connect.Response[v1alpha.SendResponse], error)
 	EstimateSmartFee(context.Context, *connect.Request[v1alpha.EstimateSmartFeeRequest]) (*connect.Response[v1alpha.EstimateSmartFeeResponse], error)
-	// Blockchain data stuff
+	// Raw TX stuff
 	GetRawTransaction(context.Context, *connect.Request[v1alpha.GetRawTransactionRequest]) (*connect.Response[v1alpha.GetRawTransactionResponse], error)
+	DecodeRawTransaction(context.Context, *connect.Request[v1alpha.DecodeRawTransactionRequest]) (*connect.Response[v1alpha.DecodeRawTransactionResponse], error)
 }
 
 // NewBitcoinServiceClient constructs a client for the bitcoin.bitcoind.v1alpha.BitcoinService
@@ -144,19 +149,26 @@ func NewBitcoinServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(bitcoinServiceGetRawTransactionMethodDescriptor),
 			connect.WithClientOptions(opts...),
 		),
+		decodeRawTransaction: connect.NewClient[v1alpha.DecodeRawTransactionRequest, v1alpha.DecodeRawTransactionResponse](
+			httpClient,
+			baseURL+BitcoinServiceDecodeRawTransactionProcedure,
+			connect.WithSchema(bitcoinServiceDecodeRawTransactionMethodDescriptor),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // bitcoinServiceClient implements BitcoinServiceClient.
 type bitcoinServiceClient struct {
-	getBlockchainInfo *connect.Client[v1alpha.GetBlockchainInfoRequest, v1alpha.GetBlockchainInfoResponse]
-	getTransaction    *connect.Client[v1alpha.GetTransactionRequest, v1alpha.GetTransactionResponse]
-	getNewAddress     *connect.Client[v1alpha.GetNewAddressRequest, v1alpha.GetNewAddressResponse]
-	getWalletInfo     *connect.Client[v1alpha.GetWalletInfoRequest, v1alpha.GetWalletInfoResponse]
-	getBalances       *connect.Client[v1alpha.GetBalancesRequest, v1alpha.GetBalancesResponse]
-	send              *connect.Client[v1alpha.SendRequest, v1alpha.SendResponse]
-	estimateSmartFee  *connect.Client[v1alpha.EstimateSmartFeeRequest, v1alpha.EstimateSmartFeeResponse]
-	getRawTransaction *connect.Client[v1alpha.GetRawTransactionRequest, v1alpha.GetRawTransactionResponse]
+	getBlockchainInfo    *connect.Client[v1alpha.GetBlockchainInfoRequest, v1alpha.GetBlockchainInfoResponse]
+	getTransaction       *connect.Client[v1alpha.GetTransactionRequest, v1alpha.GetTransactionResponse]
+	getNewAddress        *connect.Client[v1alpha.GetNewAddressRequest, v1alpha.GetNewAddressResponse]
+	getWalletInfo        *connect.Client[v1alpha.GetWalletInfoRequest, v1alpha.GetWalletInfoResponse]
+	getBalances          *connect.Client[v1alpha.GetBalancesRequest, v1alpha.GetBalancesResponse]
+	send                 *connect.Client[v1alpha.SendRequest, v1alpha.SendResponse]
+	estimateSmartFee     *connect.Client[v1alpha.EstimateSmartFeeRequest, v1alpha.EstimateSmartFeeResponse]
+	getRawTransaction    *connect.Client[v1alpha.GetRawTransactionRequest, v1alpha.GetRawTransactionResponse]
+	decodeRawTransaction *connect.Client[v1alpha.DecodeRawTransactionRequest, v1alpha.DecodeRawTransactionResponse]
 }
 
 // GetBlockchainInfo calls bitcoin.bitcoind.v1alpha.BitcoinService.GetBlockchainInfo.
@@ -199,6 +211,11 @@ func (c *bitcoinServiceClient) GetRawTransaction(ctx context.Context, req *conne
 	return c.getRawTransaction.CallUnary(ctx, req)
 }
 
+// DecodeRawTransaction calls bitcoin.bitcoind.v1alpha.BitcoinService.DecodeRawTransaction.
+func (c *bitcoinServiceClient) DecodeRawTransaction(ctx context.Context, req *connect.Request[v1alpha.DecodeRawTransactionRequest]) (*connect.Response[v1alpha.DecodeRawTransactionResponse], error) {
+	return c.decodeRawTransaction.CallUnary(ctx, req)
+}
+
 // BitcoinServiceHandler is an implementation of the bitcoin.bitcoind.v1alpha.BitcoinService
 // service.
 type BitcoinServiceHandler interface {
@@ -211,8 +228,9 @@ type BitcoinServiceHandler interface {
 	GetBalances(context.Context, *connect.Request[v1alpha.GetBalancesRequest]) (*connect.Response[v1alpha.GetBalancesResponse], error)
 	Send(context.Context, *connect.Request[v1alpha.SendRequest]) (*connect.Response[v1alpha.SendResponse], error)
 	EstimateSmartFee(context.Context, *connect.Request[v1alpha.EstimateSmartFeeRequest]) (*connect.Response[v1alpha.EstimateSmartFeeResponse], error)
-	// Blockchain data stuff
+	// Raw TX stuff
 	GetRawTransaction(context.Context, *connect.Request[v1alpha.GetRawTransactionRequest]) (*connect.Response[v1alpha.GetRawTransactionResponse], error)
+	DecodeRawTransaction(context.Context, *connect.Request[v1alpha.DecodeRawTransactionRequest]) (*connect.Response[v1alpha.DecodeRawTransactionResponse], error)
 }
 
 // NewBitcoinServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -269,6 +287,12 @@ func NewBitcoinServiceHandler(svc BitcoinServiceHandler, opts ...connect.Handler
 		connect.WithSchema(bitcoinServiceGetRawTransactionMethodDescriptor),
 		connect.WithHandlerOptions(opts...),
 	)
+	bitcoinServiceDecodeRawTransactionHandler := connect.NewUnaryHandler(
+		BitcoinServiceDecodeRawTransactionProcedure,
+		svc.DecodeRawTransaction,
+		connect.WithSchema(bitcoinServiceDecodeRawTransactionMethodDescriptor),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/bitcoin.bitcoind.v1alpha.BitcoinService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case BitcoinServiceGetBlockchainInfoProcedure:
@@ -287,6 +311,8 @@ func NewBitcoinServiceHandler(svc BitcoinServiceHandler, opts ...connect.Handler
 			bitcoinServiceEstimateSmartFeeHandler.ServeHTTP(w, r)
 		case BitcoinServiceGetRawTransactionProcedure:
 			bitcoinServiceGetRawTransactionHandler.ServeHTTP(w, r)
+		case BitcoinServiceDecodeRawTransactionProcedure:
+			bitcoinServiceDecodeRawTransactionHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -326,4 +352,8 @@ func (UnimplementedBitcoinServiceHandler) EstimateSmartFee(context.Context, *con
 
 func (UnimplementedBitcoinServiceHandler) GetRawTransaction(context.Context, *connect.Request[v1alpha.GetRawTransactionRequest]) (*connect.Response[v1alpha.GetRawTransactionResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("bitcoin.bitcoind.v1alpha.BitcoinService.GetRawTransaction is not implemented"))
+}
+
+func (UnimplementedBitcoinServiceHandler) DecodeRawTransaction(context.Context, *connect.Request[v1alpha.DecodeRawTransactionRequest]) (*connect.Response[v1alpha.DecodeRawTransactionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("bitcoin.bitcoind.v1alpha.BitcoinService.DecodeRawTransaction is not implemented"))
 }
