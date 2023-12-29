@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	"connectrpc.com/grpchealth"
 	"github.com/barebitcoin/btc-buf/connectserver"
 	"github.com/barebitcoin/btc-buf/connectserver/logging"
 	pb "github.com/barebitcoin/btc-buf/gen/bitcoin/bitcoind/v1alpha"
@@ -531,50 +530,6 @@ func (b *Bitcoind) Shutdown(ctx context.Context) {
 
 	log.Info().Msg("stopping server")
 	b.server.Shutdown(ctx)
-}
-
-func (b *Bitcoind) RunHealthChecks(ctx context.Context) error {
-	log := zerolog.Ctx(ctx)
-	log.Info().Msg("health check: starting")
-
-	ticker := time.NewTicker(time.Second * 5)
-	defer ticker.Stop()
-
-	// Do an initial check before the first tick.
-	b.fetchHealthCheck(ctx)
-
-	for {
-		select {
-		case <-ctx.Done():
-			log.Debug().Msg("stopping health checks")
-			return nil
-
-		case <-ticker.C:
-			b.fetchHealthCheck(ctx)
-		}
-	}
-}
-
-func (b *Bitcoind) fetchHealthCheck(ctx context.Context) {
-	ctx, cancel := context.WithTimeout(ctx, time.Second*3)
-	defer cancel()
-
-	// service := bitcoind.BitcoinService_ServiceDesc.ServiceName
-	service := ""
-
-	log := zerolog.Ctx(ctx)
-	start := time.Now()
-	_, err := b.GetBlockchainInfo(ctx, connect.NewRequest(&pb.GetBlockchainInfoRequest{}))
-	if err != nil {
-		b.server.SetHealthStatus(service, grpchealth.StatusNotServing)
-		// Makes for noisy logs. You'll notice it anyways, when things start crashing!
-		log.Info().Err(err).Msg("health check: could not fetch blockchain info")
-		return
-
-	}
-
-	b.server.SetHealthStatus(service, grpchealth.StatusNotServing)
-	log.Trace().Msgf("health check: fetched blockchain info, took %s", time.Since(start))
 }
 
 func (b *Bitcoind) Listen(ctx context.Context, address string) error {

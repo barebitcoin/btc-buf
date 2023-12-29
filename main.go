@@ -38,11 +38,6 @@ func realMain(cfg *config) error {
 	}
 
 	errs := make(chan error)
-	go func() {
-		if err := bitcoind.RunHealthChecks(ctx); err != nil {
-			errs <- err
-		}
-	}()
 
 	go func() {
 		if err := bitcoind.Listen(ctx, cfg.Listen); err != nil {
