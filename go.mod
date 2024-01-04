@@ -2,7 +2,7 @@ module github.com/barebitcoin/btc-buf
 
 go 1.20
 
-replace github.com/btcsuite/btcd => github.com/barebitcoin/btcd v0.23.5-0.20231229094309-aa8757e14116
+replace github.com/btcsuite/btcd => github.com/barebitcoin/btcd v0.23.5-0.20240104102729-54d89f81a6cf
 
 require (
 	connectrpc.com/connect v1.14.0
