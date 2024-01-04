@@ -437,6 +437,11 @@ func (b *Bitcoind) Send(ctx context.Context, c *connect.Request[pb.SendRequest])
 				opts = append(opts, rpcclient.WithWalletSendConfirmationTarget(
 					int(c.Msg.ConfTarget),
 				))
+
+				// TODO: do this properly
+				opts = append(opts, func(sc *btcjson.SendCmd) {
+					sc.EstimateMode = lo.ToPtr(btcjson.EstimateModeEconomical)
+				})
 			}
 
 			if c.Msg.IncludeUnsafe {
