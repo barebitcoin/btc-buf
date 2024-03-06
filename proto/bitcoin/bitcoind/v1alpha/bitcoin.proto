@@ -228,6 +228,11 @@ message GetRawTransactionResponse {
   repeated Input inputs = 2;
 
   repeated Output outputs = 3;
+
+  string blockhash = 4;
+  uint32 confirmations = 5;
+  int64 time = 6;
+  int64 blocktime = 7;
 }
 
 message SendRequest {

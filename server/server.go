@@ -276,9 +276,13 @@ func (b *Bitcoind) GetRawTransaction(ctx context.Context, c *connect.Request[pb.
 		func(tx *btcjson.TxRawResult) *pb.GetRawTransactionResponse {
 			decoded, _ := hex.DecodeString(tx.Hex)
 			return &pb.GetRawTransactionResponse{
-				Tx:      rawTransaction(decoded),
-				Inputs:  lo.Map(tx.Vin, inputProto),
-				Outputs: lo.Map(tx.Vout, outputProto),
+				Tx:            rawTransaction(decoded),
+				Blockhash:     tx.BlockHash,
+				Confirmations: uint32(tx.Confirmations),
+				Time:          tx.Time,
+				Blocktime:     tx.Blocktime,
+				Inputs:        lo.Map(tx.Vin, inputProto),
+				Outputs:       lo.Map(tx.Vout, outputProto),
 			}
 		},
 	)
@@ -438,6 +442,7 @@ func (b *Bitcoind) Send(ctx context.Context, c *connect.Request[pb.SendRequest])
 					int(c.Msg.ConfTarget),
 				))
 
+				// conf target implies need for estimation mode
 				// TODO: do this properly
 				opts = append(opts, func(sc *btcjson.SendCmd) {
 					sc.EstimateMode = lo.ToPtr(btcjson.EstimateModeEconomical)
