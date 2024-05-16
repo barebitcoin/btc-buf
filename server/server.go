@@ -19,6 +19,7 @@ import (
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/rpcclient"
+	"github.com/btcsuite/btclog"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/samber/lo"
@@ -39,8 +40,9 @@ func NewBitcoind(
 		Str("user", user).
 		Msg("connecting to bitcoind")
 
-	// TODO: would be really nice to have this per request
-	rpcclient.UseLogger(&rpclog.Logger{Logger: zerolog.Ctx(ctx)})
+	rpcclient.UseLogger(func(ctx context.Context) btclog.Logger {
+		return &rpclog.Logger{Logger: zerolog.Ctx(ctx)}
+	})
 
 	conf := rpcclient.ConnConfig{
 		User:         user,
@@ -50,7 +52,7 @@ func NewBitcoind(
 		Host:         host,
 	}
 
-	client, err := rpcclient.New(&conf, nil)
+	client, err := rpcclient.New(ctx, &conf, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -95,7 +97,7 @@ func NewBitcoind(
 		case bitcoindErrorCode(err) == btcjson.ErrRPCWalletNotFound:
 			log.Debug().Err(err).Msg("could not get wallet, trying loading")
 
-			if _, err := server.rpc.LoadWallet(wallet); err == nil {
+			if _, err := server.rpc.LoadWallet(ctx, wallet); err == nil {
 				log.Info().Msgf("loaded wallet: %s", wallet)
 				break
 			}
@@ -123,14 +125,14 @@ func bitcoindErrorCode(err error) btcjson.RPCErrorCode {
 // capability (client-side, the actual calls will continue running in the
 // background).
 func withCancel[R any, M any](
-	ctx context.Context, fetch func() (R, error),
+	ctx context.Context, fetch func(ctx context.Context) (R, error),
 	transform func(r R) *M,
 ) (*connect.Response[M], error) {
 	ch := make(chan R)
 	errs := make(chan error)
 
 	go func() {
-		fetchResult, err := fetch()
+		fetchResult, err := fetch(ctx)
 		switch {
 		case err != nil && err.Error() == `status code: 401, response: ""`:
 			errs <- connect.NewError(connect.CodePermissionDenied, errors.New("permission denied"))
@@ -166,7 +168,7 @@ func (b *Bitcoind) rpcForWallet(ctx context.Context, wallet string) (*rpcclient.
 		Str("wallet", wallet).
 		Msg("making wallet-specific call")
 
-	rpc, err := rpcclient.New(&conf, nil)
+	rpc, err := rpcclient.New(ctx, &conf, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -182,12 +184,12 @@ func (b *Bitcoind) GetNewAddress(ctx context.Context, req *connect.Request[pb.Ge
 	}
 
 	return withCancel(ctx,
-		func() (btcutil.Address, error) {
+		func(ctx context.Context) (btcutil.Address, error) {
 			if req.Msg.AddressType != "" {
-				return rpc.GetNewAddressType(req.Msg.Label, req.Msg.AddressType)
+				return rpc.GetNewAddressType(ctx, req.Msg.Label, req.Msg.AddressType)
 			}
 
-			return rpc.GetNewAddress(req.Msg.Label)
+			return rpc.GetNewAddress(ctx, req.Msg.Label)
 		},
 		func(r btcutil.Address) *pb.GetNewAddressResponse {
 			return &pb.GetNewAddressResponse{Address: r.EncodeAddress()}
@@ -258,7 +260,7 @@ func (b *Bitcoind) GetRawTransaction(ctx context.Context, c *connect.Request[pb.
 
 	if !c.Msg.Verbose {
 		return withCancel(ctx,
-			func() (*btcutil.Tx, error) { return b.rpc.GetRawTransaction(hash) },
+			func(ctx context.Context) (*btcutil.Tx, error) { return b.rpc.GetRawTransaction(ctx, hash) },
 			func(tx *btcutil.Tx) *pb.GetRawTransactionResponse {
 				var buf bytes.Buffer
 				if err := tx.MsgTx().Serialize(&buf); err != nil {
@@ -272,7 +274,9 @@ func (b *Bitcoind) GetRawTransaction(ctx context.Context, c *connect.Request[pb.
 	}
 
 	return withCancel(ctx,
-		func() (*btcjson.TxRawResult, error) { return b.rpc.GetRawTransactionVerbose(hash) },
+		func(ctx context.Context) (*btcjson.TxRawResult, error) {
+			return b.rpc.GetRawTransactionVerbose(ctx, hash)
+		},
 		func(tx *btcjson.TxRawResult) *pb.GetRawTransactionResponse {
 			decoded, _ := hex.DecodeString(tx.Hex)
 			return &pb.GetRawTransactionResponse{
@@ -334,8 +338,8 @@ func (b *Bitcoind) GetTransaction(ctx context.Context, c *connect.Request[pb.Get
 	}
 
 	return withCancel(ctx,
-		func() (*btcjson.GetTransactionResult, error) {
-			return rpc.GetTransactionWatchOnly(hash, c.Msg.IncludeWatchonly)
+		func(ctx context.Context) (*btcjson.GetTransactionResult, error) {
+			return rpc.GetTransactionWatchOnly(ctx, hash, c.Msg.IncludeWatchonly)
 		},
 
 		func(res *btcjson.GetTransactionResult) *pb.GetTransactionResponse {
@@ -422,7 +426,7 @@ func (b *Bitcoind) Send(ctx context.Context, c *connect.Request[pb.SendRequest])
 	}
 
 	return withCancel[*btcjson.SendResult, pb.SendResponse](ctx,
-		func() (*btcjson.SendResult, error) {
+		func(ctx context.Context) (*btcjson.SendResult, error) {
 			var outputs []btcjson.SendDestination
 			for addr, amount := range c.Msg.Destinations {
 				btcAmount, err := btcutil.NewAmount(amount)
@@ -485,7 +489,7 @@ func (b *Bitcoind) Send(ctx context.Context, c *connect.Request[pb.SendRequest])
 				)
 			}
 
-			return rpc.WalletSend(outputs, opts...)
+			return rpc.WalletSend(ctx, outputs, opts...)
 		},
 
 		func(r *btcjson.SendResult) *pb.SendResponse {
@@ -517,8 +521,8 @@ func (b *Bitcoind) DecodeRawTransaction(ctx context.Context, c *connect.Request[
 
 	return withCancel[*btcjson.TxRawResult, pb.DecodeRawTransactionResponse](
 		ctx,
-		func() (*btcjson.TxRawResult, error) {
-			return b.rpc.DecodeRawTransaction(c.Msg.Tx.Data)
+		func(ctx context.Context) (*btcjson.TxRawResult, error) {
+			return b.rpc.DecodeRawTransaction(ctx, c.Msg.Tx.Data)
 		},
 
 		func(r *btcjson.TxRawResult) *pb.DecodeRawTransactionResponse {
@@ -541,7 +545,7 @@ func (b *Bitcoind) DecodeRawTransaction(ctx context.Context, c *connect.Request[
 func (b *Bitcoind) EstimateSmartFee(ctx context.Context, c *connect.Request[pb.EstimateSmartFeeRequest]) (*connect.Response[pb.EstimateSmartFeeResponse], error) {
 	return withCancel[*btcjson.EstimateSmartFeeResult, pb.EstimateSmartFeeResponse](
 		ctx,
-		func() (*btcjson.EstimateSmartFeeResult, error) {
+		func(ctx context.Context) (*btcjson.EstimateSmartFeeResult, error) {
 			var estimateMode *btcjson.EstimateSmartFeeMode
 			if c.Msg.EstimateMode != pb.EstimateSmartFeeRequest_ESTIMATE_MODE_UNSPECIFIED {
 				switch c.Msg.EstimateMode {
@@ -553,7 +557,7 @@ func (b *Bitcoind) EstimateSmartFee(ctx context.Context, c *connect.Request[pb.E
 					return nil, fmt.Errorf("unexpected estimate mode: %s", c.Msg.EstimateMode)
 				}
 			}
-			return b.rpc.EstimateSmartFee(c.Msg.ConfTarget, estimateMode)
+			return b.rpc.EstimateSmartFee(ctx, c.Msg.ConfTarget, estimateMode)
 		},
 
 		func(r *btcjson.EstimateSmartFeeResult) *pb.EstimateSmartFeeResponse {
