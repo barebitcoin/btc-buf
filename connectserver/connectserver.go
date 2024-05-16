@@ -27,10 +27,7 @@ import (
 )
 
 func getRequestLogger() *zerolog.Logger {
-	l := log.Logger.With().
-		Str("requestId", ulid.Make().String()).
-		Logger()
-
+	l := log.Logger.With().Logger()
 	return &l
 }
 
@@ -45,12 +42,26 @@ func addContextLogger() connect.Interceptor {
 	})
 }
 
+func addRequestID() connect.Interceptor {
+	return connect.UnaryInterceptorFunc(func(next connect.UnaryFunc) connect.UnaryFunc {
+		return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
+			requestId := "req_" + ulid.Make().String()
+			if head := req.Header().Get("x-trace-id"); head != "" {
+				requestId = head
+			}
+			log := zerolog.Ctx(ctx).With().Str("requestId", requestId).Logger()
+			return next(log.WithContext(ctx), req)
+		}
+	})
+}
+
 // New creates a new Server with interceptors applied.
 func New(logConf logging.InterceptorConf, interceptors ...connect.Interceptor) *Server {
 	// Ordering of interceptors matter! First interceptors in the list get
 	// called first.
 	allInterceptors := []connect.Interceptor{
 		addContextLogger(),
+		addRequestID(),
 		panicInterceptor(),
 		logging.Interceptor(logConf),
 	}
