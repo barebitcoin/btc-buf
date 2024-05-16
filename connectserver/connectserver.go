@@ -20,23 +20,17 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/oklog/ulid/v2"
 	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 	"github.com/samber/lo"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 )
-
-func getRequestLogger() *zerolog.Logger {
-	l := log.Logger.With().Logger()
-	return &l
-}
 
 func addContextLogger() connect.Interceptor {
 	return connect.UnaryInterceptorFunc(func(next connect.UnaryFunc) connect.UnaryFunc {
 		return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
 			// Ensure that all request contexts have a brand-new context logger
 			// that it is safe to manipulate.
-			ctx = getRequestLogger().WithContext(ctx)
+			ctx = zerolog.Ctx(ctx).With().Logger().WithContext(ctx)
 			return next(ctx, req)
 		}
 	})
