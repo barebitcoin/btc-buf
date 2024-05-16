@@ -5,7 +5,7 @@ go 1.20
 replace github.com/btcsuite/btcd => github.com/barebitcoin/btcd v0.23.5-0.20240104102729-54d89f81a6cf
 
 require (
-	connectrpc.com/connect v1.14.0
+	connectrpc.com/connect v1.16.2
 	connectrpc.com/grpchealth v1.3.0
 	connectrpc.com/grpcreflect v1.2.0
 	github.com/btcsuite/btcd v0.23.5-0.20231215221805-96c9fd8078fd
@@ -18,7 +18,7 @@ require (
 	github.com/rs/zerolog v1.31.0
 	github.com/samber/lo v1.39.0
 	golang.org/x/exp v0.0.0-20231226003508-02704c960a9b
-	golang.org/x/net v0.19.0
+	golang.org/x/net v0.23.0
 	google.golang.org/protobuf v1.33.0
 )
 
@@ -30,7 +30,7 @@ require (
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.2.0 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
-	golang.org/x/crypto v0.17.0 // indirect
-	golang.org/x/sys v0.15.0 // indirect
+	golang.org/x/crypto v0.21.0 // indirect
+	golang.org/x/sys v0.18.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 )
