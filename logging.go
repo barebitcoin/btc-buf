@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -25,6 +26,8 @@ func configureLogging(cfg *config) error {
 	l := log.Logger.With().Caller().Logger()
 	log.Logger = l
 
+	// default is with whole second precision
+	zerolog.TimeFieldFormat = time.RFC3339Nano
 	zerolog.DefaultContextLogger = &l
 	return nil
 }
