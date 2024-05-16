@@ -504,7 +504,7 @@ func (b *Bitcoind) Send(ctx context.Context, c *connect.Request[pb.SendRequest])
 
 // DecodeRawTransaction implements bitcoindv1alphaconnect.BitcoinServiceHandler.
 func (b *Bitcoind) DecodeRawTransaction(ctx context.Context, c *connect.Request[pb.DecodeRawTransactionRequest]) (*connect.Response[pb.DecodeRawTransactionResponse], error) {
-	if (len(c.Msg.Tx.Hex) == 0) == (len(c.Msg.Tx.Data) == 0) {
+	if (len(c.Msg.GetTx().GetHex()) == 0) == (len(c.Msg.GetTx().GetData()) == 0) {
 		err := errors.New("must specify transaction bytes as either raw or hex-encoded")
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
