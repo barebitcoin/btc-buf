@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -25,6 +26,10 @@ import (
 	"github.com/samber/lo"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
+
+func init() {
+	btcjson.MustRegisterCmd("importdescriptors", new(btcjson.ImportMultiCmd), btcjson.UFWalletOnly)
+}
 
 type Bitcoind struct {
 	conf   rpcclient.ConnConfig
@@ -245,6 +250,36 @@ func (b *Bitcoind) GetWalletInfo(
 			}
 		},
 	)
+}
+
+// GetBlock implements bitcoindv1alphaconnect.BitcoinServiceHandler.
+func (b *Bitcoind) GetBlock(ctx context.Context, c *connect.Request[pb.GetBlockRequest]) (*connect.Response[pb.GetBlockResponse], error) {
+	if c.Msg.Hash == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New(`"hash" is a required argument`))
+	}
+
+	if c.Msg.Verbosity != pb.GetBlockRequest_VERBOSITY_RAW_DATA {
+		return nil, connect.NewError(connect.CodeUnimplemented, fmt.Errorf("bad verbosity: %s", c.Msg.Verbosity))
+	}
+
+	hash, err := chainhash.NewHashFromStr(c.Msg.Hash)
+	if err != nil {
+		return nil, err
+	}
+
+	block, err := b.rpc.GetBlock(ctx, hash)
+	if err != nil {
+		return nil, err
+	}
+
+	var out bytes.Buffer
+	if err := block.Serialize(&out); err != nil {
+		return nil, fmt.Errorf("serialize block: %w", err)
+	}
+
+	return connect.NewResponse(&pb.GetBlockResponse{
+		Hex: hex.EncodeToString(out.Bytes()),
+	}), nil
 }
 
 // GetRawTransaction implements bitcoindv1alphaconnect.BitcoinServiceHandler.
@@ -596,6 +631,98 @@ func (b *Bitcoind) GetBalances(ctx context.Context, c *connect.Request[pb.GetBal
 					// Used: ,
 				},
 				Watchonly: watchonly,
+			}
+		})
+}
+
+// ImportDescriptors implements bitcoindv1alphaconnect.BitcoinServiceHandler.
+func (b *Bitcoind) ImportDescriptors(ctx context.Context, c *connect.Request[pb.ImportDescriptorsRequest]) (*connect.Response[pb.ImportDescriptorsResponse], error) {
+	if len(c.Msg.GetRequests()) == 0 {
+		err := errors.New("must provide at least one request")
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+
+	for _, req := range c.Msg.Requests {
+		if req.Descriptor_ == "" {
+			err := errors.New("descriptors must be non-empty")
+			return nil, connect.NewError(connect.CodeInvalidArgument, err)
+		}
+	}
+
+	rpc, err := b.rpcForWallet(ctx, c.Msg.Wallet)
+	if err != nil {
+		return nil, err
+	}
+
+	type jsonRpcError struct {
+		Code    int    `json:"code"`
+		Message string `json:"message"`
+	}
+
+	type parsedDescriptorResponse struct {
+		Success  bool         `json:"success"`
+		Warnings []string     `json:"warnings"`
+		Error    jsonRpcError `json:"error"`
+	}
+
+	return withCancel[[]parsedDescriptorResponse, pb.ImportDescriptorsResponse](
+		ctx, func(ctx context.Context) ([]parsedDescriptorResponse, error) {
+			cmd := btcjson.ImportMultiCmd{
+				Requests: lo.Map(c.Msg.Requests, func(req *pb.ImportDescriptorsRequest_Request, idx int) btcjson.ImportMultiRequest {
+					return btcjson.ImportMultiRequest{
+						Descriptor: &req.Descriptor_,
+						Timestamp: lo.If(req.Timestamp == nil,
+							btcjson.TimestampOrNow{
+								Value: "now",
+							}).
+							ElseF(func() btcjson.TimestampOrNow {
+								return btcjson.TimestampOrNow{
+									Value: req.Timestamp.AsTime().Unix(),
+								}
+							}),
+					}
+				}),
+			}
+			res, err := rpcclient.ReceiveFuture(rpc.SendCmd(ctx, &cmd))
+			zerolog.Ctx(ctx).Err(err).
+				Msgf("importdescriptors response: %s", string(res))
+
+			var parsed []parsedDescriptorResponse
+			if err := json.Unmarshal(res, &parsed); err != nil {
+				return nil, fmt.Errorf("unmarshal importdescriptors response: %w", err)
+			}
+
+			return parsed, err
+		},
+		func(r []parsedDescriptorResponse) *pb.ImportDescriptorsResponse {
+			return &pb.ImportDescriptorsResponse{
+				Responses: lo.Map(r, func(r parsedDescriptorResponse, idx int) *pb.ImportDescriptorsResponse_Response {
+					return &pb.ImportDescriptorsResponse_Response{
+						Success:  r.Success,
+						Warnings: r.Warnings,
+						Error: &pb.ImportDescriptorsResponse_Error{
+							Code:    int32(r.Error.Code),
+							Message: r.Error.Message,
+						},
+					}
+				}),
+			}
+		})
+}
+
+// GetDescriptorInfo implements bitcoindv1alphaconnect.BitcoinServiceHandler.
+func (b *Bitcoind) GetDescriptorInfo(ctx context.Context, c *connect.Request[pb.GetDescriptorInfoRequest]) (*connect.Response[pb.GetDescriptorInfoResponse], error) {
+	return withCancel[*btcjson.GetDescriptorInfoResult, pb.GetDescriptorInfoResponse](
+		ctx, func(ctx context.Context) (*btcjson.GetDescriptorInfoResult, error) {
+			return b.rpc.GetDescriptorInfo(ctx, c.Msg.Descriptor_)
+		},
+		func(r *btcjson.GetDescriptorInfoResult) *pb.GetDescriptorInfoResponse {
+			return &pb.GetDescriptorInfoResponse{
+				Descriptor_:    r.Descriptor,
+				Checksum:       r.Checksum,
+				IsRange:        r.IsRange,
+				IsSolvable:     r.IsSolvable,
+				HasPrivateKeys: r.HasPrivateKeys,
 			}
 		})
 }

@@ -17,10 +17,18 @@ service BitcoinService {
   rpc GetBalances(GetBalancesRequest) returns (GetBalancesResponse);
   rpc Send(SendRequest) returns (SendResponse);
   rpc EstimateSmartFee(EstimateSmartFeeRequest) returns (EstimateSmartFeeResponse);
+  // Import a descriptor. If importing a watch-only descriptor, the wallet itself needs
+  // to be watch-only as well. The descriptor also needs to be normalized, with a
+  // checksum. This can be obtained by running it through GetDescriptorInfo.
+  rpc ImportDescriptors(ImportDescriptorsRequest) returns (ImportDescriptorsResponse);
+
+  rpc GetDescriptorInfo(GetDescriptorInfoRequest) returns (GetDescriptorInfoResponse);
 
   // Raw TX stuff
   rpc GetRawTransaction(GetRawTransactionRequest) returns (GetRawTransactionResponse);
   rpc DecodeRawTransaction(DecodeRawTransactionRequest) returns (DecodeRawTransactionResponse);
+
+  rpc GetBlock(GetBlockRequest) returns (GetBlockResponse);
 }
 
 message GetBlockchainInfoRequest {}
@@ -335,4 +343,92 @@ message DecodeRawTransactionResponse {
   repeated Input inputs = 8;
 
   repeated Output outputs = 9;
+}
+message ImportDescriptorsRequest {
+  message Request {
+    // Descriptor to import
+    string descriptor = 1;
+
+    // Set this descriptor to be the active descriptor for the corresponding type/externality.
+    bool active = 2;
+
+    uint32 range_start = 3;
+    uint32 range_end = 4;
+
+    // Nil passes 'now' to Bitcoin Core, which bypasses scanning.
+    google.protobuf.Timestamp timestamp = 5;
+
+    // Whether matching outputs should be treated as not incoming payments (e.g. change)
+    bool internal = 6;
+
+    // Label to assign to the address, only allowed with internal = false. Disabled for ranged descriptors.
+    string label = 7;
+  }
+
+  // Only needs to be set if dealing with multiple wallets at the same time.
+  // TODO: better suited as a header?
+  string wallet = 1;
+
+  repeated Request requests = 2;
+}
+
+message ImportDescriptorsResponse {
+  message Error {
+    int32 code = 1;
+    string message = 2;
+  }
+
+  message Response {
+    bool success = 1;
+    repeated string warnings = 2;
+    Error error = 3;
+  }
+
+  repeated Response responses = 1;
+}
+
+message GetDescriptorInfoRequest {
+  string descriptor = 1;
+}
+
+message GetDescriptorInfoResponse {
+  // The descriptor in canonical form, without private keys.
+  string descriptor = 1;
+
+  // The checksum for the input descriptor
+  string checksum = 2;
+
+  bool is_range = 3;
+
+  bool is_solvable = 4;
+
+  bool has_private_keys = 5;
+}
+
+message GetBlockRequest {
+  enum Verbosity {
+    VERBOSITY_UNSPECIFIED = 0;
+
+    // Returns the raw block data, completely unprocessed.
+    VERBOSITY_RAW_DATA = 1;
+
+    // Returns information about the block
+    VERBOSITY_BLOCK_INFO = 2;
+
+    // Returns information about the block and information
+    // about each transaction
+    VERBOSITY_BLOCK_TX_INFO = 3;
+
+    // Returns information about the block, information
+    // about each transaction and prevout information.
+    VERBOSITY_BLOCK_TX_PREVOUT_INFO = 4;
+  }
+
+  string hash = 1;
+
+  Verbosity verbosity = 2;
+}
+
+message GetBlockResponse {
+  string hex = 1;
 }
