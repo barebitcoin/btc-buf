@@ -7,7 +7,7 @@
 .pretterrc
 .vscode
 Dockerfile
-Makefile
+justfile
 btc-buf
 buf.*
 proto
