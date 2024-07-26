@@ -36,6 +36,19 @@ func addContextLogger() connect.Interceptor {
 	})
 }
 
+type requestIdKeyType int
+
+const requestIdKey requestIdKeyType = 1
+
+func RequestID(ctx context.Context) string {
+	value, ok := ctx.Value(requestIdKey).(string)
+	if !ok {
+		return ""
+	}
+
+	return value
+}
+
 func addRequestID() connect.Interceptor {
 	return connect.UnaryInterceptorFunc(func(next connect.UnaryFunc) connect.UnaryFunc {
 		return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
@@ -44,7 +57,11 @@ func addRequestID() connect.Interceptor {
 				requestId = head
 			}
 			log := zerolog.Ctx(ctx).With().Str("requestId", requestId).Logger()
-			return next(log.WithContext(ctx), req)
+
+			ctx = log.WithContext(ctx)
+			ctx = context.WithValue(ctx, requestIdKey, requestId)
+
+			return next(ctx, req)
 		}
 	})
 }

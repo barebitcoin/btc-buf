@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"connectrpc.com/connect"
@@ -24,6 +25,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/samber/lo"
+	"golang.org/x/exp/slices"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -126,6 +128,34 @@ func bitcoindErrorCode(err error) btcjson.RPCErrorCode {
 	return rpcErr.Code
 }
 
+var (
+	pendingRequestsMu sync.RWMutex
+	pendingRequests   []string
+)
+
+func loadPendingRequests() []string {
+	pendingRequestsMu.RLock()
+	defer pendingRequestsMu.RUnlock()
+
+	return slices.Clone(pendingRequests)
+}
+
+func addPendingRequest(id string) {
+	pendingRequestsMu.Lock()
+	defer pendingRequestsMu.Unlock()
+
+	pendingRequests = append(pendingRequests, id)
+}
+
+func removePendingRequest(id string) {
+	pendingRequestsMu.Lock()
+	defer pendingRequestsMu.Unlock()
+
+	pendingRequests = slices.DeleteFunc(pendingRequests, func(maybe string) bool {
+		return maybe == id
+	})
+}
+
 // By default, the rpcclient calls are not cancelable. This adds that
 // capability (client-side, the actual calls will continue running in the
 // background).
@@ -135,8 +165,17 @@ func withCancel[R any, M any](
 ) (*connect.Response[M], error) {
 	ch := make(chan R)
 	errs := make(chan error)
+	requestID := connectserver.RequestID(ctx)
+
+	if requestID != "" {
+		defer removePendingRequest(requestID)
+	}
 
 	go func() {
+		if requestID != "" {
+			addPendingRequest(requestID)
+		}
+
 		fetchResult, err := fetch(ctx)
 		switch {
 		case err != nil && err.Error() == `status code: 401, response: ""`:
@@ -760,42 +799,52 @@ func handleBtcJsonErrors() connect.Interceptor {
 			resp, err := handler(ctx, req)
 
 			rpcErr := new(btcjson.RPCError)
-			if !errors.As(err, &rpcErr) {
-				return resp, err
-			}
 
 			switch {
-			// This is a -4 in the btcd lib, but a -6 in Bitcoin Core...
-			case rpcErr.Message == "Insufficient funds":
-				err = connect.NewError(connect.CodeFailedPrecondition, errors.New(rpcErr.Message))
+			case err == nil:
+				return resp, nil
 
-			case rpcErr.Code == btcjson.ErrRPCWallet && rpcErr.Message == "Transaction amount too small":
-				err = connect.NewError(connect.CodeInvalidArgument, errors.New(rpcErr.Message))
+			case strings.Contains(err.Error(), "Work queue depth exceeded"):
+				zerolog.Ctx(ctx).Info().
+					Strs("requests", loadPendingRequests()).
+					Msgf("handle error: work queue depth exceeded")
 
-			case rpcErr.Code == btcjson.ErrRPCWalletNotSpecified:
+				err = connect.NewError(connect.CodeResourceExhausted, errors.New("RPC work queue depth exceeded"))
 
-				// All wallet RPC requests should have a `wallet` string field.
-				type hasWalletParam interface{ GetWallet() string }
-				msg := "btc-buf must be started with the --bitcoind.wallet flag"
-				if _, ok := req.Any().(hasWalletParam); ok {
-					msg = `wallet must be specified either through the "wallet" parameter or the --bitcoind.wallet flag`
+			case errors.As(err, &rpcErr):
+				switch {
+				// This is a -4 in the btcd lib, but a -6 in Bitcoin Core...
+				case rpcErr.Message == "Insufficient funds":
+					err = connect.NewError(connect.CodeFailedPrecondition, errors.New(rpcErr.Message))
+
+				case rpcErr.Code == btcjson.ErrRPCWallet && rpcErr.Message == "Transaction amount too small":
+					err = connect.NewError(connect.CodeInvalidArgument, errors.New(rpcErr.Message))
+
+				case rpcErr.Code == btcjson.ErrRPCWalletNotSpecified:
+
+					// All wallet RPC requests should have a `wallet` string field.
+					type hasWalletParam interface{ GetWallet() string }
+					msg := "btc-buf must be started with the --bitcoind.wallet flag"
+					if _, ok := req.Any().(hasWalletParam); ok {
+						msg = `wallet must be specified either through the "wallet" parameter or the --bitcoind.wallet flag`
+					}
+					err = connect.NewError(connect.CodeFailedPrecondition, errors.New(msg))
+
+				case rpcErr.Code == btcjson.ErrRPCWalletNotFound:
+					err = connect.NewError(connect.CodeFailedPrecondition, errors.New(rpcErr.Message))
+
+				case rpcErr.Code == btcjson.ErrRPCInvalidAddressOrKey:
+					err = connect.NewError(connect.CodeNotFound, errors.New(rpcErr.Message))
+
+				case rpcErr.Code == btcjson.ErrRPCInvalidParameter:
+					err = connect.NewError(connect.CodeInvalidArgument, errors.New(rpcErr.Message))
+
+				case rpcErr.Code == btcjson.ErrRPCDecodeHexString:
+					err = connect.NewError(connect.CodeInvalidArgument, errors.New(rpcErr.Message))
+
+				default:
+					log.Warn().Msgf("unknown btcjson error: %s", rpcErr)
 				}
-				err = connect.NewError(connect.CodeFailedPrecondition, errors.New(msg))
-
-			case rpcErr.Code == btcjson.ErrRPCWalletNotFound:
-				err = connect.NewError(connect.CodeFailedPrecondition, errors.New(rpcErr.Message))
-
-			case rpcErr.Code == btcjson.ErrRPCInvalidAddressOrKey:
-				err = connect.NewError(connect.CodeNotFound, errors.New(rpcErr.Message))
-
-			case rpcErr.Code == btcjson.ErrRPCInvalidParameter:
-				err = connect.NewError(connect.CodeInvalidArgument, errors.New(rpcErr.Message))
-
-			case rpcErr.Code == btcjson.ErrRPCDecodeHexString:
-				err = connect.NewError(connect.CodeInvalidArgument, errors.New(rpcErr.Message))
-
-			default:
-				log.Warn().Msgf("unknown btcjson error: %s", rpcErr)
 			}
 
 			return resp, err
