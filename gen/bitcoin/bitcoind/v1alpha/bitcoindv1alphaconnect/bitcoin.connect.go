@@ -50,6 +50,8 @@ const (
 	BitcoinServiceGetBalancesProcedure = "/bitcoin.bitcoind.v1alpha.BitcoinService/GetBalances"
 	// BitcoinServiceSendProcedure is the fully-qualified name of the BitcoinService's Send RPC.
 	BitcoinServiceSendProcedure = "/bitcoin.bitcoind.v1alpha.BitcoinService/Send"
+	// BitcoinServiceBumpFeeProcedure is the fully-qualified name of the BitcoinService's BumpFee RPC.
+	BitcoinServiceBumpFeeProcedure = "/bitcoin.bitcoind.v1alpha.BitcoinService/BumpFee"
 	// BitcoinServiceEstimateSmartFeeProcedure is the fully-qualified name of the BitcoinService's
 	// EstimateSmartFee RPC.
 	BitcoinServiceEstimateSmartFeeProcedure = "/bitcoin.bitcoind.v1alpha.BitcoinService/EstimateSmartFee"
@@ -78,6 +80,7 @@ var (
 	bitcoinServiceGetWalletInfoMethodDescriptor        = bitcoinServiceServiceDescriptor.Methods().ByName("GetWalletInfo")
 	bitcoinServiceGetBalancesMethodDescriptor          = bitcoinServiceServiceDescriptor.Methods().ByName("GetBalances")
 	bitcoinServiceSendMethodDescriptor                 = bitcoinServiceServiceDescriptor.Methods().ByName("Send")
+	bitcoinServiceBumpFeeMethodDescriptor              = bitcoinServiceServiceDescriptor.Methods().ByName("BumpFee")
 	bitcoinServiceEstimateSmartFeeMethodDescriptor     = bitcoinServiceServiceDescriptor.Methods().ByName("EstimateSmartFee")
 	bitcoinServiceImportDescriptorsMethodDescriptor    = bitcoinServiceServiceDescriptor.Methods().ByName("ImportDescriptors")
 	bitcoinServiceGetDescriptorInfoMethodDescriptor    = bitcoinServiceServiceDescriptor.Methods().ByName("GetDescriptorInfo")
@@ -96,6 +99,7 @@ type BitcoinServiceClient interface {
 	GetWalletInfo(context.Context, *connect.Request[v1alpha.GetWalletInfoRequest]) (*connect.Response[v1alpha.GetWalletInfoResponse], error)
 	GetBalances(context.Context, *connect.Request[v1alpha.GetBalancesRequest]) (*connect.Response[v1alpha.GetBalancesResponse], error)
 	Send(context.Context, *connect.Request[v1alpha.SendRequest]) (*connect.Response[v1alpha.SendResponse], error)
+	BumpFee(context.Context, *connect.Request[v1alpha.BumpFeeRequest]) (*connect.Response[v1alpha.BumpFeeResponse], error)
 	EstimateSmartFee(context.Context, *connect.Request[v1alpha.EstimateSmartFeeRequest]) (*connect.Response[v1alpha.EstimateSmartFeeResponse], error)
 	// Import a descriptor. If importing a watch-only descriptor, the wallet itself needs
 	// to be watch-only as well. The descriptor also needs to be normalized, with a
@@ -154,6 +158,12 @@ func NewBitcoinServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(bitcoinServiceSendMethodDescriptor),
 			connect.WithClientOptions(opts...),
 		),
+		bumpFee: connect.NewClient[v1alpha.BumpFeeRequest, v1alpha.BumpFeeResponse](
+			httpClient,
+			baseURL+BitcoinServiceBumpFeeProcedure,
+			connect.WithSchema(bitcoinServiceBumpFeeMethodDescriptor),
+			connect.WithClientOptions(opts...),
+		),
 		estimateSmartFee: connect.NewClient[v1alpha.EstimateSmartFeeRequest, v1alpha.EstimateSmartFeeResponse](
 			httpClient,
 			baseURL+BitcoinServiceEstimateSmartFeeProcedure,
@@ -201,6 +211,7 @@ type bitcoinServiceClient struct {
 	getWalletInfo        *connect.Client[v1alpha.GetWalletInfoRequest, v1alpha.GetWalletInfoResponse]
 	getBalances          *connect.Client[v1alpha.GetBalancesRequest, v1alpha.GetBalancesResponse]
 	send                 *connect.Client[v1alpha.SendRequest, v1alpha.SendResponse]
+	bumpFee              *connect.Client[v1alpha.BumpFeeRequest, v1alpha.BumpFeeResponse]
 	estimateSmartFee     *connect.Client[v1alpha.EstimateSmartFeeRequest, v1alpha.EstimateSmartFeeResponse]
 	importDescriptors    *connect.Client[v1alpha.ImportDescriptorsRequest, v1alpha.ImportDescriptorsResponse]
 	getDescriptorInfo    *connect.Client[v1alpha.GetDescriptorInfoRequest, v1alpha.GetDescriptorInfoResponse]
@@ -237,6 +248,11 @@ func (c *bitcoinServiceClient) GetBalances(ctx context.Context, req *connect.Req
 // Send calls bitcoin.bitcoind.v1alpha.BitcoinService.Send.
 func (c *bitcoinServiceClient) Send(ctx context.Context, req *connect.Request[v1alpha.SendRequest]) (*connect.Response[v1alpha.SendResponse], error) {
 	return c.send.CallUnary(ctx, req)
+}
+
+// BumpFee calls bitcoin.bitcoind.v1alpha.BitcoinService.BumpFee.
+func (c *bitcoinServiceClient) BumpFee(ctx context.Context, req *connect.Request[v1alpha.BumpFeeRequest]) (*connect.Response[v1alpha.BumpFeeResponse], error) {
+	return c.bumpFee.CallUnary(ctx, req)
 }
 
 // EstimateSmartFee calls bitcoin.bitcoind.v1alpha.BitcoinService.EstimateSmartFee.
@@ -280,6 +296,7 @@ type BitcoinServiceHandler interface {
 	GetWalletInfo(context.Context, *connect.Request[v1alpha.GetWalletInfoRequest]) (*connect.Response[v1alpha.GetWalletInfoResponse], error)
 	GetBalances(context.Context, *connect.Request[v1alpha.GetBalancesRequest]) (*connect.Response[v1alpha.GetBalancesResponse], error)
 	Send(context.Context, *connect.Request[v1alpha.SendRequest]) (*connect.Response[v1alpha.SendResponse], error)
+	BumpFee(context.Context, *connect.Request[v1alpha.BumpFeeRequest]) (*connect.Response[v1alpha.BumpFeeResponse], error)
 	EstimateSmartFee(context.Context, *connect.Request[v1alpha.EstimateSmartFeeRequest]) (*connect.Response[v1alpha.EstimateSmartFeeResponse], error)
 	// Import a descriptor. If importing a watch-only descriptor, the wallet itself needs
 	// to be watch-only as well. The descriptor also needs to be normalized, with a
@@ -334,6 +351,12 @@ func NewBitcoinServiceHandler(svc BitcoinServiceHandler, opts ...connect.Handler
 		connect.WithSchema(bitcoinServiceSendMethodDescriptor),
 		connect.WithHandlerOptions(opts...),
 	)
+	bitcoinServiceBumpFeeHandler := connect.NewUnaryHandler(
+		BitcoinServiceBumpFeeProcedure,
+		svc.BumpFee,
+		connect.WithSchema(bitcoinServiceBumpFeeMethodDescriptor),
+		connect.WithHandlerOptions(opts...),
+	)
 	bitcoinServiceEstimateSmartFeeHandler := connect.NewUnaryHandler(
 		BitcoinServiceEstimateSmartFeeProcedure,
 		svc.EstimateSmartFee,
@@ -384,6 +407,8 @@ func NewBitcoinServiceHandler(svc BitcoinServiceHandler, opts ...connect.Handler
 			bitcoinServiceGetBalancesHandler.ServeHTTP(w, r)
 		case BitcoinServiceSendProcedure:
 			bitcoinServiceSendHandler.ServeHTTP(w, r)
+		case BitcoinServiceBumpFeeProcedure:
+			bitcoinServiceBumpFeeHandler.ServeHTTP(w, r)
 		case BitcoinServiceEstimateSmartFeeProcedure:
 			bitcoinServiceEstimateSmartFeeHandler.ServeHTTP(w, r)
 		case BitcoinServiceImportDescriptorsProcedure:
@@ -427,6 +452,10 @@ func (UnimplementedBitcoinServiceHandler) GetBalances(context.Context, *connect.
 
 func (UnimplementedBitcoinServiceHandler) Send(context.Context, *connect.Request[v1alpha.SendRequest]) (*connect.Response[v1alpha.SendResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("bitcoin.bitcoind.v1alpha.BitcoinService.Send is not implemented"))
+}
+
+func (UnimplementedBitcoinServiceHandler) BumpFee(context.Context, *connect.Request[v1alpha.BumpFeeRequest]) (*connect.Response[v1alpha.BumpFeeResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("bitcoin.bitcoind.v1alpha.BitcoinService.BumpFee is not implemented"))
 }
 
 func (UnimplementedBitcoinServiceHandler) EstimateSmartFee(context.Context, *connect.Request[v1alpha.EstimateSmartFeeRequest]) (*connect.Response[v1alpha.EstimateSmartFeeResponse], error) {

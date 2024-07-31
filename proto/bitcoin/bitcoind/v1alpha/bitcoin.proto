@@ -16,6 +16,7 @@ service BitcoinService {
   rpc GetWalletInfo(GetWalletInfoRequest) returns (GetWalletInfoResponse);
   rpc GetBalances(GetBalancesRequest) returns (GetBalancesResponse);
   rpc Send(SendRequest) returns (SendResponse);
+  rpc BumpFee(BumpFeeRequest) returns (BumpFeeResponse);
   rpc EstimateSmartFee(EstimateSmartFeeRequest) returns (EstimateSmartFeeResponse);
   // Import a descriptor. If importing a watch-only descriptor, the wallet itself needs
   // to be watch-only as well. The descriptor also needs to be normalized, with a
@@ -431,4 +432,18 @@ message GetBlockRequest {
 
 message GetBlockResponse {
   string hex = 1;
+}
+
+message BumpFeeRequest {
+  string wallet = 1;
+
+  // The TXID to be bumped
+  string txid = 2;
+}
+
+message BumpFeeResponse {
+  string txid = 1;
+  double original_fee = 2;
+  double new_fee = 3;
+  repeated string errors = 4;
 }

@@ -31,8 +31,12 @@ import (
 
 func init() {
 	btcjson.MustRegisterCmd("importdescriptors", new(btcjson.ImportMultiCmd), btcjson.UFWalletOnly)
+	btcjson.MustRegisterCmd("bumpfee", new(bumpFeeCommand), btcjson.UFWalletOnly)
 }
 
+type bumpFeeCommand struct {
+	TXID string `json:"txid"`
+}
 type Bitcoind struct {
 	conf   rpcclient.ConnConfig
 	rpc    *rpcclient.Client
@@ -218,6 +222,54 @@ func (b *Bitcoind) rpcForWallet(ctx context.Context, wallet string) (*rpcclient.
 	}
 
 	return rpc, nil
+}
+
+// BumpFee implements bitcoindv1alphaconnect.BitcoinServiceHandler.
+func (b *Bitcoind) BumpFee(ctx context.Context, c *connect.Request[pb.BumpFeeRequest]) (*connect.Response[pb.BumpFeeResponse], error) {
+	rpc, err := b.rpcForWallet(ctx, c.Msg.Wallet)
+	if err != nil {
+		return nil, err
+	}
+
+	type rawBumpFeeResponse struct {
+		TXID    string      `json:"txid"`
+		Origfee json.Number // old fee
+		Fee     json.Number // new fee
+		Errors  []string    // May be empty
+	}
+	return withCancel[rawBumpFeeResponse, pb.BumpFeeResponse](ctx,
+		func(ctx context.Context) (rawBumpFeeResponse, error) {
+			cmd, err := btcjson.NewCmd("bumpfee", c.Msg.Txid)
+			if err != nil {
+				return rawBumpFeeResponse{}, err
+			}
+
+			res, err := rpcclient.ReceiveFuture(rpc.SendCmd(ctx, cmd))
+			if err != nil {
+				return rawBumpFeeResponse{}, fmt.Errorf("send bumpfee: %w", err)
+			}
+			zerolog.Ctx(ctx).Err(err).
+				Msgf("bumpfee response: %s", string(res))
+
+			var parsed rawBumpFeeResponse
+			if err := json.Unmarshal(res, &parsed); err != nil {
+				return rawBumpFeeResponse{}, fmt.Errorf("unmarshal bumpfee response: %w", err)
+			}
+
+			return parsed, nil
+		},
+
+		func(r rawBumpFeeResponse) *pb.BumpFeeResponse {
+			originalFee, _ := r.Origfee.Float64()
+			newFee, _ := r.Fee.Float64()
+			return &pb.BumpFeeResponse{
+				Txid:        r.TXID,
+				OriginalFee: originalFee,
+				NewFee:      newFee,
+				Errors:      r.Errors,
+			}
+		},
+	)
 }
 
 // GetNewAddress implements bitcoind.Bitcoin
@@ -819,6 +871,12 @@ func handleBtcJsonErrors() connect.Interceptor {
 
 				case rpcErr.Code == btcjson.ErrRPCWallet && rpcErr.Message == "Transaction amount too small":
 					err = connect.NewError(connect.CodeInvalidArgument, errors.New(rpcErr.Message))
+
+				case rpcErr.Code == btcjson.ErrRPCWallet && strings.Contains(rpcErr.Message, "which was already bumped by transaction"):
+					err = connect.NewError(connect.CodeAlreadyExists, errors.New(rpcErr.Message))
+
+				case rpcErr.Code == btcjson.ErrRPCMisc && strings.Contains(rpcErr.Message, "is already spent"):
+					err = connect.NewError(connect.CodeAlreadyExists, errors.New(rpcErr.Message))
 
 				case rpcErr.Code == btcjson.ErrRPCWalletNotSpecified:
 
