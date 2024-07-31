@@ -1,5 +1,8 @@
 bin := "btc-buf"
 
+gen: 
+	buf generate
+
 build: 
 	go build -v -o ./{{ bin }} .
 
