@@ -10,6 +10,7 @@ service BitcoinService {
 
   // Fetches in-wallet transactions
   rpc GetTransaction(GetTransactionRequest) returns (GetTransactionResponse);
+  rpc ListSinceBlock(ListSinceBlockRequest) returns (ListSinceBlockResponse);
 
   // Wallet stuff
   rpc GetNewAddress(GetNewAddressRequest) returns (GetNewAddressResponse);
@@ -446,4 +447,15 @@ message BumpFeeResponse {
   double original_fee = 2;
   double new_fee = 3;
   repeated string errors = 4;
+}
+
+message ListSinceBlockRequest {
+  string wallet = 1;
+
+  // If set, the block hash to list transactions since, otherwise list all transactions.
+  string txid = 2;
+}
+
+message ListSinceBlockResponse {
+  repeated GetTransactionResponse transactions = 1;
 }

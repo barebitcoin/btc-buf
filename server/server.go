@@ -224,6 +224,46 @@ func (b *Bitcoind) rpcForWallet(ctx context.Context, wallet string) (*rpcclient.
 	return rpc, nil
 }
 
+// ListSinceBlock implements bitcoindv1alphaconnect.BitcoinServiceHandler.
+func (b *Bitcoind) ListSinceBlock(ctx context.Context, c *connect.Request[pb.ListSinceBlockRequest]) (*connect.Response[pb.ListSinceBlockResponse], error) {
+	rpc, err := b.rpcForWallet(ctx, c.Msg.Wallet)
+	if err != nil {
+		return nil, err
+	}
+
+	hash, err := newChainHash(c.Msg.Txid)
+	if err != nil {
+		return nil, err
+	}
+
+	return withCancel[*btcjson.ListSinceBlockResult, pb.ListSinceBlockResponse](ctx,
+		func(ctx context.Context) (*btcjson.ListSinceBlockResult, error) {
+			return rpc.ListSinceBlock(ctx, hash)
+		},
+		func(r *btcjson.ListSinceBlockResult) *pb.ListSinceBlockResponse {
+			return &pb.ListSinceBlockResponse{
+				Transactions: lo.Map(r.Transactions, func(tx btcjson.ListTransactionsResult, idx int) *pb.GetTransactionResponse {
+					return &pb.GetTransactionResponse{
+						Amount:            tx.Amount,
+						Fee:               lo.FromPtr(tx.Fee),
+						Confirmations:     int32(tx.Confirmations),
+						BlockHash:         tx.BlockHash,
+						BlockIndex:        uint32(lo.FromPtr(tx.BlockIndex)),
+						BlockTime:         nil,
+						Txid:              tx.TxID,
+						WalletConflicts:   tx.WalletConflicts,
+						ReplacedByTxid:    tx.ReplacedByTXID,
+						ReplacesTxid:      tx.ReplacesTXID,
+						Time:              timestamppb.New(time.Unix(tx.Time, 0)),
+						TimeReceived:      timestamppb.New(time.Unix(tx.TimeReceived, 0)),
+						Bip125Replaceable: parseReplaceable(tx.BIP125Replaceable),
+					}
+				}),
+			}
+		},
+	)
+}
+
 // BumpFee implements bitcoindv1alphaconnect.BitcoinServiceHandler.
 func (b *Bitcoind) BumpFee(ctx context.Context, c *connect.Request[pb.BumpFeeRequest]) (*connect.Response[pb.BumpFeeResponse], error) {
 	rpc, err := b.rpcForWallet(ctx, c.Msg.Wallet)
@@ -353,7 +393,7 @@ func (b *Bitcoind) GetBlock(ctx context.Context, c *connect.Request[pb.GetBlockR
 		return nil, connect.NewError(connect.CodeUnimplemented, fmt.Errorf("bad verbosity: %s", c.Msg.Verbosity))
 	}
 
-	hash, err := chainhash.NewHashFromStr(c.Msg.Hash)
+	hash, err := newChainHash(c.Msg.Hash)
 	if err != nil {
 		return nil, err
 	}
@@ -379,9 +419,9 @@ func (b *Bitcoind) GetRawTransaction(ctx context.Context, c *connect.Request[pb.
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New(`"txid" is a required argument`))
 	}
 
-	hash, err := chainhash.NewHashFromStr(c.Msg.Txid)
+	hash, err := newChainHash(c.Msg.Txid)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("invalid txid"))
+		return nil, err
 	}
 
 	if !c.Msg.Verbose {
@@ -453,9 +493,9 @@ func (b *Bitcoind) GetTransaction(ctx context.Context, c *connect.Request[pb.Get
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New(`"txid" is a required argument`))
 	}
 
-	hash, err := chainhash.NewHashFromStr(c.Msg.Txid)
+	hash, err := newChainHash(c.Msg.Txid)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("invalid txid"))
+		return nil, err
 	}
 
 	rpc, err := b.rpcForWallet(ctx, c.Msg.Wallet)
@@ -502,18 +542,6 @@ func (b *Bitcoind) GetTransaction(ctx context.Context, c *connect.Request[pb.Get
 				details = append(details, detail)
 			}
 
-			replaceable := func(in string) pb.GetTransactionResponse_Replaceable {
-				switch in {
-				case "unknown":
-					return pb.GetTransactionResponse_REPLACEABLE_UNSPECIFIED
-				case "yes":
-					return pb.GetTransactionResponse_REPLACEABLE_YES
-				case "no":
-					return pb.GetTransactionResponse_REPLACEABLE_NO
-				default:
-					return 0
-				}
-			}
 			var blockTime *timestamppb.Timestamp
 			if res.BlockTime != 0 {
 				blockTime = timestamppb.New(time.Unix(res.BlockTime, 0))
@@ -534,7 +562,7 @@ func (b *Bitcoind) GetTransaction(ctx context.Context, c *connect.Request[pb.Get
 				Time:              timestamppb.New(time.Unix(res.Time, 0)),
 				TimeReceived:      timestamppb.New(time.Unix(res.TimeReceived, 0)),
 				Details:           details,
-				Bip125Replaceable: replaceable(res.BIP125Replaceable),
+				Bip125Replaceable: parseReplaceable(res.BIP125Replaceable),
 			}
 		},
 	)
@@ -908,4 +936,30 @@ func handleBtcJsonErrors() connect.Interceptor {
 			return resp, err
 		}
 	})
+}
+
+func newChainHash(in string) (*chainhash.Hash, error) {
+	if in == "" {
+		return nil, nil
+	}
+
+	hash, err := chainhash.NewHashFromStr(in)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+
+	return hash, nil
+}
+
+func parseReplaceable(in string) pb.GetTransactionResponse_Replaceable {
+	switch in {
+	case "unknown":
+		return pb.GetTransactionResponse_REPLACEABLE_UNSPECIFIED
+	case "yes":
+		return pb.GetTransactionResponse_REPLACEABLE_YES
+	case "no":
+		return pb.GetTransactionResponse_REPLACEABLE_NO
+	default:
+		return 0
+	}
 }
