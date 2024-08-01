@@ -453,7 +453,7 @@ message ListSinceBlockRequest {
   string wallet = 1;
 
   // If set, the block hash to list transactions since, otherwise list all transactions.
-  string txid = 2;
+  string hash = 2;
 }
 
 message ListSinceBlockResponse {

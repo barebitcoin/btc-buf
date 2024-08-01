@@ -231,7 +231,7 @@ func (b *Bitcoind) ListSinceBlock(ctx context.Context, c *connect.Request[pb.Lis
 		return nil, err
 	}
 
-	hash, err := newChainHash(c.Msg.Txid)
+	hash, err := newChainHash(c.Msg.Hash)
 	if err != nil {
 		return nil, err
 	}
