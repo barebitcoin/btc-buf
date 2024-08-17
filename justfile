@@ -6,6 +6,9 @@ gen:
 build: 
 	go build -v -o ./{{ bin }} .
 
+lint: 
+	golangci-lint run .
+
 proto-format: 
 	buf format -w proto
 
