@@ -846,6 +846,65 @@ func (b *Bitcoind) GetDescriptorInfo(ctx context.Context, c *connect.Request[pb.
 		})
 }
 
+// GetRawMempool implements bitcoindv1alphaconnect.BitcoinServiceHandler.
+func (b *Bitcoind) GetRawMempool(ctx context.Context, c *connect.Request[pb.GetRawMempoolRequest]) (*connect.Response[pb.GetRawMempoolResponse], error) {
+	type maybeVerbose struct {
+		txids        []*chainhash.Hash
+		transactions map[string]btcjson.GetMempoolEntryResult
+	}
+	return withCancel[maybeVerbose, pb.GetRawMempoolResponse](
+		ctx, func(ctx context.Context) (maybeVerbose, error) {
+			if !c.Msg.Verbose {
+				res, err := b.rpc.GetRawMempool(ctx)
+				if err != nil {
+					return maybeVerbose{}, err
+				}
+
+				return maybeVerbose{res, nil}, nil
+
+			}
+			res, err := b.rpc.GetRawMempoolVerbose(ctx)
+			if err != nil {
+				return maybeVerbose{}, err
+			}
+
+			return maybeVerbose{nil, res}, nil
+		},
+		func(res maybeVerbose) *pb.GetRawMempoolResponse {
+			return &pb.GetRawMempoolResponse{
+				Transactions: lo.MapValues(res.transactions,
+					func(value btcjson.GetMempoolEntryResult, key string) *pb.MempoolEntry {
+						return &pb.MempoolEntry{
+							VirtualSize:     uint32(value.VSize),
+							Weight:          uint32(value.Weight),
+							Time:            &timestamppb.Timestamp{Seconds: value.Time},
+							DescendantCount: uint32(value.DescendantCount),
+							DescendantSize:  uint32(value.DescendantSize),
+							AncestorCount:   uint32(value.AncestorCount),
+							AncestorSize:    uint32(value.AncestorSize),
+							WitnessTxid:     value.WTxId,
+							Fees: &pb.MempoolEntry_Fees{
+								Base:       value.Fees.Base,
+								Modified:   value.Fees.Modified,
+								Ancestor:   value.Fees.Ancestor,
+								Descendant: value.Fees.Descendant,
+							},
+							Depends:           value.Depends,
+							SpentBy:           value.SpentBy,
+							Bip125Replaceable: value.BIP125Replaceable,
+							Unbroadcast:       value.Unbroadcast,
+						}
+					},
+				),
+				Txids: lo.Map(res.txids,
+					func(txid *chainhash.Hash, idx int) string {
+						return txid.String()
+					}),
+			}
+		},
+	)
+}
+
 func (b *Bitcoind) Shutdown(ctx context.Context) {
 	if b.server == nil {
 		log.Warn().Msg("shutdown called on empty server")

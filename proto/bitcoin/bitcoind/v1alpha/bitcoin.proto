@@ -26,6 +26,9 @@ service BitcoinService {
 
   rpc GetDescriptorInfo(GetDescriptorInfoRequest) returns (GetDescriptorInfoResponse);
 
+  // Mempool stuff
+  rpc GetRawMempool(GetRawMempoolRequest) returns (GetRawMempoolResponse);
+
   // Raw TX stuff
   rpc GetRawTransaction(GetRawTransactionRequest) returns (GetRawTransactionResponse);
   rpc DecodeRawTransaction(DecodeRawTransactionRequest) returns (DecodeRawTransactionResponse);
@@ -458,4 +461,43 @@ message ListSinceBlockRequest {
 
 message ListSinceBlockResponse {
   repeated GetTransactionResponse transactions = 1;
+}
+
+message GetRawMempoolRequest {
+  bool verbose = 1;
+}
+
+message MempoolEntry {
+  // All values are in whole bitcoins
+  message Fees {
+    double base = 1;
+    double modified = 2;
+    double ancestor = 3;
+    double descendant = 4;
+  }
+
+  uint32 virtual_size = 1;
+  uint32 weight = 2;
+  google.protobuf.Timestamp time = 3;
+  uint32 descendant_count = 4;
+  uint32 descendant_size = 5;
+  uint32 ancestor_count = 6;
+  uint32 ancestor_size = 7;
+  string witness_txid = 8;
+  Fees fees = 9;
+  repeated string depends = 10;
+  repeated string spent_by = 11;
+  bool bip125_replaceable = 12;
+
+  // A transaction is unbroadcast if initial broadcast not yet
+  // acknowledged by any peers.
+  bool unbroadcast = 13;
+}
+
+message GetRawMempoolResponse {
+  // Only set if this is a non-verbose response
+  repeated string txids = 1;
+
+  // Only set if this is a verbose response
+  map<string, MempoolEntry> transactions = 2;
 }
