@@ -443,6 +443,30 @@ message GetBlockRequest {
 
 message GetBlockResponse {
   string hex = 1;
+
+  string hash = 2;
+  int32 confirmations = 3;
+  uint32 height = 4;
+  int32 version = 5;
+  string version_hex = 6;
+  string merkle_root = 7;
+  google.protobuf.Timestamp time = 8;
+  // google.protobuf.Timestamp median_time = 8; // not in rpcclient
+
+  uint32 nonce = 9;
+  string bits = 10;
+  double difficulty = 11;
+
+  // Expected number of hashes required to produce the chain up to this block (in hex)
+  // string chainwork = 12; // not in rpcclient
+  string previous_block_hash = 12;
+  string next_block_hash = 13;
+  int32 stripped_size = 14;
+  int32 size = 15;
+  int32 weight = 16;
+
+  // List of transactions in the block, by TXID.
+  repeated string txids = 17;
 }
 
 message BumpFeeRequest {

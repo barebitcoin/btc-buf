@@ -391,15 +391,13 @@ func (b *Bitcoind) GetBlock(ctx context.Context, c *connect.Request[pb.GetBlockR
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New(`"hash" is a required argument`))
 	}
 
-	if c.Msg.Verbosity != pb.GetBlockRequest_VERBOSITY_RAW_DATA {
-		return nil, connect.NewError(connect.CodeUnimplemented, fmt.Errorf("bad verbosity: %s", c.Msg.Verbosity))
-	}
-
 	hash, err := newChainHash(c.Msg.Hash)
 	if err != nil {
 		return nil, err
 	}
 
+	switch c.Msg.Verbosity {
+	case pb.GetBlockRequest_VERBOSITY_RAW_DATA:
 	block, err := b.rpc.GetBlock(ctx, hash)
 	if err != nil {
 		return nil, err
@@ -413,6 +411,36 @@ func (b *Bitcoind) GetBlock(ctx context.Context, c *connect.Request[pb.GetBlockR
 	return connect.NewResponse(&pb.GetBlockResponse{
 		Hex: hex.EncodeToString(out.Bytes()),
 	}), nil
+
+	case pb.GetBlockRequest_VERBOSITY_BLOCK_INFO:
+		block, err := b.rpc.GetBlockVerbose(ctx, hash)
+		if err != nil {
+			return nil, err
+		}
+
+		return connect.NewResponse(&pb.GetBlockResponse{
+			Hex:               "",
+			Hash:              block.Hash,
+			Confirmations:     int32(block.Confirmations),
+			Height:            uint32(block.Height),
+			Version:           block.Version,
+			VersionHex:        block.VersionHex,
+			Bits:              block.Bits,
+			MerkleRoot:        block.MerkleRoot,
+			Time:              &timestamppb.Timestamp{Seconds: block.Time},
+			Nonce:             block.Nonce,
+			Difficulty:        block.Difficulty,
+			PreviousBlockHash: block.PreviousHash,
+			NextBlockHash:     block.NextHash,
+			StrippedSize:      block.StrippedSize,
+			Size:              block.Size,
+			Weight:            block.Weight,
+			Txids:             block.Tx,
+		}), nil
+
+	default:
+		return nil, connect.NewError(connect.CodeUnimplemented, fmt.Errorf("bad verbosity: %s", c.Msg.Verbosity))
+	}
 }
 
 // GetRawTransaction implements bitcoindv1alphaconnect.BitcoinServiceHandler.
