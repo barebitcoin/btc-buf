@@ -339,6 +339,8 @@ func (b *Bitcoind) GetBlockchainInfo(
 	return withCancel(ctx, b.rpc.GetBlockChainInfo,
 		func(info *btcjson.GetBlockChainInfoResult) *pb.GetBlockchainInfoResponse {
 			return &pb.GetBlockchainInfoResponse{
+				Blocks:               uint32(info.Blocks),
+				Headers:              uint32(info.Headers),
 				BestBlockHash:        info.BestBlockHash,
 				Chain:                info.Chain,
 				ChainWork:            info.ChainWork,

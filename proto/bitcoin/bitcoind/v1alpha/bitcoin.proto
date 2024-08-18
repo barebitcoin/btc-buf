@@ -39,6 +39,13 @@ service BitcoinService {
 message GetBlockchainInfoRequest {}
 message GetBlockchainInfoResponse {
   string best_block_hash = 1;
+
+  // The height of the most-work fully-validated chain.
+  uint32 blocks = 5;
+
+  // The current number of validated headers.
+  uint32 headers = 6;
+
   string chain = 2;
   string chain_work = 3;
   bool initial_block_download = 4;
