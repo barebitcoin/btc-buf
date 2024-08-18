@@ -75,6 +75,9 @@ const (
 	BitcoinServiceDecodeRawTransactionProcedure = "/bitcoin.bitcoind.v1alpha.BitcoinService/DecodeRawTransaction"
 	// BitcoinServiceGetBlockProcedure is the fully-qualified name of the BitcoinService's GetBlock RPC.
 	BitcoinServiceGetBlockProcedure = "/bitcoin.bitcoind.v1alpha.BitcoinService/GetBlock"
+	// BitcoinServiceGetBlockHashProcedure is the fully-qualified name of the BitcoinService's
+	// GetBlockHash RPC.
+	BitcoinServiceGetBlockHashProcedure = "/bitcoin.bitcoind.v1alpha.BitcoinService/GetBlockHash"
 )
 
 // These variables are the protoreflect.Descriptor objects for the RPCs defined in this package.
@@ -95,6 +98,7 @@ var (
 	bitcoinServiceGetRawTransactionMethodDescriptor    = bitcoinServiceServiceDescriptor.Methods().ByName("GetRawTransaction")
 	bitcoinServiceDecodeRawTransactionMethodDescriptor = bitcoinServiceServiceDescriptor.Methods().ByName("DecodeRawTransaction")
 	bitcoinServiceGetBlockMethodDescriptor             = bitcoinServiceServiceDescriptor.Methods().ByName("GetBlock")
+	bitcoinServiceGetBlockHashMethodDescriptor         = bitcoinServiceServiceDescriptor.Methods().ByName("GetBlockHash")
 )
 
 // BitcoinServiceClient is a client for the bitcoin.bitcoind.v1alpha.BitcoinService service.
@@ -121,6 +125,7 @@ type BitcoinServiceClient interface {
 	GetRawTransaction(context.Context, *connect.Request[v1alpha.GetRawTransactionRequest]) (*connect.Response[v1alpha.GetRawTransactionResponse], error)
 	DecodeRawTransaction(context.Context, *connect.Request[v1alpha.DecodeRawTransactionRequest]) (*connect.Response[v1alpha.DecodeRawTransactionResponse], error)
 	GetBlock(context.Context, *connect.Request[v1alpha.GetBlockRequest]) (*connect.Response[v1alpha.GetBlockResponse], error)
+	GetBlockHash(context.Context, *connect.Request[v1alpha.GetBlockHashRequest]) (*connect.Response[v1alpha.GetBlockHashResponse], error)
 }
 
 // NewBitcoinServiceClient constructs a client for the bitcoin.bitcoind.v1alpha.BitcoinService
@@ -223,6 +228,12 @@ func NewBitcoinServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(bitcoinServiceGetBlockMethodDescriptor),
 			connect.WithClientOptions(opts...),
 		),
+		getBlockHash: connect.NewClient[v1alpha.GetBlockHashRequest, v1alpha.GetBlockHashResponse](
+			httpClient,
+			baseURL+BitcoinServiceGetBlockHashProcedure,
+			connect.WithSchema(bitcoinServiceGetBlockHashMethodDescriptor),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -243,6 +254,7 @@ type bitcoinServiceClient struct {
 	getRawTransaction    *connect.Client[v1alpha.GetRawTransactionRequest, v1alpha.GetRawTransactionResponse]
 	decodeRawTransaction *connect.Client[v1alpha.DecodeRawTransactionRequest, v1alpha.DecodeRawTransactionResponse]
 	getBlock             *connect.Client[v1alpha.GetBlockRequest, v1alpha.GetBlockResponse]
+	getBlockHash         *connect.Client[v1alpha.GetBlockHashRequest, v1alpha.GetBlockHashResponse]
 }
 
 // GetBlockchainInfo calls bitcoin.bitcoind.v1alpha.BitcoinService.GetBlockchainInfo.
@@ -320,6 +332,11 @@ func (c *bitcoinServiceClient) GetBlock(ctx context.Context, req *connect.Reques
 	return c.getBlock.CallUnary(ctx, req)
 }
 
+// GetBlockHash calls bitcoin.bitcoind.v1alpha.BitcoinService.GetBlockHash.
+func (c *bitcoinServiceClient) GetBlockHash(ctx context.Context, req *connect.Request[v1alpha.GetBlockHashRequest]) (*connect.Response[v1alpha.GetBlockHashResponse], error) {
+	return c.getBlockHash.CallUnary(ctx, req)
+}
+
 // BitcoinServiceHandler is an implementation of the bitcoin.bitcoind.v1alpha.BitcoinService
 // service.
 type BitcoinServiceHandler interface {
@@ -345,6 +362,7 @@ type BitcoinServiceHandler interface {
 	GetRawTransaction(context.Context, *connect.Request[v1alpha.GetRawTransactionRequest]) (*connect.Response[v1alpha.GetRawTransactionResponse], error)
 	DecodeRawTransaction(context.Context, *connect.Request[v1alpha.DecodeRawTransactionRequest]) (*connect.Response[v1alpha.DecodeRawTransactionResponse], error)
 	GetBlock(context.Context, *connect.Request[v1alpha.GetBlockRequest]) (*connect.Response[v1alpha.GetBlockResponse], error)
+	GetBlockHash(context.Context, *connect.Request[v1alpha.GetBlockHashRequest]) (*connect.Response[v1alpha.GetBlockHashResponse], error)
 }
 
 // NewBitcoinServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -443,6 +461,12 @@ func NewBitcoinServiceHandler(svc BitcoinServiceHandler, opts ...connect.Handler
 		connect.WithSchema(bitcoinServiceGetBlockMethodDescriptor),
 		connect.WithHandlerOptions(opts...),
 	)
+	bitcoinServiceGetBlockHashHandler := connect.NewUnaryHandler(
+		BitcoinServiceGetBlockHashProcedure,
+		svc.GetBlockHash,
+		connect.WithSchema(bitcoinServiceGetBlockHashMethodDescriptor),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/bitcoin.bitcoind.v1alpha.BitcoinService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case BitcoinServiceGetBlockchainInfoProcedure:
@@ -475,6 +499,8 @@ func NewBitcoinServiceHandler(svc BitcoinServiceHandler, opts ...connect.Handler
 			bitcoinServiceDecodeRawTransactionHandler.ServeHTTP(w, r)
 		case BitcoinServiceGetBlockProcedure:
 			bitcoinServiceGetBlockHandler.ServeHTTP(w, r)
+		case BitcoinServiceGetBlockHashProcedure:
+			bitcoinServiceGetBlockHashHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -542,4 +568,8 @@ func (UnimplementedBitcoinServiceHandler) DecodeRawTransaction(context.Context, 
 
 func (UnimplementedBitcoinServiceHandler) GetBlock(context.Context, *connect.Request[v1alpha.GetBlockRequest]) (*connect.Response[v1alpha.GetBlockResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("bitcoin.bitcoind.v1alpha.BitcoinService.GetBlock is not implemented"))
+}
+
+func (UnimplementedBitcoinServiceHandler) GetBlockHash(context.Context, *connect.Request[v1alpha.GetBlockHashRequest]) (*connect.Response[v1alpha.GetBlockHashResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("bitcoin.bitcoind.v1alpha.BitcoinService.GetBlockHash is not implemented"))
 }

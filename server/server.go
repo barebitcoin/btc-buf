@@ -385,6 +385,16 @@ func (b *Bitcoind) GetWalletInfo(
 	)
 }
 
+// GetBlockHash implements bitcoindv1alphaconnect.BitcoinServiceHandler.
+func (b *Bitcoind) GetBlockHash(ctx context.Context, c *connect.Request[pb.GetBlockHashRequest]) (*connect.Response[pb.GetBlockHashResponse], error) {
+	res, err := b.rpc.GetBlockHash(ctx, int64(c.Msg.Height))
+	if err != nil {
+		return nil, err
+	}
+
+	return connect.NewResponse(&pb.GetBlockHashResponse{Hash: res.String()}), nil
+}
+
 // GetBlock implements bitcoindv1alphaconnect.BitcoinServiceHandler.
 func (b *Bitcoind) GetBlock(ctx context.Context, c *connect.Request[pb.GetBlockRequest]) (*connect.Response[pb.GetBlockResponse], error) {
 	if c.Msg.Hash == "" {
@@ -398,19 +408,19 @@ func (b *Bitcoind) GetBlock(ctx context.Context, c *connect.Request[pb.GetBlockR
 
 	switch c.Msg.Verbosity {
 	case pb.GetBlockRequest_VERBOSITY_RAW_DATA:
-	block, err := b.rpc.GetBlock(ctx, hash)
-	if err != nil {
-		return nil, err
-	}
+		block, err := b.rpc.GetBlock(ctx, hash)
+		if err != nil {
+			return nil, err
+		}
 
-	var out bytes.Buffer
-	if err := block.Serialize(&out); err != nil {
-		return nil, fmt.Errorf("serialize block: %w", err)
-	}
+		var out bytes.Buffer
+		if err := block.Serialize(&out); err != nil {
+			return nil, fmt.Errorf("serialize block: %w", err)
+		}
 
-	return connect.NewResponse(&pb.GetBlockResponse{
-		Hex: hex.EncodeToString(out.Bytes()),
-	}), nil
+		return connect.NewResponse(&pb.GetBlockResponse{
+			Hex: hex.EncodeToString(out.Bytes()),
+		}), nil
 
 	case pb.GetBlockRequest_VERBOSITY_BLOCK_INFO:
 		block, err := b.rpc.GetBlockVerbose(ctx, hash)

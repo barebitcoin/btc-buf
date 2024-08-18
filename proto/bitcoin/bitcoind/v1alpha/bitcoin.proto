@@ -34,6 +34,7 @@ service BitcoinService {
   rpc DecodeRawTransaction(DecodeRawTransactionRequest) returns (DecodeRawTransactionResponse);
 
   rpc GetBlock(GetBlockRequest) returns (GetBlockResponse);
+  rpc GetBlockHash(GetBlockHashRequest) returns (GetBlockHashResponse);
 }
 
 message GetBlockchainInfoRequest {}
@@ -531,4 +532,12 @@ message GetRawMempoolResponse {
 
   // Only set if this is a verbose response
   map<string, MempoolEntry> transactions = 2;
+}
+
+message GetBlockHashRequest {
+  uint32 height = 1;
+}
+
+message GetBlockHashResponse {
+  string hash = 1;
 }
