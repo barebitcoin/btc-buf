@@ -23,7 +23,6 @@ import (
 	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/btcsuite/btclog"
 	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 	"github.com/samber/lo"
 	"golang.org/x/exp/slices"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -46,7 +45,8 @@ type Bitcoind struct {
 func NewBitcoind(
 	ctx context.Context, host, user, pass string,
 ) (*Bitcoind, error) {
-	zerolog.Ctx(ctx).Info().
+	log := zerolog.Ctx(ctx)
+	log.Info().
 		Str("host", host).
 		Str("user", user).
 		Msg("connecting to bitcoind")
@@ -946,6 +946,8 @@ func (b *Bitcoind) GetRawMempool(ctx context.Context, c *connect.Request[pb.GetR
 }
 
 func (b *Bitcoind) Shutdown(ctx context.Context) {
+	log := zerolog.Ctx(ctx)
+
 	if b.server == nil {
 		log.Warn().Msg("shutdown called on empty server")
 		return
@@ -963,7 +965,7 @@ func (b *Bitcoind) Listen(ctx context.Context, address string) error {
 
 	connectserver.Register(b.server, rpc.NewBitcoinServiceHandler, rpc.BitcoinServiceHandler(b))
 
-	log.Info().
+	zerolog.Ctx(ctx).Info().
 		Str("address", address).
 		Msg("connect: serving")
 
@@ -1028,7 +1030,7 @@ func handleBtcJsonErrors() connect.Interceptor {
 					err = connect.NewError(connect.CodeInvalidArgument, errors.New(rpcErr.Message))
 
 				default:
-					log.Warn().Msgf("unknown btcjson error: %s", rpcErr)
+					zerolog.Ctx(ctx).Warn().Msgf("unknown btcjson error: %s", rpcErr)
 				}
 			}
 
