@@ -1,7 +1,6 @@
 linters:
   enable:
     - depguard
-    - exportloopref
     - gofumpt
     - unconvert
     - unparam
@@ -14,3 +13,6 @@ linters-settings:
         deny:
           - pkg: log
             desc: use zerolog
+
+          - pkg: github.com/rs/zerolog/log
+            desc: use context logger

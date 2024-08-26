@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/barebitcoin/btc-buf/server"
-	"github.com/rs/zerolog/log"
+	"github.com/rs/zerolog"
 )
 
 func realMain(cfg *config) error {
@@ -21,7 +21,7 @@ func realMain(cfg *config) error {
 
 	go func() {
 		signal := <-sig
-		log.Info().
+		zerolog.Ctx(ctx).Info().
 			Stringer("signal", signal).
 			Msg("received signal, canceling context")
 		cancel(fmt.Errorf("received %s signal", signal))
@@ -55,7 +55,10 @@ func realMain(cfg *config) error {
 }
 
 func main() {
-	cfg, err := readConfig()
+	ctx := context.Background()
+	log := zerolog.Ctx(ctx)
+
+	cfg, err := readConfig(ctx)
 	if err != nil {
 		log.Fatal().Err(err).Msg("main: could not read config")
 	}

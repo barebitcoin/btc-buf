@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -8,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/jessevdk/go-flags"
-	"github.com/rs/zerolog/log"
+	"github.com/rs/zerolog"
 )
 
 type config struct {
@@ -29,7 +30,7 @@ type bitcoindConfig struct {
 	Wallet   string `long:"wallet" description:"equivalent to -rpcwallet in bitcoin-cli"`
 }
 
-func readConfig() (*config, error) {
+func readConfig(ctx context.Context) (*config, error) {
 	var cfg config
 	if _, err := flags.Parse(&cfg); err != nil {
 		// help was requested, avoid print and non-zero exit code
@@ -58,6 +59,7 @@ func readConfig() (*config, error) {
 		cfg.Bitcoind.Pass = strings.TrimSpace(string(pass))
 	}
 
+	log := zerolog.Ctx(ctx)
 	if cfg.Bitcoind.Pass == "" && cfg.Bitcoind.User == "" {
 		log.Debug().
 			Msg("config: empty bitcoind.pass and bitcoind.user, defaulting to cookie")

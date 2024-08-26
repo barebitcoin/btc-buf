@@ -46,7 +46,7 @@ type Bitcoind struct {
 func NewBitcoind(
 	ctx context.Context, host, user, pass string,
 ) (*Bitcoind, error) {
-	log.Info().
+	zerolog.Ctx(ctx).Info().
 		Str("host", host).
 		Str("user", user).
 		Msg("connecting to bitcoind")

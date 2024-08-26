@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
+	"github.com/rs/zerolog/log" // nolint:depguard
 	"golang.org/x/exp/slices"
 )
 
