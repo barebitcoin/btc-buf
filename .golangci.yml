@@ -2,6 +2,7 @@ linters:
   enable:
     - depguard
     - gofumpt
+    # - copyloopvar
     - unconvert
     - unparam
 
