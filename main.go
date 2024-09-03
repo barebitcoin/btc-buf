@@ -56,12 +56,14 @@ func realMain(cfg *config) error {
 
 func main() {
 	ctx := context.Background()
-	log := zerolog.Ctx(ctx)
 
 	cfg, err := readConfig(ctx)
 	if err != nil {
-		log.Fatal().Err(err).Msg("main: could not read config")
+		panic(fmt.Sprintf("read config: %s", err))
 	}
+
+	// important: this is only usable AFTER readConfig has been called
+	log := zerolog.Ctx(ctx)
 
 	if info, ok := debug.ReadBuildInfo(); ok {
 		log.Info().
@@ -74,6 +76,7 @@ func main() {
 	if err := realMain(cfg); err != nil {
 		log.Fatal().Err(err).Msg("main: received error")
 	}
+	log.Info().Msgf("main: exiting with 0 code")
 }
 
 func findSetting(key string, settings []debug.BuildSetting) string {
