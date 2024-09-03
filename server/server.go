@@ -84,7 +84,7 @@ func NewBitcoind(
 		return nil, errors.New("invalid RPC client credentials")
 
 	case err != nil:
-		return nil, fmt.Errorf("could not get initial blockchain info: %w", err)
+		return nil, fmt.Errorf("get initial blockchain info: %w", err)
 	}
 
 	log.Debug().
