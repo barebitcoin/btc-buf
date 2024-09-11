@@ -301,6 +301,15 @@ func txListEntryToProto(tx btcjson.ListTransactionsResult) *pb.GetTransactionRes
 		Time:              timestamppb.New(time.Unix(tx.Time, 0)),
 		TimeReceived:      timestamppb.New(time.Unix(tx.TimeReceived, 0)),
 		Bip125Replaceable: parseReplaceable(tx.BIP125Replaceable),
+		// Clunk town...
+		Details: []*pb.GetTransactionResponse_Details{{
+			Address:           tx.Address,
+			InvolvesWatchOnly: tx.InvolvesWatchOnly,
+			Category:          categoryFromString(tx.Category),
+			Amount:            tx.Amount,
+			Vout:              tx.Vout,
+			Fee:               lo.FromPtr(tx.Fee),
+		}},
 	}
 }
 
@@ -591,26 +600,10 @@ func (b *Bitcoind) GetTransaction(ctx context.Context, c *connect.Request[pb.Get
 		func(res *btcjson.GetTransactionResult) *pb.GetTransactionResponse {
 			var details []*pb.GetTransactionResponse_Details
 			for _, d := range res.Details {
-				category := func(in string) pb.GetTransactionResponse_Category {
-					switch in {
-					case "send":
-						return pb.GetTransactionResponse_CATEGORY_SEND
-					case "receive":
-						return pb.GetTransactionResponse_CATEGORY_RECEIVE
-					case "generate":
-						return pb.GetTransactionResponse_CATEGORY_GENERATE
-					case "immature":
-						return pb.GetTransactionResponse_CATEGORY_IMMATURE
-					case "orphan":
-						return pb.GetTransactionResponse_CATEGORY_ORPHAN
-					default:
-						return 0
-					}
-				}
 				detail := &pb.GetTransactionResponse_Details{
 					InvolvesWatchOnly: d.InvolvesWatchOnly,
 					Address:           d.Address,
-					Category:          category(d.Category),
+					Category:          categoryFromString(d.Category),
 					Amount:            d.Amount,
 					Vout:              d.Vout,
 				}
@@ -1100,6 +1093,23 @@ func parseReplaceable(in string) pb.GetTransactionResponse_Replaceable {
 		return pb.GetTransactionResponse_REPLACEABLE_YES
 	case "no":
 		return pb.GetTransactionResponse_REPLACEABLE_NO
+	default:
+		return 0
+	}
+}
+
+func categoryFromString(in string) pb.GetTransactionResponse_Category {
+	switch in {
+	case "send":
+		return pb.GetTransactionResponse_CATEGORY_SEND
+	case "receive":
+		return pb.GetTransactionResponse_CATEGORY_RECEIVE
+	case "generate":
+		return pb.GetTransactionResponse_CATEGORY_GENERATE
+	case "immature":
+		return pb.GetTransactionResponse_CATEGORY_IMMATURE
+	case "orphan":
+		return pb.GetTransactionResponse_CATEGORY_ORPHAN
 	default:
 		return 0
 	}
