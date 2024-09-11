@@ -24,6 +24,8 @@ service BitcoinService {
   // checksum. This can be obtained by running it through GetDescriptorInfo.
   rpc ImportDescriptors(ImportDescriptorsRequest) returns (ImportDescriptorsResponse);
 
+  rpc ListTransactions(ListTransactionsRequest) returns (ListTransactionsResponse);
+
   rpc GetDescriptorInfo(GetDescriptorInfoRequest) returns (GetDescriptorInfoResponse);
 
   // Mempool stuff
@@ -540,4 +542,17 @@ message GetBlockHashRequest {
 
 message GetBlockHashResponse {
   string hash = 1;
+}
+
+message ListTransactionsRequest {
+  string wallet = 1;
+
+  // Defaults to 10
+  uint32 count = 2;
+
+  uint32 skip = 3;
+}
+
+message ListTransactionsResponse {
+  repeated GetTransactionResponse transactions = 1;
 }

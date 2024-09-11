@@ -61,6 +61,9 @@ const (
 	// BitcoinServiceImportDescriptorsProcedure is the fully-qualified name of the BitcoinService's
 	// ImportDescriptors RPC.
 	BitcoinServiceImportDescriptorsProcedure = "/bitcoin.bitcoind.v1alpha.BitcoinService/ImportDescriptors"
+	// BitcoinServiceListTransactionsProcedure is the fully-qualified name of the BitcoinService's
+	// ListTransactions RPC.
+	BitcoinServiceListTransactionsProcedure = "/bitcoin.bitcoind.v1alpha.BitcoinService/ListTransactions"
 	// BitcoinServiceGetDescriptorInfoProcedure is the fully-qualified name of the BitcoinService's
 	// GetDescriptorInfo RPC.
 	BitcoinServiceGetDescriptorInfoProcedure = "/bitcoin.bitcoind.v1alpha.BitcoinService/GetDescriptorInfo"
@@ -93,6 +96,7 @@ var (
 	bitcoinServiceBumpFeeMethodDescriptor              = bitcoinServiceServiceDescriptor.Methods().ByName("BumpFee")
 	bitcoinServiceEstimateSmartFeeMethodDescriptor     = bitcoinServiceServiceDescriptor.Methods().ByName("EstimateSmartFee")
 	bitcoinServiceImportDescriptorsMethodDescriptor    = bitcoinServiceServiceDescriptor.Methods().ByName("ImportDescriptors")
+	bitcoinServiceListTransactionsMethodDescriptor     = bitcoinServiceServiceDescriptor.Methods().ByName("ListTransactions")
 	bitcoinServiceGetDescriptorInfoMethodDescriptor    = bitcoinServiceServiceDescriptor.Methods().ByName("GetDescriptorInfo")
 	bitcoinServiceGetRawMempoolMethodDescriptor        = bitcoinServiceServiceDescriptor.Methods().ByName("GetRawMempool")
 	bitcoinServiceGetRawTransactionMethodDescriptor    = bitcoinServiceServiceDescriptor.Methods().ByName("GetRawTransaction")
@@ -118,6 +122,7 @@ type BitcoinServiceClient interface {
 	// to be watch-only as well. The descriptor also needs to be normalized, with a
 	// checksum. This can be obtained by running it through GetDescriptorInfo.
 	ImportDescriptors(context.Context, *connect.Request[v1alpha.ImportDescriptorsRequest]) (*connect.Response[v1alpha.ImportDescriptorsResponse], error)
+	ListTransactions(context.Context, *connect.Request[v1alpha.ListTransactionsRequest]) (*connect.Response[v1alpha.ListTransactionsResponse], error)
 	GetDescriptorInfo(context.Context, *connect.Request[v1alpha.GetDescriptorInfoRequest]) (*connect.Response[v1alpha.GetDescriptorInfoResponse], error)
 	// Mempool stuff
 	GetRawMempool(context.Context, *connect.Request[v1alpha.GetRawMempoolRequest]) (*connect.Response[v1alpha.GetRawMempoolResponse], error)
@@ -198,6 +203,12 @@ func NewBitcoinServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(bitcoinServiceImportDescriptorsMethodDescriptor),
 			connect.WithClientOptions(opts...),
 		),
+		listTransactions: connect.NewClient[v1alpha.ListTransactionsRequest, v1alpha.ListTransactionsResponse](
+			httpClient,
+			baseURL+BitcoinServiceListTransactionsProcedure,
+			connect.WithSchema(bitcoinServiceListTransactionsMethodDescriptor),
+			connect.WithClientOptions(opts...),
+		),
 		getDescriptorInfo: connect.NewClient[v1alpha.GetDescriptorInfoRequest, v1alpha.GetDescriptorInfoResponse](
 			httpClient,
 			baseURL+BitcoinServiceGetDescriptorInfoProcedure,
@@ -249,6 +260,7 @@ type bitcoinServiceClient struct {
 	bumpFee              *connect.Client[v1alpha.BumpFeeRequest, v1alpha.BumpFeeResponse]
 	estimateSmartFee     *connect.Client[v1alpha.EstimateSmartFeeRequest, v1alpha.EstimateSmartFeeResponse]
 	importDescriptors    *connect.Client[v1alpha.ImportDescriptorsRequest, v1alpha.ImportDescriptorsResponse]
+	listTransactions     *connect.Client[v1alpha.ListTransactionsRequest, v1alpha.ListTransactionsResponse]
 	getDescriptorInfo    *connect.Client[v1alpha.GetDescriptorInfoRequest, v1alpha.GetDescriptorInfoResponse]
 	getRawMempool        *connect.Client[v1alpha.GetRawMempoolRequest, v1alpha.GetRawMempoolResponse]
 	getRawTransaction    *connect.Client[v1alpha.GetRawTransactionRequest, v1alpha.GetRawTransactionResponse]
@@ -307,6 +319,11 @@ func (c *bitcoinServiceClient) ImportDescriptors(ctx context.Context, req *conne
 	return c.importDescriptors.CallUnary(ctx, req)
 }
 
+// ListTransactions calls bitcoin.bitcoind.v1alpha.BitcoinService.ListTransactions.
+func (c *bitcoinServiceClient) ListTransactions(ctx context.Context, req *connect.Request[v1alpha.ListTransactionsRequest]) (*connect.Response[v1alpha.ListTransactionsResponse], error) {
+	return c.listTransactions.CallUnary(ctx, req)
+}
+
 // GetDescriptorInfo calls bitcoin.bitcoind.v1alpha.BitcoinService.GetDescriptorInfo.
 func (c *bitcoinServiceClient) GetDescriptorInfo(ctx context.Context, req *connect.Request[v1alpha.GetDescriptorInfoRequest]) (*connect.Response[v1alpha.GetDescriptorInfoResponse], error) {
 	return c.getDescriptorInfo.CallUnary(ctx, req)
@@ -355,6 +372,7 @@ type BitcoinServiceHandler interface {
 	// to be watch-only as well. The descriptor also needs to be normalized, with a
 	// checksum. This can be obtained by running it through GetDescriptorInfo.
 	ImportDescriptors(context.Context, *connect.Request[v1alpha.ImportDescriptorsRequest]) (*connect.Response[v1alpha.ImportDescriptorsResponse], error)
+	ListTransactions(context.Context, *connect.Request[v1alpha.ListTransactionsRequest]) (*connect.Response[v1alpha.ListTransactionsResponse], error)
 	GetDescriptorInfo(context.Context, *connect.Request[v1alpha.GetDescriptorInfoRequest]) (*connect.Response[v1alpha.GetDescriptorInfoResponse], error)
 	// Mempool stuff
 	GetRawMempool(context.Context, *connect.Request[v1alpha.GetRawMempoolRequest]) (*connect.Response[v1alpha.GetRawMempoolResponse], error)
@@ -431,6 +449,12 @@ func NewBitcoinServiceHandler(svc BitcoinServiceHandler, opts ...connect.Handler
 		connect.WithSchema(bitcoinServiceImportDescriptorsMethodDescriptor),
 		connect.WithHandlerOptions(opts...),
 	)
+	bitcoinServiceListTransactionsHandler := connect.NewUnaryHandler(
+		BitcoinServiceListTransactionsProcedure,
+		svc.ListTransactions,
+		connect.WithSchema(bitcoinServiceListTransactionsMethodDescriptor),
+		connect.WithHandlerOptions(opts...),
+	)
 	bitcoinServiceGetDescriptorInfoHandler := connect.NewUnaryHandler(
 		BitcoinServiceGetDescriptorInfoProcedure,
 		svc.GetDescriptorInfo,
@@ -489,6 +513,8 @@ func NewBitcoinServiceHandler(svc BitcoinServiceHandler, opts ...connect.Handler
 			bitcoinServiceEstimateSmartFeeHandler.ServeHTTP(w, r)
 		case BitcoinServiceImportDescriptorsProcedure:
 			bitcoinServiceImportDescriptorsHandler.ServeHTTP(w, r)
+		case BitcoinServiceListTransactionsProcedure:
+			bitcoinServiceListTransactionsHandler.ServeHTTP(w, r)
 		case BitcoinServiceGetDescriptorInfoProcedure:
 			bitcoinServiceGetDescriptorInfoHandler.ServeHTTP(w, r)
 		case BitcoinServiceGetRawMempoolProcedure:
@@ -548,6 +574,10 @@ func (UnimplementedBitcoinServiceHandler) EstimateSmartFee(context.Context, *con
 
 func (UnimplementedBitcoinServiceHandler) ImportDescriptors(context.Context, *connect.Request[v1alpha.ImportDescriptorsRequest]) (*connect.Response[v1alpha.ImportDescriptorsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("bitcoin.bitcoind.v1alpha.BitcoinService.ImportDescriptors is not implemented"))
+}
+
+func (UnimplementedBitcoinServiceHandler) ListTransactions(context.Context, *connect.Request[v1alpha.ListTransactionsRequest]) (*connect.Response[v1alpha.ListTransactionsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("bitcoin.bitcoind.v1alpha.BitcoinService.ListTransactions is not implemented"))
 }
 
 func (UnimplementedBitcoinServiceHandler) GetDescriptorInfo(context.Context, *connect.Request[v1alpha.GetDescriptorInfoRequest]) (*connect.Response[v1alpha.GetDescriptorInfoResponse], error) {

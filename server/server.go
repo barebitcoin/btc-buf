@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"encoding/hex"
 	"encoding/json"
@@ -203,17 +204,22 @@ func withCancel[R any, M any](
 	}
 }
 
-func (b *Bitcoind) rpcForWallet(ctx context.Context, wallet string) (*rpcclient.Client, error) {
-	if wallet == "" {
+// Common interface implemented for all wallet RPCs
+type walletRequest interface {
+	GetWallet() string
+}
+
+func (b *Bitcoind) rpcForWallet(ctx context.Context, req walletRequest) (*rpcclient.Client, error) {
+	if req.GetWallet() == "" {
 		return b.rpc, nil
 	}
 
 	conf := b.conf // make sure to not copy the original conf
 	hostWithoutWallet, _, _ := strings.Cut(conf.Host, "/wallet")
-	conf.Host = fmt.Sprintf("%s/wallet/%s", hostWithoutWallet, wallet)
+	conf.Host = fmt.Sprintf("%s/wallet/%s", hostWithoutWallet, req.GetWallet())
 
 	zerolog.Ctx(ctx).Debug().
-		Str("wallet", wallet).
+		Str("wallet", req.GetWallet()).
 		Msg("making wallet-specific call")
 
 	rpc, err := rpcclient.New(ctx, &conf, nil)
@@ -224,9 +230,39 @@ func (b *Bitcoind) rpcForWallet(ctx context.Context, wallet string) (*rpcclient.
 	return rpc, nil
 }
 
+// ListTransactions implements bitcoindv1alphaconnect.BitcoinServiceHandler.
+func (b *Bitcoind) ListTransactions(ctx context.Context, c *connect.Request[pb.ListTransactionsRequest]) (*connect.Response[pb.ListTransactionsResponse], error) {
+	rpc, err := b.rpcForWallet(ctx, c.Msg)
+	if err != nil {
+		return nil, err
+	}
+	const (
+		label        = "*"
+		defaultCount = 10
+	)
+	return withCancel(ctx,
+		func(ctx context.Context) ([]btcjson.ListTransactionsResult, error) {
+			return rpc.ListTransactionsCountFrom(
+				ctx, label,
+				cmp.Or(int(c.Msg.Count), defaultCount),
+				int(c.Msg.Skip),
+			)
+		},
+		func(r []btcjson.ListTransactionsResult) *pb.ListTransactionsResponse {
+			return &pb.ListTransactionsResponse{
+				Transactions: lo.Map(r, func(
+					tx btcjson.ListTransactionsResult, idx int,
+				) *pb.GetTransactionResponse {
+					return txListEntryToProto(tx)
+				}),
+			}
+		},
+	)
+}
+
 // ListSinceBlock implements bitcoindv1alphaconnect.BitcoinServiceHandler.
 func (b *Bitcoind) ListSinceBlock(ctx context.Context, c *connect.Request[pb.ListSinceBlockRequest]) (*connect.Response[pb.ListSinceBlockResponse], error) {
-	rpc, err := b.rpcForWallet(ctx, c.Msg.Wallet)
+	rpc, err := b.rpcForWallet(ctx, c.Msg)
 	if err != nil {
 		return nil, err
 	}
@@ -243,30 +279,34 @@ func (b *Bitcoind) ListSinceBlock(ctx context.Context, c *connect.Request[pb.Lis
 		func(r *btcjson.ListSinceBlockResult) *pb.ListSinceBlockResponse {
 			return &pb.ListSinceBlockResponse{
 				Transactions: lo.Map(r.Transactions, func(tx btcjson.ListTransactionsResult, idx int) *pb.GetTransactionResponse {
-					return &pb.GetTransactionResponse{
-						Amount:            tx.Amount,
-						Fee:               lo.FromPtr(tx.Fee),
-						Confirmations:     int32(tx.Confirmations),
-						BlockHash:         tx.BlockHash,
-						BlockIndex:        uint32(lo.FromPtr(tx.BlockIndex)),
-						BlockTime:         nil,
-						Txid:              tx.TxID,
-						WalletConflicts:   tx.WalletConflicts,
-						ReplacedByTxid:    tx.ReplacedByTXID,
-						ReplacesTxid:      tx.ReplacesTXID,
-						Time:              timestamppb.New(time.Unix(tx.Time, 0)),
-						TimeReceived:      timestamppb.New(time.Unix(tx.TimeReceived, 0)),
-						Bip125Replaceable: parseReplaceable(tx.BIP125Replaceable),
-					}
+					return txListEntryToProto(tx)
 				}),
 			}
 		},
 	)
 }
 
+func txListEntryToProto(tx btcjson.ListTransactionsResult) *pb.GetTransactionResponse {
+	return &pb.GetTransactionResponse{
+		Amount:            tx.Amount,
+		Fee:               lo.FromPtr(tx.Fee),
+		Confirmations:     int32(tx.Confirmations),
+		BlockHash:         tx.BlockHash,
+		BlockIndex:        uint32(lo.FromPtr(tx.BlockIndex)),
+		BlockTime:         nil,
+		Txid:              tx.TxID,
+		WalletConflicts:   tx.WalletConflicts,
+		ReplacedByTxid:    tx.ReplacedByTXID,
+		ReplacesTxid:      tx.ReplacesTXID,
+		Time:              timestamppb.New(time.Unix(tx.Time, 0)),
+		TimeReceived:      timestamppb.New(time.Unix(tx.TimeReceived, 0)),
+		Bip125Replaceable: parseReplaceable(tx.BIP125Replaceable),
+	}
+}
+
 // BumpFee implements bitcoindv1alphaconnect.BitcoinServiceHandler.
 func (b *Bitcoind) BumpFee(ctx context.Context, c *connect.Request[pb.BumpFeeRequest]) (*connect.Response[pb.BumpFeeResponse], error) {
-	rpc, err := b.rpcForWallet(ctx, c.Msg.Wallet)
+	rpc, err := b.rpcForWallet(ctx, c.Msg)
 	if err != nil {
 		return nil, err
 	}
@@ -314,7 +354,7 @@ func (b *Bitcoind) BumpFee(ctx context.Context, c *connect.Request[pb.BumpFeeReq
 
 // GetNewAddress implements bitcoind.Bitcoin
 func (b *Bitcoind) GetNewAddress(ctx context.Context, req *connect.Request[pb.GetNewAddressRequest]) (*connect.Response[pb.GetNewAddressResponse], error) {
-	rpc, err := b.rpcForWallet(ctx, req.Msg.Wallet)
+	rpc, err := b.rpcForWallet(ctx, req.Msg)
 	if err != nil {
 		return nil, err
 	}
@@ -353,7 +393,7 @@ func (b *Bitcoind) GetBlockchainInfo(
 func (b *Bitcoind) GetWalletInfo(
 	ctx context.Context, req *connect.Request[pb.GetWalletInfoRequest],
 ) (*connect.Response[pb.GetWalletInfoResponse], error) {
-	rpc, err := b.rpcForWallet(ctx, req.Msg.Wallet)
+	rpc, err := b.rpcForWallet(ctx, req.Msg)
 	if err != nil {
 		return nil, err
 	}
@@ -538,7 +578,7 @@ func (b *Bitcoind) GetTransaction(ctx context.Context, c *connect.Request[pb.Get
 		return nil, err
 	}
 
-	rpc, err := b.rpcForWallet(ctx, c.Msg.Wallet)
+	rpc, err := b.rpcForWallet(ctx, c.Msg)
 	if err != nil {
 		return nil, err
 	}
@@ -614,7 +654,7 @@ func (b *Bitcoind) Send(ctx context.Context, c *connect.Request[pb.SendRequest])
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("'destinations' is a required argument"))
 	}
 
-	rpc, err := b.rpcForWallet(ctx, c.Msg.Wallet)
+	rpc, err := b.rpcForWallet(ctx, c.Msg)
 	if err != nil {
 		return nil, err
 	}
@@ -766,7 +806,7 @@ func (b *Bitcoind) EstimateSmartFee(ctx context.Context, c *connect.Request[pb.E
 
 // GetBalances implements bitcoindv1alphaconnect.BitcoinServiceHandler.
 func (b *Bitcoind) GetBalances(ctx context.Context, c *connect.Request[pb.GetBalancesRequest]) (*connect.Response[pb.GetBalancesResponse], error) {
-	rpc, err := b.rpcForWallet(ctx, c.Msg.Wallet)
+	rpc, err := b.rpcForWallet(ctx, c.Msg)
 	if err != nil {
 		return nil, err
 	}
@@ -808,7 +848,7 @@ func (b *Bitcoind) ImportDescriptors(ctx context.Context, c *connect.Request[pb.
 		}
 	}
 
-	rpc, err := b.rpcForWallet(ctx, c.Msg.Wallet)
+	rpc, err := b.rpcForWallet(ctx, c.Msg)
 	if err != nil {
 		return nil, err
 	}
