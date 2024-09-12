@@ -20,7 +20,6 @@ import (
 var _ rpc.DrivechainServiceHandler = new(Bitcoind)
 
 func (b *Bitcoind) CreateSidechainDeposit(ctx context.Context, c *connect.Request[pb.CreateSidechainDepositRequest]) (*connect.Response[pb.CreateSidechainDepositResponse], error) {
-
 	type rawCreateResponse struct {
 		TXID   string   `json:"txid"`
 		Errors []string // May be empty
