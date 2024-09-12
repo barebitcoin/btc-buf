@@ -8,8 +8,9 @@ import (
 	"runtime/debug"
 	"time"
 
-	"github.com/barebitcoin/btc-buf/server"
 	"github.com/rs/zerolog"
+
+	"github.com/barebitcoin/btc-buf/server"
 )
 
 func realMain(cfg *config) error {
