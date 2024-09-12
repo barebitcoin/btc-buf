@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package bitcoin.drivechaind.v1;
+
+service DrivechainService {
+  rpc CreateSidechainDeposit(CreateSidechainDepositRequest) returns (CreateSidechainDepositResponse);
+}
+
+message CreateSidechainDepositRequest {
+  // The sidechain deposit address to send to.
+  string destination = 1;
+  // The amount in BTC to send. eg 0.1
+  double amount = 2;
+  // The fee in BTC
+  double fee = 3;
+}
+
+message CreateSidechainDepositResponse {
+  string txid = 1;
+  repeated string errors = 2;
+}
