@@ -27,16 +27,13 @@ import (
 	"github.com/barebitcoin/btc-buf/connectserver/logging"
 	pb "github.com/barebitcoin/btc-buf/gen/bitcoin/bitcoind/v1alpha"
 	rpc "github.com/barebitcoin/btc-buf/gen/bitcoin/bitcoind/v1alpha/bitcoindv1alphaconnect"
+	"github.com/barebitcoin/btc-buf/server/commands"
 	"github.com/barebitcoin/btc-buf/server/rpclog"
 )
 
 func init() {
 	btcjson.MustRegisterCmd("importdescriptors", new(btcjson.ImportMultiCmd), btcjson.UFWalletOnly)
-	btcjson.MustRegisterCmd("bumpfee", new(bumpFeeCommand), btcjson.UFWalletOnly)
-}
-
-type bumpFeeCommand struct {
-	TXID string `json:"txid"`
+	btcjson.MustRegisterCmd("bumpfee", new(commands.BumpFee), btcjson.UFWalletOnly)
 }
 
 type Bitcoind struct {
