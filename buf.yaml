@@ -4,7 +4,7 @@ modules:
     name: buf.build/bitcoin/bitcoind
 lint:
   use:
-    - DEFAULT
+    - STANDARD
   except:
     - FIELD_NOT_REQUIRED
     - PACKAGE_NO_IMPORT_CYCLE
