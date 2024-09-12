@@ -27,6 +27,7 @@ import (
 	"github.com/barebitcoin/btc-buf/connectserver/logging"
 	pb "github.com/barebitcoin/btc-buf/gen/bitcoin/bitcoind/v1alpha"
 	rpc "github.com/barebitcoin/btc-buf/gen/bitcoin/bitcoind/v1alpha/bitcoindv1alphaconnect"
+	drivechainrpc "github.com/barebitcoin/btc-buf/gen/bitcoin/drivechaind/v1/drivechaindv1connect"
 	"github.com/barebitcoin/btc-buf/server/commands"
 	"github.com/barebitcoin/btc-buf/server/rpclog"
 )
@@ -34,6 +35,9 @@ import (
 func init() {
 	btcjson.MustRegisterCmd("importdescriptors", new(btcjson.ImportMultiCmd), btcjson.UFWalletOnly)
 	btcjson.MustRegisterCmd("bumpfee", new(commands.BumpFee), btcjson.UFWalletOnly)
+
+	// drivechain commands
+	btcjson.MustRegisterCmd("createsidechaindeposit", new(commands.CreateSidechainDeposit), btcjson.UFWalletOnly)
 }
 
 type Bitcoind struct {
@@ -996,6 +1000,7 @@ func (b *Bitcoind) Listen(ctx context.Context, address string) error {
 	)
 
 	connectserver.Register(b.server, rpc.NewBitcoinServiceHandler, rpc.BitcoinServiceHandler(b))
+	connectserver.Register(b.server, drivechainrpc.NewDrivechainServiceHandler, drivechainrpc.DrivechainServiceHandler(b))
 
 	zerolog.Ctx(ctx).Info().
 		Str("address", address).
