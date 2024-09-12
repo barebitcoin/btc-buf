@@ -13,11 +13,6 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	"github.com/barebitcoin/btc-buf/connectserver"
-	"github.com/barebitcoin/btc-buf/connectserver/logging"
-	pb "github.com/barebitcoin/btc-buf/gen/bitcoin/bitcoind/v1alpha"
-	rpc "github.com/barebitcoin/btc-buf/gen/bitcoin/bitcoind/v1alpha/bitcoindv1alphaconnect"
-	"github.com/barebitcoin/btc-buf/server/rpclog"
 	"github.com/btcsuite/btcd/btcjson"
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
@@ -27,6 +22,12 @@ import (
 	"github.com/samber/lo"
 	"golang.org/x/exp/slices"
 	"google.golang.org/protobuf/types/known/timestamppb"
+
+	"github.com/barebitcoin/btc-buf/connectserver"
+	"github.com/barebitcoin/btc-buf/connectserver/logging"
+	pb "github.com/barebitcoin/btc-buf/gen/bitcoin/bitcoind/v1alpha"
+	rpc "github.com/barebitcoin/btc-buf/gen/bitcoin/bitcoind/v1alpha/bitcoindv1alphaconnect"
+	"github.com/barebitcoin/btc-buf/server/rpclog"
 )
 
 func init() {
@@ -37,6 +38,7 @@ func init() {
 type bumpFeeCommand struct {
 	TXID string `json:"txid"`
 }
+
 type Bitcoind struct {
 	conf   rpcclient.ConnConfig
 	rpc    *rpcclient.Client

@@ -16,13 +16,14 @@ import (
 	"connectrpc.com/connect"
 	"connectrpc.com/grpchealth"
 	"connectrpc.com/grpcreflect"
-	"github.com/barebitcoin/btc-buf/connectserver/logging"
 	"github.com/gorilla/mux"
 	"github.com/oklog/ulid/v2"
 	"github.com/rs/zerolog"
 	"github.com/samber/lo"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
+
+	"github.com/barebitcoin/btc-buf/connectserver/logging"
 )
 
 func addContextLogger() connect.Interceptor {

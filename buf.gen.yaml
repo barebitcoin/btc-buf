@@ -4,6 +4,7 @@ managed:
   override:
     - file_option: go_package_prefix
       value: github.com/barebitcoin/btc-buf/gen
+
 plugins:
   - remote: buf.build/protocolbuffers/go
     out: gen

@@ -359,6 +359,7 @@ message DecodeRawTransactionResponse {
 
   repeated Output outputs = 9;
 }
+
 message ImportDescriptorsRequest {
   message Request {
     // Descriptor to import
