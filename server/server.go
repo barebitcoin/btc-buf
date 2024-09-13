@@ -15,6 +15,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/btcsuite/btcd/btcjson"
 	"github.com/btcsuite/btcd/btcutil"
+	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/btcsuite/btclog"
@@ -275,7 +276,7 @@ func (b *Bitcoind) ListSinceBlock(ctx context.Context, c *connect.Request[pb.Lis
 		return nil, err
 	}
 
-	return withCancel[*btcjson.ListSinceBlockResult, pb.ListSinceBlockResponse](ctx,
+	return withCancel(ctx,
 		func(ctx context.Context) (*btcjson.ListSinceBlockResult, error) {
 			return rpc.ListSinceBlock(ctx, hash)
 		},
@@ -329,7 +330,7 @@ func (b *Bitcoind) BumpFee(ctx context.Context, c *connect.Request[pb.BumpFeeReq
 		Fee     json.Number // new fee
 		Errors  []string    // May be empty
 	}
-	return withCancel[rawBumpFeeResponse, pb.BumpFeeResponse](ctx,
+	return withCancel(ctx,
 		func(ctx context.Context) (rawBumpFeeResponse, error) {
 			cmd, err := btcjson.NewCmd("bumpfee", c.Msg.Txid)
 			if err != nil {
@@ -655,7 +656,7 @@ func (b *Bitcoind) Send(ctx context.Context, c *connect.Request[pb.SendRequest])
 		return nil, err
 	}
 
-	return withCancel[*btcjson.SendResult, pb.SendResponse](ctx,
+	return withCancel(ctx,
 		func(ctx context.Context) (*btcjson.SendResult, error) {
 			var outputs []btcjson.SendDestination
 			for addr, amount := range c.Msg.Destinations {
@@ -732,6 +733,47 @@ func (b *Bitcoind) Send(ctx context.Context, c *connect.Request[pb.SendRequest])
 	)
 }
 
+// SendToAddress implements bitcoindv1alphaconnect.BitcoinServiceHandler.
+func (b *Bitcoind) SendToAddress(ctx context.Context, c *connect.Request[pb.SendToAddressRequest]) (*connect.Response[pb.SendToAddressResponse], error) {
+	rpc, err := b.rpcForWallet(ctx, c.Msg)
+	if err != nil {
+		return nil, err
+	}
+
+	if c.Msg.Address == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("address is a required argument"))
+	}
+
+	address, err := btcutil.DecodeAddress(c.Msg.Address, &chaincfg.MainNetParams)
+	if err != nil {
+		return nil, fmt.Errorf("address has invalid format: %w", err)
+	}
+
+	amount, err := btcutil.NewAmount(c.Msg.Amount)
+	if err != nil {
+		return nil, fmt.Errorf("amount has invalid format: %w", err)
+	}
+	if amount <= 0 {
+		return nil, fmt.Errorf("amount must be greater than 0: %w", err)
+	}
+
+	return withCancel(ctx,
+		func(ctx context.Context) (*chainhash.Hash, error) {
+			if c.Msg.Comment != "" || c.Msg.CommentTo != "" {
+				return rpc.SendToAddressComment(ctx, address, amount, c.Msg.Comment, c.Msg.CommentTo)
+			}
+
+			return rpc.SendToAddress(ctx, address, amount)
+		},
+
+		func(r *chainhash.Hash) *pb.SendToAddressResponse {
+			return &pb.SendToAddressResponse{
+				Txid: r.String(),
+			}
+		},
+	)
+}
+
 // DecodeRawTransaction implements bitcoindv1alphaconnect.BitcoinServiceHandler.
 func (b *Bitcoind) DecodeRawTransaction(ctx context.Context, c *connect.Request[pb.DecodeRawTransactionRequest]) (*connect.Response[pb.DecodeRawTransactionResponse], error) {
 	if (len(c.Msg.GetTx().GetHex()) == 0) == (len(c.Msg.GetTx().GetData()) == 0) {
@@ -749,7 +791,7 @@ func (b *Bitcoind) DecodeRawTransaction(ctx context.Context, c *connect.Request[
 		c.Msg.Tx.Data = decoded
 	}
 
-	return withCancel[*btcjson.TxRawResult, pb.DecodeRawTransactionResponse](
+	return withCancel(
 		ctx,
 		func(ctx context.Context) (*btcjson.TxRawResult, error) {
 			return b.rpc.DecodeRawTransaction(ctx, c.Msg.Tx.Data)
@@ -773,7 +815,7 @@ func (b *Bitcoind) DecodeRawTransaction(ctx context.Context, c *connect.Request[
 
 // EstimateSmartFee implements bitcoindv1alphaconnect.BitcoinServiceHandler.
 func (b *Bitcoind) EstimateSmartFee(ctx context.Context, c *connect.Request[pb.EstimateSmartFeeRequest]) (*connect.Response[pb.EstimateSmartFeeResponse], error) {
-	return withCancel[*btcjson.EstimateSmartFeeResult, pb.EstimateSmartFeeResponse](
+	return withCancel(
 		ctx,
 		func(ctx context.Context) (*btcjson.EstimateSmartFeeResult, error) {
 			var estimateMode *btcjson.EstimateSmartFeeMode
@@ -806,7 +848,7 @@ func (b *Bitcoind) GetBalances(ctx context.Context, c *connect.Request[pb.GetBal
 	if err != nil {
 		return nil, err
 	}
-	return withCancel[*btcjson.GetBalancesResult, pb.GetBalancesResponse](
+	return withCancel(
 		ctx, rpc.GetBalances,
 		func(r *btcjson.GetBalancesResult) *pb.GetBalancesResponse {
 			var watchonly *pb.GetBalancesResponse_Watchonly
@@ -860,7 +902,7 @@ func (b *Bitcoind) ImportDescriptors(ctx context.Context, c *connect.Request[pb.
 		Error    jsonRpcError `json:"error"`
 	}
 
-	return withCancel[[]parsedDescriptorResponse, pb.ImportDescriptorsResponse](
+	return withCancel(
 		ctx, func(ctx context.Context) ([]parsedDescriptorResponse, error) {
 			cmd := btcjson.ImportMultiCmd{
 				Requests: lo.Map(c.Msg.Requests, func(req *pb.ImportDescriptorsRequest_Request, idx int) btcjson.ImportMultiRequest {
@@ -907,7 +949,7 @@ func (b *Bitcoind) ImportDescriptors(ctx context.Context, c *connect.Request[pb.
 
 // GetDescriptorInfo implements bitcoindv1alphaconnect.BitcoinServiceHandler.
 func (b *Bitcoind) GetDescriptorInfo(ctx context.Context, c *connect.Request[pb.GetDescriptorInfoRequest]) (*connect.Response[pb.GetDescriptorInfoResponse], error) {
-	return withCancel[*btcjson.GetDescriptorInfoResult, pb.GetDescriptorInfoResponse](
+	return withCancel(
 		ctx, func(ctx context.Context) (*btcjson.GetDescriptorInfoResult, error) {
 			return b.rpc.GetDescriptorInfo(ctx, c.Msg.Descriptor_)
 		},
@@ -928,7 +970,7 @@ func (b *Bitcoind) GetRawMempool(ctx context.Context, c *connect.Request[pb.GetR
 		txids        []*chainhash.Hash
 		transactions map[string]btcjson.GetMempoolEntryResult
 	}
-	return withCancel[maybeVerbose, pb.GetRawMempoolResponse](
+	return withCancel(
 		ctx, func(ctx context.Context) (maybeVerbose, error) {
 			if !c.Msg.Verbose {
 				res, err := b.rpc.GetRawMempool(ctx)

@@ -17,6 +17,7 @@ service BitcoinService {
   rpc GetWalletInfo(GetWalletInfoRequest) returns (GetWalletInfoResponse);
   rpc GetBalances(GetBalancesRequest) returns (GetBalancesResponse);
   rpc Send(SendRequest) returns (SendResponse);
+  rpc SendToAddress(SendToAddressRequest) returns (SendToAddressResponse);
   rpc BumpFee(BumpFeeRequest) returns (BumpFeeResponse);
   rpc EstimateSmartFee(EstimateSmartFeeRequest) returns (EstimateSmartFeeResponse);
   // Import a descriptor. If importing a watch-only descriptor, the wallet itself needs
@@ -301,6 +302,23 @@ message SendResponse {
 
   // If 'add_to_wallet' is false, the raw transaction with signature(s)
   RawTransaction tx = 3;
+}
+
+message SendToAddressRequest {
+  // The bitcoin address to send to.
+  string address = 1;
+  // The amount in BTC to send. eg 0.1
+  double amount = 2;
+  // A comment used to store what the transaction is for. Not part of the transaction, just kept in your wallet.
+  string comment = 3;
+  // A comment to store the name of the person or organization to which you're sending the transaction. Not part of the transaction, just kept in your wallet.
+  string comment_to = 4;
+  // Only needs to be set if dealing with multiple wallets at the same time.
+  string wallet = 5;
+}
+
+message SendToAddressResponse {
+  string txid = 1;
 }
 
 message EstimateSmartFeeRequest {
