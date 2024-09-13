@@ -17,3 +17,9 @@ linters-settings:
 
           - pkg: github.com/rs/zerolog/log
             desc: use context logger
+
+          - pkg: github.com/btcsuite/btcd/rpcclient
+            desc: use github.com/barebitcoin/btcd/rpcclient
+
+          - pkg: github.com/btcsuite/btcd/btcjson
+            desc: use github.com/barebitcoin/btcd/rpcclient/btcjson
