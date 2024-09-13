@@ -13,10 +13,10 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	"github.com/btcsuite/btcd/btcjson"
+	"github.com/barebitcoin/btcd/rpcclient"
+	"github.com/barebitcoin/btcd/rpcclient/btcjson"
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
-	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/btcsuite/btclog"
 	"github.com/rs/zerolog"
 	"github.com/samber/lo"
