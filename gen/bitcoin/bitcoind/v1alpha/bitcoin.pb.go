@@ -3340,11 +3340,10 @@ type GetTransactionResponse_Details struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	InvolvesWatchOnly bool   `protobuf:"varint,1,opt,name=involves_watch_only,json=involvesWatchOnly,proto3" json:"involves_watch_only,omitempty"`
-	Address           string `protobuf:"bytes,2,opt,name=address,proto3" json:"address,omitempty"`
-	// TODO: enum - send, receive, generate, immature, orphan
-	Category GetTransactionResponse_Category `protobuf:"varint,3,opt,name=category,proto3,enum=bitcoin.bitcoind.v1alpha.GetTransactionResponse_Category" json:"category,omitempty"`
-	Amount   float64                         `protobuf:"fixed64,4,opt,name=amount,proto3" json:"amount,omitempty"`
+	InvolvesWatchOnly bool                            `protobuf:"varint,1,opt,name=involves_watch_only,json=involvesWatchOnly,proto3" json:"involves_watch_only,omitempty"`
+	Address           string                          `protobuf:"bytes,2,opt,name=address,proto3" json:"address,omitempty"`
+	Category          GetTransactionResponse_Category `protobuf:"varint,3,opt,name=category,proto3,enum=bitcoin.bitcoind.v1alpha.GetTransactionResponse_Category" json:"category,omitempty"`
+	Amount            float64                         `protobuf:"fixed64,4,opt,name=amount,proto3" json:"amount,omitempty"`
 	// string label = 5;
 	Vout uint32  `protobuf:"varint,6,opt,name=vout,proto3" json:"vout,omitempty"`
 	Fee  float64 `protobuf:"fixed64,7,opt,name=fee,proto3" json:"fee,omitempty"`

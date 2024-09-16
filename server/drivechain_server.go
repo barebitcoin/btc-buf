@@ -45,7 +45,7 @@ func (b *Bitcoind) CreateSidechainDeposit(ctx context.Context, c *connect.Reques
 
 	return withCancel[rawCreateResponse, pb.CreateSidechainDepositResponse](ctx,
 		func(ctx context.Context) (rawCreateResponse, error) {
-			cmd, err := btcjson.NewCmd("createsidechaindeposit", sidechainSlot, c.Msg.Destination, amount, fee)
+			cmd, err := btcjson.NewCmd("createsidechaindeposit", sidechainSlot, c.Msg.Destination, amount.ToBTC(), fee.ToBTC())
 			if err != nil {
 				return rawCreateResponse{}, err
 			}

@@ -198,7 +198,6 @@ message GetTransactionResponse {
   message Details {
     bool involves_watch_only = 1;
     string address = 2;
-    // TODO: enum - send, receive, generate, immature, orphan
     Category category = 3;
     double amount = 4;
     // string label = 5;
