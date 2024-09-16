@@ -17,5 +17,4 @@ message CreateSidechainDepositRequest {
 
 message CreateSidechainDepositResponse {
   string txid = 1;
-  repeated string errors = 2;
 }
