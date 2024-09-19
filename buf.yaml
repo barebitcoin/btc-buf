@@ -5,9 +5,7 @@ modules:
 lint:
   use:
     - STANDARD
-  except:
-    - FIELD_NOT_REQUIRED
-    - PACKAGE_NO_IMPORT_CYCLE
+  rpc_allow_google_protobuf_empty_requests: true
   disallow_comment_ignores: true
 breaking:
   use:
