@@ -22,6 +22,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/samber/lo"
 	"golang.org/x/exp/slices"
+	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/barebitcoin/btc-buf/connectserver"
@@ -64,13 +65,13 @@ func NewBitcoind(
 		User:         user,
 		Pass:         pass,
 		DisableTLS:   true,
-		HTTPPostMode: true,
+		HTTPPostMode: true, // Core only handles POST requests
 		Host:         host,
 	}
 
 	client, err := rpcclient.New(ctx, &conf, nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("new RPC client: %w", err)
 	}
 
 	log.Debug().Msg("created RPC client")
@@ -262,6 +263,18 @@ func (b *Bitcoind) ListTransactions(ctx context.Context, c *connect.Request[pb.L
 			}
 		},
 	)
+}
+
+// ListWallets implements bitcoindv1alphaconnect.BitcoinServiceHandler.
+func (b *Bitcoind) ListWallets(ctx context.Context, _ *connect.Request[emptypb.Empty]) (*connect.Response[pb.ListWalletsResponse], error) {
+	wallets, err := b.rpc.ListWallets(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return connect.NewResponse(&pb.ListWalletsResponse{
+		Wallets: wallets,
+	}), nil
 }
 
 // ListSinceBlock implements bitcoindv1alphaconnect.BitcoinServiceHandler.

@@ -5,8 +5,8 @@ connectrpc.com/grpchealth v1.3.0/go.mod h1:3vpqmX25/ir0gVgW6RdnCPPZRcR6HvqtXX5RN
 connectrpc.com/grpcreflect v1.2.0 h1:Q6og1S7HinmtbEuBvARLNwYmTbhEGRpHDhqrPNlmK+U=
 connectrpc.com/grpcreflect v1.2.0/go.mod h1:nwSOKmE8nU5u/CidgHtPYk1PFI3U9ignz7iDMxOYkSY=
 github.com/aead/siphash v1.0.1/go.mod h1:Nywa3cDsYNNK3gaciGTWPwHt0wlpNV15vwmswBAUSII=
-github.com/barebitcoin/btcd/rpcclient v0.0.0-20240913081458-4dd5591f22b8 h1:L0rObrQHuLWM1g85rMxXSIynaWrT/gytGcw1JT+rqPo=
-github.com/barebitcoin/btcd/rpcclient v0.0.0-20240913081458-4dd5591f22b8/go.mod h1:40gHHP6p9jQNolMHF7tbzSyW/EpEy04tvcSATgikQGE=
+github.com/barebitcoin/btcd/rpcclient v0.0.0-20240919173453-8aa8db4dc765 h1:QpuEPURSB5YlDTSsOCtWVn7oeaZaTP0EXOWJiomHzCs=
+github.com/barebitcoin/btcd/rpcclient v0.0.0-20240919173453-8aa8db4dc765/go.mod h1:40gHHP6p9jQNolMHF7tbzSyW/EpEy04tvcSATgikQGE=
 github.com/btcsuite/btcd v0.20.1-beta/go.mod h1:wVuoA8VJLEcwgqHBwHmzLRazpKxTv13Px/pDuV7OomQ=
 github.com/btcsuite/btcd v0.22.0-beta.0.20220111032746-97732e52810c/go.mod h1:tjmYdS6MLJ5/s0Fj4DbLgSbDHbEqLJrtnHecBFkdz5M=
 github.com/btcsuite/btcd v0.23.5-0.20231215221805-96c9fd8078fd/go.mod h1:nm3Bko6zh6bWP60UxwoT5LzdGJsQJaPo6HjduXq9p6A=

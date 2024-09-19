@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package bitcoin.bitcoind.v1alpha;
 
+import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/wrappers.proto";
 
@@ -24,6 +25,7 @@ service BitcoinService {
   // to be watch-only as well. The descriptor also needs to be normalized, with a
   // checksum. This can be obtained by running it through GetDescriptorInfo.
   rpc ImportDescriptors(ImportDescriptorsRequest) returns (ImportDescriptorsResponse);
+  rpc ListWallets(google.protobuf.Empty) returns (ListWalletsResponse);
 
   rpc ListTransactions(ListTransactionsRequest) returns (ListTransactionsResponse);
 
@@ -573,4 +575,8 @@ message ListTransactionsRequest {
 
 message ListTransactionsResponse {
   repeated GetTransactionResponse transactions = 1;
+}
+
+message ListWalletsResponse {
+  repeated string wallets = 1;
 }
