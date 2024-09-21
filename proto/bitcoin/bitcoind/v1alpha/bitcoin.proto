@@ -8,6 +8,7 @@ import "google/protobuf/wrappers.proto";
 
 service BitcoinService {
   rpc GetBlockchainInfo(GetBlockchainInfoRequest) returns (GetBlockchainInfoResponse);
+  rpc GetPeerInfo(GetPeerInfoRequest) returns (GetPeerInfoResponse);
 
   // Fetches in-wallet transactions
   rpc GetTransaction(GetTransactionRequest) returns (GetTransactionResponse);
@@ -58,6 +59,18 @@ message GetBlockchainInfoResponse {
   bool initial_block_download = 4;
 
   double verification_progress = 7;
+}
+
+message GetPeerInfoRequest {}
+
+message Peer {
+  int32 id = 1;
+  string addr = 2;
+  int32 synced_blocks = 3;
+}
+
+message GetPeerInfoResponse {
+  repeated Peer peers = 1;
 }
 
 message GetNewAddressRequest {
