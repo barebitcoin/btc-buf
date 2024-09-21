@@ -416,6 +416,24 @@ func (b *Bitcoind) GetBlockchainInfo(
 		})
 }
 
+// GetPeerInfo implements bitcoindv22.BitcoinServer
+func (b *Bitcoind) GetPeerInfo(
+	ctx context.Context, req *connect.Request[pb.GetPeerInfoRequest],
+) (*connect.Response[pb.GetPeerInfoResponse], error) {
+	return withCancel(ctx, b.rpc.GetPeerInfo,
+		func(info []btcjson.GetPeerInfoResult) *pb.GetPeerInfoResponse {
+			return &pb.GetPeerInfoResponse{
+				Peers: lo.Map(info, func(peer btcjson.GetPeerInfoResult, idx int) *pb.Peer {
+					return &pb.Peer{
+						Id:           peer.ID,
+						Addr:         peer.Addr,
+						SyncedBlocks: peer.CurrentHeight,
+					}
+				}),
+			}
+		})
+}
+
 // GetWalletInfo implements bitcoindv1alpha.BitcoinServiceServer
 func (b *Bitcoind) GetWalletInfo(
 	ctx context.Context, req *connect.Request[pb.GetWalletInfoRequest],
