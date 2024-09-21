@@ -967,9 +967,14 @@ func (b *Bitcoind) GetAddressInfo(ctx context.Context, c *connect.Request[pb.Get
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 
+	rpc, err := b.rpcForWallet(ctx, c.Msg)
+	if err != nil {
+		return nil, err
+	}
+
 	return withCancel[*btcjson.GetAddressInfoResult, pb.GetAddressInfoResponse](
 		ctx, func(ctx context.Context) (*btcjson.GetAddressInfoResult, error) {
-			return b.rpc.GetAddressInfo(ctx, c.Msg.Address)
+			return rpc.GetAddressInfo(ctx, c.Msg.Address)
 		},
 		func(r *btcjson.GetAddressInfoResult) *pb.GetAddressInfoResponse {
 			return &pb.GetAddressInfoResponse{

@@ -583,6 +583,8 @@ message ListWalletsResponse {
 }
 message GetAddressInfoRequest {
   string address = 1;
+
+  string wallet = 2;
 }
 
 message GetAddressInfoResponse {
