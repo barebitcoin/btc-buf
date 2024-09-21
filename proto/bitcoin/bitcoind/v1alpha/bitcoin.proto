@@ -30,6 +30,7 @@ service BitcoinService {
   rpc ListTransactions(ListTransactionsRequest) returns (ListTransactionsResponse);
 
   rpc GetDescriptorInfo(GetDescriptorInfoRequest) returns (GetDescriptorInfoResponse);
+  rpc GetAddressInfo(GetAddressInfoRequest) returns (GetAddressInfoResponse);
 
   // Mempool stuff
   rpc GetRawMempool(GetRawMempoolRequest) returns (GetRawMempoolResponse);
@@ -579,4 +580,39 @@ message ListTransactionsResponse {
 
 message ListWalletsResponse {
   repeated string wallets = 1;
+}
+message GetAddressInfoRequest {
+  string address = 1;
+}
+
+message GetAddressInfoResponse {
+  string address = 1;
+
+  // Hex-encoded script pub key
+  string script_pub_key = 2;
+
+  bool is_mine = 3;
+
+  bool is_watch_only = 4;
+
+  // If Core knows how to spend coins sent to this address, ignoring
+  // possible lack of private keys.
+  bool solvable = 5;
+
+  bool is_script = 6;
+
+  bool is_change = 7;
+
+  bool is_witness = 8;
+
+  uint32 witness_version = 9;
+
+  // Hex-encoded
+  string witness_program = 10;
+
+  string script_type = 11;
+
+  bool is_compressed = 12;
+
+  // TODO: bunch of other fields
 }

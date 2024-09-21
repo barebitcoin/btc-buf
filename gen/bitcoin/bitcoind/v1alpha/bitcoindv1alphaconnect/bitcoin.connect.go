@@ -74,6 +74,9 @@ const (
 	// BitcoinServiceGetDescriptorInfoProcedure is the fully-qualified name of the BitcoinService's
 	// GetDescriptorInfo RPC.
 	BitcoinServiceGetDescriptorInfoProcedure = "/bitcoin.bitcoind.v1alpha.BitcoinService/GetDescriptorInfo"
+	// BitcoinServiceGetAddressInfoProcedure is the fully-qualified name of the BitcoinService's
+	// GetAddressInfo RPC.
+	BitcoinServiceGetAddressInfoProcedure = "/bitcoin.bitcoind.v1alpha.BitcoinService/GetAddressInfo"
 	// BitcoinServiceGetRawMempoolProcedure is the fully-qualified name of the BitcoinService's
 	// GetRawMempool RPC.
 	BitcoinServiceGetRawMempoolProcedure = "/bitcoin.bitcoind.v1alpha.BitcoinService/GetRawMempool"
@@ -107,6 +110,7 @@ var (
 	bitcoinServiceListWalletsMethodDescriptor          = bitcoinServiceServiceDescriptor.Methods().ByName("ListWallets")
 	bitcoinServiceListTransactionsMethodDescriptor     = bitcoinServiceServiceDescriptor.Methods().ByName("ListTransactions")
 	bitcoinServiceGetDescriptorInfoMethodDescriptor    = bitcoinServiceServiceDescriptor.Methods().ByName("GetDescriptorInfo")
+	bitcoinServiceGetAddressInfoMethodDescriptor       = bitcoinServiceServiceDescriptor.Methods().ByName("GetAddressInfo")
 	bitcoinServiceGetRawMempoolMethodDescriptor        = bitcoinServiceServiceDescriptor.Methods().ByName("GetRawMempool")
 	bitcoinServiceGetRawTransactionMethodDescriptor    = bitcoinServiceServiceDescriptor.Methods().ByName("GetRawTransaction")
 	bitcoinServiceDecodeRawTransactionMethodDescriptor = bitcoinServiceServiceDescriptor.Methods().ByName("DecodeRawTransaction")
@@ -135,6 +139,7 @@ type BitcoinServiceClient interface {
 	ListWallets(context.Context, *connect.Request[emptypb.Empty]) (*connect.Response[v1alpha.ListWalletsResponse], error)
 	ListTransactions(context.Context, *connect.Request[v1alpha.ListTransactionsRequest]) (*connect.Response[v1alpha.ListTransactionsResponse], error)
 	GetDescriptorInfo(context.Context, *connect.Request[v1alpha.GetDescriptorInfoRequest]) (*connect.Response[v1alpha.GetDescriptorInfoResponse], error)
+	GetAddressInfo(context.Context, *connect.Request[v1alpha.GetAddressInfoRequest]) (*connect.Response[v1alpha.GetAddressInfoResponse], error)
 	// Mempool stuff
 	GetRawMempool(context.Context, *connect.Request[v1alpha.GetRawMempoolRequest]) (*connect.Response[v1alpha.GetRawMempoolResponse], error)
 	// Raw TX stuff
@@ -238,6 +243,12 @@ func NewBitcoinServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(bitcoinServiceGetDescriptorInfoMethodDescriptor),
 			connect.WithClientOptions(opts...),
 		),
+		getAddressInfo: connect.NewClient[v1alpha.GetAddressInfoRequest, v1alpha.GetAddressInfoResponse](
+			httpClient,
+			baseURL+BitcoinServiceGetAddressInfoProcedure,
+			connect.WithSchema(bitcoinServiceGetAddressInfoMethodDescriptor),
+			connect.WithClientOptions(opts...),
+		),
 		getRawMempool: connect.NewClient[v1alpha.GetRawMempoolRequest, v1alpha.GetRawMempoolResponse](
 			httpClient,
 			baseURL+BitcoinServiceGetRawMempoolProcedure,
@@ -287,6 +298,7 @@ type bitcoinServiceClient struct {
 	listWallets          *connect.Client[emptypb.Empty, v1alpha.ListWalletsResponse]
 	listTransactions     *connect.Client[v1alpha.ListTransactionsRequest, v1alpha.ListTransactionsResponse]
 	getDescriptorInfo    *connect.Client[v1alpha.GetDescriptorInfoRequest, v1alpha.GetDescriptorInfoResponse]
+	getAddressInfo       *connect.Client[v1alpha.GetAddressInfoRequest, v1alpha.GetAddressInfoResponse]
 	getRawMempool        *connect.Client[v1alpha.GetRawMempoolRequest, v1alpha.GetRawMempoolResponse]
 	getRawTransaction    *connect.Client[v1alpha.GetRawTransactionRequest, v1alpha.GetRawTransactionResponse]
 	decodeRawTransaction *connect.Client[v1alpha.DecodeRawTransactionRequest, v1alpha.DecodeRawTransactionResponse]
@@ -364,6 +376,11 @@ func (c *bitcoinServiceClient) GetDescriptorInfo(ctx context.Context, req *conne
 	return c.getDescriptorInfo.CallUnary(ctx, req)
 }
 
+// GetAddressInfo calls bitcoin.bitcoind.v1alpha.BitcoinService.GetAddressInfo.
+func (c *bitcoinServiceClient) GetAddressInfo(ctx context.Context, req *connect.Request[v1alpha.GetAddressInfoRequest]) (*connect.Response[v1alpha.GetAddressInfoResponse], error) {
+	return c.getAddressInfo.CallUnary(ctx, req)
+}
+
 // GetRawMempool calls bitcoin.bitcoind.v1alpha.BitcoinService.GetRawMempool.
 func (c *bitcoinServiceClient) GetRawMempool(ctx context.Context, req *connect.Request[v1alpha.GetRawMempoolRequest]) (*connect.Response[v1alpha.GetRawMempoolResponse], error) {
 	return c.getRawMempool.CallUnary(ctx, req)
@@ -411,6 +428,7 @@ type BitcoinServiceHandler interface {
 	ListWallets(context.Context, *connect.Request[emptypb.Empty]) (*connect.Response[v1alpha.ListWalletsResponse], error)
 	ListTransactions(context.Context, *connect.Request[v1alpha.ListTransactionsRequest]) (*connect.Response[v1alpha.ListTransactionsResponse], error)
 	GetDescriptorInfo(context.Context, *connect.Request[v1alpha.GetDescriptorInfoRequest]) (*connect.Response[v1alpha.GetDescriptorInfoResponse], error)
+	GetAddressInfo(context.Context, *connect.Request[v1alpha.GetAddressInfoRequest]) (*connect.Response[v1alpha.GetAddressInfoResponse], error)
 	// Mempool stuff
 	GetRawMempool(context.Context, *connect.Request[v1alpha.GetRawMempoolRequest]) (*connect.Response[v1alpha.GetRawMempoolResponse], error)
 	// Raw TX stuff
@@ -510,6 +528,12 @@ func NewBitcoinServiceHandler(svc BitcoinServiceHandler, opts ...connect.Handler
 		connect.WithSchema(bitcoinServiceGetDescriptorInfoMethodDescriptor),
 		connect.WithHandlerOptions(opts...),
 	)
+	bitcoinServiceGetAddressInfoHandler := connect.NewUnaryHandler(
+		BitcoinServiceGetAddressInfoProcedure,
+		svc.GetAddressInfo,
+		connect.WithSchema(bitcoinServiceGetAddressInfoMethodDescriptor),
+		connect.WithHandlerOptions(opts...),
+	)
 	bitcoinServiceGetRawMempoolHandler := connect.NewUnaryHandler(
 		BitcoinServiceGetRawMempoolProcedure,
 		svc.GetRawMempool,
@@ -570,6 +594,8 @@ func NewBitcoinServiceHandler(svc BitcoinServiceHandler, opts ...connect.Handler
 			bitcoinServiceListTransactionsHandler.ServeHTTP(w, r)
 		case BitcoinServiceGetDescriptorInfoProcedure:
 			bitcoinServiceGetDescriptorInfoHandler.ServeHTTP(w, r)
+		case BitcoinServiceGetAddressInfoProcedure:
+			bitcoinServiceGetAddressInfoHandler.ServeHTTP(w, r)
 		case BitcoinServiceGetRawMempoolProcedure:
 			bitcoinServiceGetRawMempoolHandler.ServeHTTP(w, r)
 		case BitcoinServiceGetRawTransactionProcedure:
@@ -643,6 +669,10 @@ func (UnimplementedBitcoinServiceHandler) ListTransactions(context.Context, *con
 
 func (UnimplementedBitcoinServiceHandler) GetDescriptorInfo(context.Context, *connect.Request[v1alpha.GetDescriptorInfoRequest]) (*connect.Response[v1alpha.GetDescriptorInfoResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("bitcoin.bitcoind.v1alpha.BitcoinService.GetDescriptorInfo is not implemented"))
+}
+
+func (UnimplementedBitcoinServiceHandler) GetAddressInfo(context.Context, *connect.Request[v1alpha.GetAddressInfoRequest]) (*connect.Response[v1alpha.GetAddressInfoResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("bitcoin.bitcoind.v1alpha.BitcoinService.GetAddressInfo is not implemented"))
 }
 
 func (UnimplementedBitcoinServiceHandler) GetRawMempool(context.Context, *connect.Request[v1alpha.GetRawMempoolRequest]) (*connect.Response[v1alpha.GetRawMempoolResponse], error) {

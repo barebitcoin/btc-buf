@@ -960,6 +960,36 @@ func (b *Bitcoind) ImportDescriptors(ctx context.Context, c *connect.Request[pb.
 		})
 }
 
+// GetAddressInfo implements bitcoindv1alphaconnect.BitcoinServiceHandler.
+func (b *Bitcoind) GetAddressInfo(ctx context.Context, c *connect.Request[pb.GetAddressInfoRequest]) (*connect.Response[pb.GetAddressInfoResponse], error) {
+	if c.Msg.Address == "" {
+		err := errors.New("address is required")
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+
+	return withCancel[*btcjson.GetAddressInfoResult, pb.GetAddressInfoResponse](
+		ctx, func(ctx context.Context) (*btcjson.GetAddressInfoResult, error) {
+			return b.rpc.GetAddressInfo(ctx, c.Msg.Address)
+		},
+		func(r *btcjson.GetAddressInfoResult) *pb.GetAddressInfoResponse {
+			return &pb.GetAddressInfoResponse{
+				Address:        r.Address,
+				ScriptPubKey:   r.ScriptPubKey,
+				IsMine:         r.IsMine,
+				IsWatchOnly:    r.IsWatchOnly,
+				Solvable:       r.Solvable,
+				IsScript:       r.IsScript,
+				IsChange:       r.IsChange,
+				IsWitness:      r.IsWitness,
+				WitnessVersion: uint32(r.WitnessVersion),
+				WitnessProgram: lo.FromPtr(r.WitnessProgram),
+				ScriptType:     lo.FromPtr(r.ScriptType).String(),
+				IsCompressed:   lo.FromPtr(r.IsCompressed),
+			}
+		},
+	)
+}
+
 // GetDescriptorInfo implements bitcoindv1alphaconnect.BitcoinServiceHandler.
 func (b *Bitcoind) GetDescriptorInfo(ctx context.Context, c *connect.Request[pb.GetDescriptorInfoRequest]) (*connect.Response[pb.GetDescriptorInfoResponse], error) {
 	return withCancel(
