@@ -56,6 +56,8 @@ message GetBlockchainInfoResponse {
   string chain = 2;
   string chain_work = 3;
   bool initial_block_download = 4;
+
+  double verification_progress = 7;
 }
 
 message GetNewAddressRequest {
