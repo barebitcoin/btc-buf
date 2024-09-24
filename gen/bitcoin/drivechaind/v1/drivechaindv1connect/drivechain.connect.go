@@ -36,17 +36,22 @@ const (
 	// DrivechainServiceCreateSidechainDepositProcedure is the fully-qualified name of the
 	// DrivechainService's CreateSidechainDeposit RPC.
 	DrivechainServiceCreateSidechainDepositProcedure = "/bitcoin.drivechaind.v1.DrivechainService/CreateSidechainDeposit"
+	// DrivechainServiceListActiveSidechainsProcedure is the fully-qualified name of the
+	// DrivechainService's ListActiveSidechains RPC.
+	DrivechainServiceListActiveSidechainsProcedure = "/bitcoin.drivechaind.v1.DrivechainService/ListActiveSidechains"
 )
 
 // These variables are the protoreflect.Descriptor objects for the RPCs defined in this package.
 var (
 	drivechainServiceServiceDescriptor                      = v1.File_bitcoin_drivechaind_v1_drivechain_proto.Services().ByName("DrivechainService")
 	drivechainServiceCreateSidechainDepositMethodDescriptor = drivechainServiceServiceDescriptor.Methods().ByName("CreateSidechainDeposit")
+	drivechainServiceListActiveSidechainsMethodDescriptor   = drivechainServiceServiceDescriptor.Methods().ByName("ListActiveSidechains")
 )
 
 // DrivechainServiceClient is a client for the bitcoin.drivechaind.v1.DrivechainService service.
 type DrivechainServiceClient interface {
 	CreateSidechainDeposit(context.Context, *connect.Request[v1.CreateSidechainDepositRequest]) (*connect.Response[v1.CreateSidechainDepositResponse], error)
+	ListActiveSidechains(context.Context, *connect.Request[v1.ListActiveSidechainsRequest]) (*connect.Response[v1.ListActiveSidechainsResponse], error)
 }
 
 // NewDrivechainServiceClient constructs a client for the bitcoin.drivechaind.v1.DrivechainService
@@ -65,12 +70,19 @@ func NewDrivechainServiceClient(httpClient connect.HTTPClient, baseURL string, o
 			connect.WithSchema(drivechainServiceCreateSidechainDepositMethodDescriptor),
 			connect.WithClientOptions(opts...),
 		),
+		listActiveSidechains: connect.NewClient[v1.ListActiveSidechainsRequest, v1.ListActiveSidechainsResponse](
+			httpClient,
+			baseURL+DrivechainServiceListActiveSidechainsProcedure,
+			connect.WithSchema(drivechainServiceListActiveSidechainsMethodDescriptor),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // drivechainServiceClient implements DrivechainServiceClient.
 type drivechainServiceClient struct {
 	createSidechainDeposit *connect.Client[v1.CreateSidechainDepositRequest, v1.CreateSidechainDepositResponse]
+	listActiveSidechains   *connect.Client[v1.ListActiveSidechainsRequest, v1.ListActiveSidechainsResponse]
 }
 
 // CreateSidechainDeposit calls bitcoin.drivechaind.v1.DrivechainService.CreateSidechainDeposit.
@@ -78,10 +90,16 @@ func (c *drivechainServiceClient) CreateSidechainDeposit(ctx context.Context, re
 	return c.createSidechainDeposit.CallUnary(ctx, req)
 }
 
+// ListActiveSidechains calls bitcoin.drivechaind.v1.DrivechainService.ListActiveSidechains.
+func (c *drivechainServiceClient) ListActiveSidechains(ctx context.Context, req *connect.Request[v1.ListActiveSidechainsRequest]) (*connect.Response[v1.ListActiveSidechainsResponse], error) {
+	return c.listActiveSidechains.CallUnary(ctx, req)
+}
+
 // DrivechainServiceHandler is an implementation of the bitcoin.drivechaind.v1.DrivechainService
 // service.
 type DrivechainServiceHandler interface {
 	CreateSidechainDeposit(context.Context, *connect.Request[v1.CreateSidechainDepositRequest]) (*connect.Response[v1.CreateSidechainDepositResponse], error)
+	ListActiveSidechains(context.Context, *connect.Request[v1.ListActiveSidechainsRequest]) (*connect.Response[v1.ListActiveSidechainsResponse], error)
 }
 
 // NewDrivechainServiceHandler builds an HTTP handler from the service implementation. It returns
@@ -96,10 +114,18 @@ func NewDrivechainServiceHandler(svc DrivechainServiceHandler, opts ...connect.H
 		connect.WithSchema(drivechainServiceCreateSidechainDepositMethodDescriptor),
 		connect.WithHandlerOptions(opts...),
 	)
+	drivechainServiceListActiveSidechainsHandler := connect.NewUnaryHandler(
+		DrivechainServiceListActiveSidechainsProcedure,
+		svc.ListActiveSidechains,
+		connect.WithSchema(drivechainServiceListActiveSidechainsMethodDescriptor),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/bitcoin.drivechaind.v1.DrivechainService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case DrivechainServiceCreateSidechainDepositProcedure:
 			drivechainServiceCreateSidechainDepositHandler.ServeHTTP(w, r)
+		case DrivechainServiceListActiveSidechainsProcedure:
+			drivechainServiceListActiveSidechainsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -111,4 +137,8 @@ type UnimplementedDrivechainServiceHandler struct{}
 
 func (UnimplementedDrivechainServiceHandler) CreateSidechainDeposit(context.Context, *connect.Request[v1.CreateSidechainDepositRequest]) (*connect.Response[v1.CreateSidechainDepositResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("bitcoin.drivechaind.v1.DrivechainService.CreateSidechainDeposit is not implemented"))
+}
+
+func (UnimplementedDrivechainServiceHandler) ListActiveSidechains(context.Context, *connect.Request[v1.ListActiveSidechainsRequest]) (*connect.Response[v1.ListActiveSidechainsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("bitcoin.drivechaind.v1.DrivechainService.ListActiveSidechains is not implemented"))
 }

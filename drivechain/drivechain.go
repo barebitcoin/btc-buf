@@ -29,3 +29,6 @@ func ValidateDepositAddress(depositAddress string) error {
 
 	return nil
 }
+
+//nolint:staticcheck
+var ErrNoCTip = "No CTIP found for sidechain!"

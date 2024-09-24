@@ -4,6 +4,7 @@ package bitcoin.drivechaind.v1;
 
 service DrivechainService {
   rpc CreateSidechainDeposit(CreateSidechainDepositRequest) returns (CreateSidechainDepositResponse);
+  rpc ListActiveSidechains(ListActiveSidechainsRequest) returns (ListActiveSidechainsResponse);
 }
 
 message CreateSidechainDepositRequest {
@@ -17,4 +18,21 @@ message CreateSidechainDepositRequest {
 
 message CreateSidechainDepositResponse {
   string txid = 1;
+}
+
+message ListActiveSidechainsRequest {}
+
+message ListActiveSidechainsResponse {
+  message Sidechain {
+    string title = 1;
+    string description = 2;
+    uint32 nversion = 3;
+    string hashid1 = 4;
+    string hashid2 = 5;
+    int32 slot = 6;
+    int64 amount_satoshi = 7;
+    string chaintip_txid = 8;
+  }
+
+  repeated Sidechain sidechains = 1;
 }

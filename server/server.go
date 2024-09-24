@@ -40,6 +40,8 @@ func init() {
 
 	// drivechain commands
 	btcjson.MustRegisterCmd("createsidechaindeposit", new(commands.CreateSidechainDeposit), btcjson.UFWalletOnly)
+	btcjson.MustRegisterCmd("listactivesidechains", new(commands.ListActiveSidechains), btcjson.UFWalletOnly)
+	btcjson.MustRegisterCmd("listsidechainctip", new(commands.ListSidechainCTip), btcjson.UFWalletOnly)
 }
 
 type Bitcoind struct {
