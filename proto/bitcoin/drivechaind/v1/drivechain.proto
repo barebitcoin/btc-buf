@@ -5,6 +5,7 @@ package bitcoin.drivechaind.v1;
 service DrivechainService {
   rpc CreateSidechainDeposit(CreateSidechainDepositRequest) returns (CreateSidechainDepositResponse);
   rpc ListActiveSidechains(ListActiveSidechainsRequest) returns (ListActiveSidechainsResponse);
+  rpc ListSidechainDeposits(ListSidechainDepositsRequest) returns (ListSidechainDepositsResponse);
 }
 
 message CreateSidechainDepositRequest {
@@ -35,4 +36,21 @@ message ListActiveSidechainsResponse {
   }
 
   repeated Sidechain sidechains = 1;
+}
+
+message ListSidechainDepositsRequest {
+  int32 slot = 1;
+}
+
+message ListSidechainDepositsResponse {
+  message SidechainDeposit {
+    int32 nsidechain = 1;
+    string strdest = 2;
+    string txhex = 3;
+    int32 nburnindex = 4;
+    int32 ntx = 5;
+    string hashblock = 6;
+  }
+
+  repeated SidechainDeposit deposits = 1;
 }

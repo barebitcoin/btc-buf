@@ -39,6 +39,9 @@ const (
 	// DrivechainServiceListActiveSidechainsProcedure is the fully-qualified name of the
 	// DrivechainService's ListActiveSidechains RPC.
 	DrivechainServiceListActiveSidechainsProcedure = "/bitcoin.drivechaind.v1.DrivechainService/ListActiveSidechains"
+	// DrivechainServiceListSidechainDepositsProcedure is the fully-qualified name of the
+	// DrivechainService's ListSidechainDeposits RPC.
+	DrivechainServiceListSidechainDepositsProcedure = "/bitcoin.drivechaind.v1.DrivechainService/ListSidechainDeposits"
 )
 
 // These variables are the protoreflect.Descriptor objects for the RPCs defined in this package.
@@ -46,12 +49,14 @@ var (
 	drivechainServiceServiceDescriptor                      = v1.File_bitcoin_drivechaind_v1_drivechain_proto.Services().ByName("DrivechainService")
 	drivechainServiceCreateSidechainDepositMethodDescriptor = drivechainServiceServiceDescriptor.Methods().ByName("CreateSidechainDeposit")
 	drivechainServiceListActiveSidechainsMethodDescriptor   = drivechainServiceServiceDescriptor.Methods().ByName("ListActiveSidechains")
+	drivechainServiceListSidechainDepositsMethodDescriptor  = drivechainServiceServiceDescriptor.Methods().ByName("ListSidechainDeposits")
 )
 
 // DrivechainServiceClient is a client for the bitcoin.drivechaind.v1.DrivechainService service.
 type DrivechainServiceClient interface {
 	CreateSidechainDeposit(context.Context, *connect.Request[v1.CreateSidechainDepositRequest]) (*connect.Response[v1.CreateSidechainDepositResponse], error)
 	ListActiveSidechains(context.Context, *connect.Request[v1.ListActiveSidechainsRequest]) (*connect.Response[v1.ListActiveSidechainsResponse], error)
+	ListSidechainDeposits(context.Context, *connect.Request[v1.ListSidechainDepositsRequest]) (*connect.Response[v1.ListSidechainDepositsResponse], error)
 }
 
 // NewDrivechainServiceClient constructs a client for the bitcoin.drivechaind.v1.DrivechainService
@@ -76,6 +81,12 @@ func NewDrivechainServiceClient(httpClient connect.HTTPClient, baseURL string, o
 			connect.WithSchema(drivechainServiceListActiveSidechainsMethodDescriptor),
 			connect.WithClientOptions(opts...),
 		),
+		listSidechainDeposits: connect.NewClient[v1.ListSidechainDepositsRequest, v1.ListSidechainDepositsResponse](
+			httpClient,
+			baseURL+DrivechainServiceListSidechainDepositsProcedure,
+			connect.WithSchema(drivechainServiceListSidechainDepositsMethodDescriptor),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -83,6 +94,7 @@ func NewDrivechainServiceClient(httpClient connect.HTTPClient, baseURL string, o
 type drivechainServiceClient struct {
 	createSidechainDeposit *connect.Client[v1.CreateSidechainDepositRequest, v1.CreateSidechainDepositResponse]
 	listActiveSidechains   *connect.Client[v1.ListActiveSidechainsRequest, v1.ListActiveSidechainsResponse]
+	listSidechainDeposits  *connect.Client[v1.ListSidechainDepositsRequest, v1.ListSidechainDepositsResponse]
 }
 
 // CreateSidechainDeposit calls bitcoin.drivechaind.v1.DrivechainService.CreateSidechainDeposit.
@@ -95,11 +107,17 @@ func (c *drivechainServiceClient) ListActiveSidechains(ctx context.Context, req 
 	return c.listActiveSidechains.CallUnary(ctx, req)
 }
 
+// ListSidechainDeposits calls bitcoin.drivechaind.v1.DrivechainService.ListSidechainDeposits.
+func (c *drivechainServiceClient) ListSidechainDeposits(ctx context.Context, req *connect.Request[v1.ListSidechainDepositsRequest]) (*connect.Response[v1.ListSidechainDepositsResponse], error) {
+	return c.listSidechainDeposits.CallUnary(ctx, req)
+}
+
 // DrivechainServiceHandler is an implementation of the bitcoin.drivechaind.v1.DrivechainService
 // service.
 type DrivechainServiceHandler interface {
 	CreateSidechainDeposit(context.Context, *connect.Request[v1.CreateSidechainDepositRequest]) (*connect.Response[v1.CreateSidechainDepositResponse], error)
 	ListActiveSidechains(context.Context, *connect.Request[v1.ListActiveSidechainsRequest]) (*connect.Response[v1.ListActiveSidechainsResponse], error)
+	ListSidechainDeposits(context.Context, *connect.Request[v1.ListSidechainDepositsRequest]) (*connect.Response[v1.ListSidechainDepositsResponse], error)
 }
 
 // NewDrivechainServiceHandler builds an HTTP handler from the service implementation. It returns
@@ -120,12 +138,20 @@ func NewDrivechainServiceHandler(svc DrivechainServiceHandler, opts ...connect.H
 		connect.WithSchema(drivechainServiceListActiveSidechainsMethodDescriptor),
 		connect.WithHandlerOptions(opts...),
 	)
+	drivechainServiceListSidechainDepositsHandler := connect.NewUnaryHandler(
+		DrivechainServiceListSidechainDepositsProcedure,
+		svc.ListSidechainDeposits,
+		connect.WithSchema(drivechainServiceListSidechainDepositsMethodDescriptor),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/bitcoin.drivechaind.v1.DrivechainService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case DrivechainServiceCreateSidechainDepositProcedure:
 			drivechainServiceCreateSidechainDepositHandler.ServeHTTP(w, r)
 		case DrivechainServiceListActiveSidechainsProcedure:
 			drivechainServiceListActiveSidechainsHandler.ServeHTTP(w, r)
+		case DrivechainServiceListSidechainDepositsProcedure:
+			drivechainServiceListSidechainDepositsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -141,4 +167,8 @@ func (UnimplementedDrivechainServiceHandler) CreateSidechainDeposit(context.Cont
 
 func (UnimplementedDrivechainServiceHandler) ListActiveSidechains(context.Context, *connect.Request[v1.ListActiveSidechainsRequest]) (*connect.Response[v1.ListActiveSidechainsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("bitcoin.drivechaind.v1.DrivechainService.ListActiveSidechains is not implemented"))
+}
+
+func (UnimplementedDrivechainServiceHandler) ListSidechainDeposits(context.Context, *connect.Request[v1.ListSidechainDepositsRequest]) (*connect.Response[v1.ListSidechainDepositsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("bitcoin.drivechaind.v1.DrivechainService.ListSidechainDeposits is not implemented"))
 }
