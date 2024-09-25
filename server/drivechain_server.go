@@ -194,3 +194,26 @@ func chainToSlot(chain string) (int, error) {
 		return 0, fmt.Errorf("unknown chain: %s", chain)
 	}
 }
+
+// ListSidechainDeposits implements drivechaindv1connect.DrivechainServiceHandler.
+func (b *Bitcoind) ListSidechainDeposits(ctx context.Context, c *connect.Request[pb.ListSidechainDepositsRequest]) (*connect.Response[pb.ListSidechainDepositsResponse], error) {
+	cmd, err := btcjson.NewCmd("listsidechaindeposits", c.Msg.Slot)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to create listsidechaindeposits command: %w", err))
+	}
+
+	res, err := rpcclient.ReceiveFuture(b.rpc.SendCmd(ctx, cmd))
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to execute listsidechaindeposits command: %w", err))
+	}
+
+	var deposits []*pb.ListSidechainDepositsResponse_SidechainDeposit
+	err = json.Unmarshal(res, &deposits)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to unmarshal listsidechaindeposits response: %w", err))
+	}
+
+	return connect.NewResponse(&pb.ListSidechainDepositsResponse{
+		Deposits: deposits,
+	}), nil
+}

@@ -16,3 +16,9 @@ type ListSidechainCTip struct {
 	// The sidechain slot
 	Slot int `json:"slot"`
 }
+
+// ListSidechainDeposits retrieves a list of deposits for a specific sidechain
+type ListSidechainDeposits struct {
+	// The sidechain slot
+	Slot int `json:"slot"`
+}

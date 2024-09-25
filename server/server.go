@@ -42,6 +42,7 @@ func init() {
 	btcjson.MustRegisterCmd("createsidechaindeposit", new(commands.CreateSidechainDeposit), btcjson.UFWalletOnly)
 	btcjson.MustRegisterCmd("listactivesidechains", new(commands.ListActiveSidechains), btcjson.UFWalletOnly)
 	btcjson.MustRegisterCmd("listsidechainctip", new(commands.ListSidechainCTip), btcjson.UFWalletOnly)
+	btcjson.MustRegisterCmd("listsidechaindeposits", new(commands.ListSidechainDeposits), btcjson.UFWalletOnly)
 }
 
 type Bitcoind struct {
