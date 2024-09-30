@@ -588,8 +588,15 @@ func rawTransaction(bytes []byte) *pb.RawTransaction {
 
 func inputProto(input btcjson.Vin, _ int) *pb.Input {
 	return &pb.Input{
-		Txid: input.Txid,
-		Vout: input.Vout,
+		Txid:     input.Txid,
+		Vout:     input.Vout,
+		Coinbase: input.Coinbase,
+		ScriptSig: &pb.ScriptSig{
+			Asm: input.ScriptSig.Asm,
+			Hex: input.ScriptSig.Hex,
+		},
+		Sequence: input.Sequence,
+		Witness:  input.Witness,
 	}
 }
 
@@ -600,7 +607,11 @@ func outputProto(output btcjson.Vout, _ int) *pb.Output {
 
 	return &pb.Output{
 		Amount: output.Value,
-		N:      output.N,
+		Vout:   output.N,
+		ScriptSig: &pb.ScriptSig{
+			Asm: output.ScriptPubKey.Asm,
+			Hex: output.ScriptPubKey.Hex,
+		},
 		ScriptPubKey: &pb.ScriptPubKey{
 			Type:    output.ScriptPubKey.Type,
 			Address: output.ScriptPubKey.Address,

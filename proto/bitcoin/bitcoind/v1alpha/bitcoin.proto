@@ -244,9 +244,18 @@ message GetRawTransactionRequest {
   // string blockhash = 3;
 }
 
+message ScriptSig {
+  string asm = 1;
+  string hex = 2;
+}
+
 message Input {
   string txid = 1;
   uint32 vout = 2;
+  string coinbase = 3;
+  ScriptSig script_sig = 4;
+  uint32 sequence = 5;
+  repeated string witness = 6;
 }
 
 message ScriptPubKey {
@@ -256,18 +265,16 @@ message ScriptPubKey {
 
 message Output {
   double amount = 1;
-
-  // The output index
-  uint32 n = 2;
+  uint32 vout = 2;
 
   ScriptPubKey script_pub_key = 3;
+  ScriptSig script_sig = 4;
 }
 
 message GetRawTransactionResponse {
   RawTransaction tx = 1;
 
   repeated Input inputs = 2;
-
   repeated Output outputs = 3;
 
   string blockhash = 4;
