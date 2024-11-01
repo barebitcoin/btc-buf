@@ -478,13 +478,20 @@ func (b *Bitcoind) GetBlockHash(ctx context.Context, c *connect.Request[pb.GetBl
 
 // GetBlock implements bitcoindv1alphaconnect.BitcoinServiceHandler.
 func (b *Bitcoind) GetBlock(ctx context.Context, c *connect.Request[pb.GetBlockRequest]) (*connect.Response[pb.GetBlockResponse], error) {
-	if c.Msg.Hash == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New(`"hash" is a required argument`))
+	if (c.Msg.Hash == "" && c.Msg.Height == nil) || (c.Msg.Hash != "" && c.Msg.Height != nil) {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New(`must set one of "hash" or "height"`))
 	}
 
 	hash, err := newChainHash(c.Msg.Hash)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("new chain hash: %w", err)
+	}
+
+	if c.Msg.Height != nil {
+		hash, err = b.rpc.GetBlockHash(ctx, int64(*c.Msg.Height))
+		if err != nil {
+			return nil, fmt.Errorf("get block hash from height: %w", err)
+		}
 	}
 
 	switch c.Msg.Verbosity {
@@ -503,7 +510,7 @@ func (b *Bitcoind) GetBlock(ctx context.Context, c *connect.Request[pb.GetBlockR
 			Hex: hex.EncodeToString(out.Bytes()),
 		}), nil
 
-	case pb.GetBlockRequest_VERBOSITY_BLOCK_INFO:
+	case pb.GetBlockRequest_VERBOSITY_BLOCK_INFO, pb.GetBlockRequest_VERBOSITY_BLOCK_TX_INFO, pb.GetBlockRequest_VERBOSITY_BLOCK_TX_PREVOUT_INFO:
 		block, err := b.rpc.GetBlockVerbose(ctx, hash)
 		if err != nil {
 			return nil, err

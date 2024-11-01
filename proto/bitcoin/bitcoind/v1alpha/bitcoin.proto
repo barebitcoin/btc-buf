@@ -467,7 +467,7 @@ message GetBlockRequest {
   enum Verbosity {
     VERBOSITY_UNSPECIFIED = 0;
 
-    // Returns the raw block data, completely unprocessed.
+    // Returns the raw block data, completely unprocessed. Response only sets hex.
     VERBOSITY_RAW_DATA = 1;
 
     // Returns information about the block
@@ -483,6 +483,7 @@ message GetBlockRequest {
   }
 
   string hash = 1;
+  optional int32 height = 3;
 
   Verbosity verbosity = 2;
 }
