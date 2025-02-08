@@ -601,16 +601,21 @@ func rawTransaction(bytes []byte) *pb.RawTransaction {
 }
 
 func inputProto(input btcjson.Vin, _ int) *pb.Input {
-	return &pb.Input{
-		Txid:     input.Txid,
-		Vout:     input.Vout,
-		Coinbase: input.Coinbase,
-		ScriptSig: &pb.ScriptSig{
+	var scriptSig *pb.ScriptSig
+	if input.ScriptSig != nil {
+		scriptSig = &pb.ScriptSig{
 			Asm: input.ScriptSig.Asm,
 			Hex: input.ScriptSig.Hex,
-		},
-		Sequence: input.Sequence,
-		Witness:  input.Witness,
+		}
+	}
+
+	return &pb.Input{
+		Txid:      input.Txid,
+		Vout:      input.Vout,
+		Coinbase:  input.Coinbase,
+		ScriptSig: scriptSig,
+		Sequence:  input.Sequence,
+		Witness:   input.Witness,
 	}
 }
 
@@ -619,13 +624,18 @@ func outputProto(output btcjson.Vout, _ int) *pb.Output {
 		output.ScriptPubKey.Address = output.ScriptPubKey.Addresses[0]
 	}
 
-	return &pb.Output{
-		Amount: output.Value,
-		Vout:   output.N,
-		ScriptSig: &pb.ScriptSig{
+	var scriptSig *pb.ScriptSig
+	if output.ScriptPubKey.Asm != "" || output.ScriptPubKey.Hex != "" {
+		scriptSig = &pb.ScriptSig{
 			Asm: output.ScriptPubKey.Asm,
 			Hex: output.ScriptPubKey.Hex,
-		},
+		}
+	}
+
+	return &pb.Output{
+		Amount:    output.Value,
+		Vout:      output.N,
+		ScriptSig: scriptSig,
 		ScriptPubKey: &pb.ScriptPubKey{
 			Type:    output.ScriptPubKey.Type,
 			Address: output.ScriptPubKey.Address,
