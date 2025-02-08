@@ -96,32 +96,6 @@ const (
 	BitcoinServiceGetBlockHashProcedure = "/bitcoin.bitcoind.v1alpha.BitcoinService/GetBlockHash"
 )
 
-// These variables are the protoreflect.Descriptor objects for the RPCs defined in this package.
-var (
-	bitcoinServiceServiceDescriptor                    = v1alpha.File_bitcoin_bitcoind_v1alpha_bitcoin_proto.Services().ByName("BitcoinService")
-	bitcoinServiceGetBlockchainInfoMethodDescriptor    = bitcoinServiceServiceDescriptor.Methods().ByName("GetBlockchainInfo")
-	bitcoinServiceGetPeerInfoMethodDescriptor          = bitcoinServiceServiceDescriptor.Methods().ByName("GetPeerInfo")
-	bitcoinServiceGetTransactionMethodDescriptor       = bitcoinServiceServiceDescriptor.Methods().ByName("GetTransaction")
-	bitcoinServiceListSinceBlockMethodDescriptor       = bitcoinServiceServiceDescriptor.Methods().ByName("ListSinceBlock")
-	bitcoinServiceGetNewAddressMethodDescriptor        = bitcoinServiceServiceDescriptor.Methods().ByName("GetNewAddress")
-	bitcoinServiceGetWalletInfoMethodDescriptor        = bitcoinServiceServiceDescriptor.Methods().ByName("GetWalletInfo")
-	bitcoinServiceGetBalancesMethodDescriptor          = bitcoinServiceServiceDescriptor.Methods().ByName("GetBalances")
-	bitcoinServiceSendMethodDescriptor                 = bitcoinServiceServiceDescriptor.Methods().ByName("Send")
-	bitcoinServiceSendToAddressMethodDescriptor        = bitcoinServiceServiceDescriptor.Methods().ByName("SendToAddress")
-	bitcoinServiceBumpFeeMethodDescriptor              = bitcoinServiceServiceDescriptor.Methods().ByName("BumpFee")
-	bitcoinServiceEstimateSmartFeeMethodDescriptor     = bitcoinServiceServiceDescriptor.Methods().ByName("EstimateSmartFee")
-	bitcoinServiceImportDescriptorsMethodDescriptor    = bitcoinServiceServiceDescriptor.Methods().ByName("ImportDescriptors")
-	bitcoinServiceListWalletsMethodDescriptor          = bitcoinServiceServiceDescriptor.Methods().ByName("ListWallets")
-	bitcoinServiceListTransactionsMethodDescriptor     = bitcoinServiceServiceDescriptor.Methods().ByName("ListTransactions")
-	bitcoinServiceGetDescriptorInfoMethodDescriptor    = bitcoinServiceServiceDescriptor.Methods().ByName("GetDescriptorInfo")
-	bitcoinServiceGetAddressInfoMethodDescriptor       = bitcoinServiceServiceDescriptor.Methods().ByName("GetAddressInfo")
-	bitcoinServiceGetRawMempoolMethodDescriptor        = bitcoinServiceServiceDescriptor.Methods().ByName("GetRawMempool")
-	bitcoinServiceGetRawTransactionMethodDescriptor    = bitcoinServiceServiceDescriptor.Methods().ByName("GetRawTransaction")
-	bitcoinServiceDecodeRawTransactionMethodDescriptor = bitcoinServiceServiceDescriptor.Methods().ByName("DecodeRawTransaction")
-	bitcoinServiceGetBlockMethodDescriptor             = bitcoinServiceServiceDescriptor.Methods().ByName("GetBlock")
-	bitcoinServiceGetBlockHashMethodDescriptor         = bitcoinServiceServiceDescriptor.Methods().ByName("GetBlockHash")
-)
-
 // BitcoinServiceClient is a client for the bitcoin.bitcoind.v1alpha.BitcoinService service.
 type BitcoinServiceClient interface {
 	GetBlockchainInfo(context.Context, *connect.Request[v1alpha.GetBlockchainInfoRequest]) (*connect.Response[v1alpha.GetBlockchainInfoResponse], error)
@@ -163,131 +137,132 @@ type BitcoinServiceClient interface {
 // http://api.acme.com or https://acme.com/grpc).
 func NewBitcoinServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) BitcoinServiceClient {
 	baseURL = strings.TrimRight(baseURL, "/")
+	bitcoinServiceMethods := v1alpha.File_bitcoin_bitcoind_v1alpha_bitcoin_proto.Services().ByName("BitcoinService").Methods()
 	return &bitcoinServiceClient{
 		getBlockchainInfo: connect.NewClient[v1alpha.GetBlockchainInfoRequest, v1alpha.GetBlockchainInfoResponse](
 			httpClient,
 			baseURL+BitcoinServiceGetBlockchainInfoProcedure,
-			connect.WithSchema(bitcoinServiceGetBlockchainInfoMethodDescriptor),
+			connect.WithSchema(bitcoinServiceMethods.ByName("GetBlockchainInfo")),
 			connect.WithClientOptions(opts...),
 		),
 		getPeerInfo: connect.NewClient[v1alpha.GetPeerInfoRequest, v1alpha.GetPeerInfoResponse](
 			httpClient,
 			baseURL+BitcoinServiceGetPeerInfoProcedure,
-			connect.WithSchema(bitcoinServiceGetPeerInfoMethodDescriptor),
+			connect.WithSchema(bitcoinServiceMethods.ByName("GetPeerInfo")),
 			connect.WithClientOptions(opts...),
 		),
 		getTransaction: connect.NewClient[v1alpha.GetTransactionRequest, v1alpha.GetTransactionResponse](
 			httpClient,
 			baseURL+BitcoinServiceGetTransactionProcedure,
-			connect.WithSchema(bitcoinServiceGetTransactionMethodDescriptor),
+			connect.WithSchema(bitcoinServiceMethods.ByName("GetTransaction")),
 			connect.WithClientOptions(opts...),
 		),
 		listSinceBlock: connect.NewClient[v1alpha.ListSinceBlockRequest, v1alpha.ListSinceBlockResponse](
 			httpClient,
 			baseURL+BitcoinServiceListSinceBlockProcedure,
-			connect.WithSchema(bitcoinServiceListSinceBlockMethodDescriptor),
+			connect.WithSchema(bitcoinServiceMethods.ByName("ListSinceBlock")),
 			connect.WithClientOptions(opts...),
 		),
 		getNewAddress: connect.NewClient[v1alpha.GetNewAddressRequest, v1alpha.GetNewAddressResponse](
 			httpClient,
 			baseURL+BitcoinServiceGetNewAddressProcedure,
-			connect.WithSchema(bitcoinServiceGetNewAddressMethodDescriptor),
+			connect.WithSchema(bitcoinServiceMethods.ByName("GetNewAddress")),
 			connect.WithClientOptions(opts...),
 		),
 		getWalletInfo: connect.NewClient[v1alpha.GetWalletInfoRequest, v1alpha.GetWalletInfoResponse](
 			httpClient,
 			baseURL+BitcoinServiceGetWalletInfoProcedure,
-			connect.WithSchema(bitcoinServiceGetWalletInfoMethodDescriptor),
+			connect.WithSchema(bitcoinServiceMethods.ByName("GetWalletInfo")),
 			connect.WithClientOptions(opts...),
 		),
 		getBalances: connect.NewClient[v1alpha.GetBalancesRequest, v1alpha.GetBalancesResponse](
 			httpClient,
 			baseURL+BitcoinServiceGetBalancesProcedure,
-			connect.WithSchema(bitcoinServiceGetBalancesMethodDescriptor),
+			connect.WithSchema(bitcoinServiceMethods.ByName("GetBalances")),
 			connect.WithClientOptions(opts...),
 		),
 		send: connect.NewClient[v1alpha.SendRequest, v1alpha.SendResponse](
 			httpClient,
 			baseURL+BitcoinServiceSendProcedure,
-			connect.WithSchema(bitcoinServiceSendMethodDescriptor),
+			connect.WithSchema(bitcoinServiceMethods.ByName("Send")),
 			connect.WithClientOptions(opts...),
 		),
 		sendToAddress: connect.NewClient[v1alpha.SendToAddressRequest, v1alpha.SendToAddressResponse](
 			httpClient,
 			baseURL+BitcoinServiceSendToAddressProcedure,
-			connect.WithSchema(bitcoinServiceSendToAddressMethodDescriptor),
+			connect.WithSchema(bitcoinServiceMethods.ByName("SendToAddress")),
 			connect.WithClientOptions(opts...),
 		),
 		bumpFee: connect.NewClient[v1alpha.BumpFeeRequest, v1alpha.BumpFeeResponse](
 			httpClient,
 			baseURL+BitcoinServiceBumpFeeProcedure,
-			connect.WithSchema(bitcoinServiceBumpFeeMethodDescriptor),
+			connect.WithSchema(bitcoinServiceMethods.ByName("BumpFee")),
 			connect.WithClientOptions(opts...),
 		),
 		estimateSmartFee: connect.NewClient[v1alpha.EstimateSmartFeeRequest, v1alpha.EstimateSmartFeeResponse](
 			httpClient,
 			baseURL+BitcoinServiceEstimateSmartFeeProcedure,
-			connect.WithSchema(bitcoinServiceEstimateSmartFeeMethodDescriptor),
+			connect.WithSchema(bitcoinServiceMethods.ByName("EstimateSmartFee")),
 			connect.WithClientOptions(opts...),
 		),
 		importDescriptors: connect.NewClient[v1alpha.ImportDescriptorsRequest, v1alpha.ImportDescriptorsResponse](
 			httpClient,
 			baseURL+BitcoinServiceImportDescriptorsProcedure,
-			connect.WithSchema(bitcoinServiceImportDescriptorsMethodDescriptor),
+			connect.WithSchema(bitcoinServiceMethods.ByName("ImportDescriptors")),
 			connect.WithClientOptions(opts...),
 		),
 		listWallets: connect.NewClient[emptypb.Empty, v1alpha.ListWalletsResponse](
 			httpClient,
 			baseURL+BitcoinServiceListWalletsProcedure,
-			connect.WithSchema(bitcoinServiceListWalletsMethodDescriptor),
+			connect.WithSchema(bitcoinServiceMethods.ByName("ListWallets")),
 			connect.WithClientOptions(opts...),
 		),
 		listTransactions: connect.NewClient[v1alpha.ListTransactionsRequest, v1alpha.ListTransactionsResponse](
 			httpClient,
 			baseURL+BitcoinServiceListTransactionsProcedure,
-			connect.WithSchema(bitcoinServiceListTransactionsMethodDescriptor),
+			connect.WithSchema(bitcoinServiceMethods.ByName("ListTransactions")),
 			connect.WithClientOptions(opts...),
 		),
 		getDescriptorInfo: connect.NewClient[v1alpha.GetDescriptorInfoRequest, v1alpha.GetDescriptorInfoResponse](
 			httpClient,
 			baseURL+BitcoinServiceGetDescriptorInfoProcedure,
-			connect.WithSchema(bitcoinServiceGetDescriptorInfoMethodDescriptor),
+			connect.WithSchema(bitcoinServiceMethods.ByName("GetDescriptorInfo")),
 			connect.WithClientOptions(opts...),
 		),
 		getAddressInfo: connect.NewClient[v1alpha.GetAddressInfoRequest, v1alpha.GetAddressInfoResponse](
 			httpClient,
 			baseURL+BitcoinServiceGetAddressInfoProcedure,
-			connect.WithSchema(bitcoinServiceGetAddressInfoMethodDescriptor),
+			connect.WithSchema(bitcoinServiceMethods.ByName("GetAddressInfo")),
 			connect.WithClientOptions(opts...),
 		),
 		getRawMempool: connect.NewClient[v1alpha.GetRawMempoolRequest, v1alpha.GetRawMempoolResponse](
 			httpClient,
 			baseURL+BitcoinServiceGetRawMempoolProcedure,
-			connect.WithSchema(bitcoinServiceGetRawMempoolMethodDescriptor),
+			connect.WithSchema(bitcoinServiceMethods.ByName("GetRawMempool")),
 			connect.WithClientOptions(opts...),
 		),
 		getRawTransaction: connect.NewClient[v1alpha.GetRawTransactionRequest, v1alpha.GetRawTransactionResponse](
 			httpClient,
 			baseURL+BitcoinServiceGetRawTransactionProcedure,
-			connect.WithSchema(bitcoinServiceGetRawTransactionMethodDescriptor),
+			connect.WithSchema(bitcoinServiceMethods.ByName("GetRawTransaction")),
 			connect.WithClientOptions(opts...),
 		),
 		decodeRawTransaction: connect.NewClient[v1alpha.DecodeRawTransactionRequest, v1alpha.DecodeRawTransactionResponse](
 			httpClient,
 			baseURL+BitcoinServiceDecodeRawTransactionProcedure,
-			connect.WithSchema(bitcoinServiceDecodeRawTransactionMethodDescriptor),
+			connect.WithSchema(bitcoinServiceMethods.ByName("DecodeRawTransaction")),
 			connect.WithClientOptions(opts...),
 		),
 		getBlock: connect.NewClient[v1alpha.GetBlockRequest, v1alpha.GetBlockResponse](
 			httpClient,
 			baseURL+BitcoinServiceGetBlockProcedure,
-			connect.WithSchema(bitcoinServiceGetBlockMethodDescriptor),
+			connect.WithSchema(bitcoinServiceMethods.ByName("GetBlock")),
 			connect.WithClientOptions(opts...),
 		),
 		getBlockHash: connect.NewClient[v1alpha.GetBlockHashRequest, v1alpha.GetBlockHashResponse](
 			httpClient,
 			baseURL+BitcoinServiceGetBlockHashProcedure,
-			connect.WithSchema(bitcoinServiceGetBlockHashMethodDescriptor),
+			connect.WithSchema(bitcoinServiceMethods.ByName("GetBlockHash")),
 			connect.WithClientOptions(opts...),
 		),
 	}
@@ -462,130 +437,131 @@ type BitcoinServiceHandler interface {
 // By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
 // and JSON codecs. They also support gzip compression.
 func NewBitcoinServiceHandler(svc BitcoinServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
+	bitcoinServiceMethods := v1alpha.File_bitcoin_bitcoind_v1alpha_bitcoin_proto.Services().ByName("BitcoinService").Methods()
 	bitcoinServiceGetBlockchainInfoHandler := connect.NewUnaryHandler(
 		BitcoinServiceGetBlockchainInfoProcedure,
 		svc.GetBlockchainInfo,
-		connect.WithSchema(bitcoinServiceGetBlockchainInfoMethodDescriptor),
+		connect.WithSchema(bitcoinServiceMethods.ByName("GetBlockchainInfo")),
 		connect.WithHandlerOptions(opts...),
 	)
 	bitcoinServiceGetPeerInfoHandler := connect.NewUnaryHandler(
 		BitcoinServiceGetPeerInfoProcedure,
 		svc.GetPeerInfo,
-		connect.WithSchema(bitcoinServiceGetPeerInfoMethodDescriptor),
+		connect.WithSchema(bitcoinServiceMethods.ByName("GetPeerInfo")),
 		connect.WithHandlerOptions(opts...),
 	)
 	bitcoinServiceGetTransactionHandler := connect.NewUnaryHandler(
 		BitcoinServiceGetTransactionProcedure,
 		svc.GetTransaction,
-		connect.WithSchema(bitcoinServiceGetTransactionMethodDescriptor),
+		connect.WithSchema(bitcoinServiceMethods.ByName("GetTransaction")),
 		connect.WithHandlerOptions(opts...),
 	)
 	bitcoinServiceListSinceBlockHandler := connect.NewUnaryHandler(
 		BitcoinServiceListSinceBlockProcedure,
 		svc.ListSinceBlock,
-		connect.WithSchema(bitcoinServiceListSinceBlockMethodDescriptor),
+		connect.WithSchema(bitcoinServiceMethods.ByName("ListSinceBlock")),
 		connect.WithHandlerOptions(opts...),
 	)
 	bitcoinServiceGetNewAddressHandler := connect.NewUnaryHandler(
 		BitcoinServiceGetNewAddressProcedure,
 		svc.GetNewAddress,
-		connect.WithSchema(bitcoinServiceGetNewAddressMethodDescriptor),
+		connect.WithSchema(bitcoinServiceMethods.ByName("GetNewAddress")),
 		connect.WithHandlerOptions(opts...),
 	)
 	bitcoinServiceGetWalletInfoHandler := connect.NewUnaryHandler(
 		BitcoinServiceGetWalletInfoProcedure,
 		svc.GetWalletInfo,
-		connect.WithSchema(bitcoinServiceGetWalletInfoMethodDescriptor),
+		connect.WithSchema(bitcoinServiceMethods.ByName("GetWalletInfo")),
 		connect.WithHandlerOptions(opts...),
 	)
 	bitcoinServiceGetBalancesHandler := connect.NewUnaryHandler(
 		BitcoinServiceGetBalancesProcedure,
 		svc.GetBalances,
-		connect.WithSchema(bitcoinServiceGetBalancesMethodDescriptor),
+		connect.WithSchema(bitcoinServiceMethods.ByName("GetBalances")),
 		connect.WithHandlerOptions(opts...),
 	)
 	bitcoinServiceSendHandler := connect.NewUnaryHandler(
 		BitcoinServiceSendProcedure,
 		svc.Send,
-		connect.WithSchema(bitcoinServiceSendMethodDescriptor),
+		connect.WithSchema(bitcoinServiceMethods.ByName("Send")),
 		connect.WithHandlerOptions(opts...),
 	)
 	bitcoinServiceSendToAddressHandler := connect.NewUnaryHandler(
 		BitcoinServiceSendToAddressProcedure,
 		svc.SendToAddress,
-		connect.WithSchema(bitcoinServiceSendToAddressMethodDescriptor),
+		connect.WithSchema(bitcoinServiceMethods.ByName("SendToAddress")),
 		connect.WithHandlerOptions(opts...),
 	)
 	bitcoinServiceBumpFeeHandler := connect.NewUnaryHandler(
 		BitcoinServiceBumpFeeProcedure,
 		svc.BumpFee,
-		connect.WithSchema(bitcoinServiceBumpFeeMethodDescriptor),
+		connect.WithSchema(bitcoinServiceMethods.ByName("BumpFee")),
 		connect.WithHandlerOptions(opts...),
 	)
 	bitcoinServiceEstimateSmartFeeHandler := connect.NewUnaryHandler(
 		BitcoinServiceEstimateSmartFeeProcedure,
 		svc.EstimateSmartFee,
-		connect.WithSchema(bitcoinServiceEstimateSmartFeeMethodDescriptor),
+		connect.WithSchema(bitcoinServiceMethods.ByName("EstimateSmartFee")),
 		connect.WithHandlerOptions(opts...),
 	)
 	bitcoinServiceImportDescriptorsHandler := connect.NewUnaryHandler(
 		BitcoinServiceImportDescriptorsProcedure,
 		svc.ImportDescriptors,
-		connect.WithSchema(bitcoinServiceImportDescriptorsMethodDescriptor),
+		connect.WithSchema(bitcoinServiceMethods.ByName("ImportDescriptors")),
 		connect.WithHandlerOptions(opts...),
 	)
 	bitcoinServiceListWalletsHandler := connect.NewUnaryHandler(
 		BitcoinServiceListWalletsProcedure,
 		svc.ListWallets,
-		connect.WithSchema(bitcoinServiceListWalletsMethodDescriptor),
+		connect.WithSchema(bitcoinServiceMethods.ByName("ListWallets")),
 		connect.WithHandlerOptions(opts...),
 	)
 	bitcoinServiceListTransactionsHandler := connect.NewUnaryHandler(
 		BitcoinServiceListTransactionsProcedure,
 		svc.ListTransactions,
-		connect.WithSchema(bitcoinServiceListTransactionsMethodDescriptor),
+		connect.WithSchema(bitcoinServiceMethods.ByName("ListTransactions")),
 		connect.WithHandlerOptions(opts...),
 	)
 	bitcoinServiceGetDescriptorInfoHandler := connect.NewUnaryHandler(
 		BitcoinServiceGetDescriptorInfoProcedure,
 		svc.GetDescriptorInfo,
-		connect.WithSchema(bitcoinServiceGetDescriptorInfoMethodDescriptor),
+		connect.WithSchema(bitcoinServiceMethods.ByName("GetDescriptorInfo")),
 		connect.WithHandlerOptions(opts...),
 	)
 	bitcoinServiceGetAddressInfoHandler := connect.NewUnaryHandler(
 		BitcoinServiceGetAddressInfoProcedure,
 		svc.GetAddressInfo,
-		connect.WithSchema(bitcoinServiceGetAddressInfoMethodDescriptor),
+		connect.WithSchema(bitcoinServiceMethods.ByName("GetAddressInfo")),
 		connect.WithHandlerOptions(opts...),
 	)
 	bitcoinServiceGetRawMempoolHandler := connect.NewUnaryHandler(
 		BitcoinServiceGetRawMempoolProcedure,
 		svc.GetRawMempool,
-		connect.WithSchema(bitcoinServiceGetRawMempoolMethodDescriptor),
+		connect.WithSchema(bitcoinServiceMethods.ByName("GetRawMempool")),
 		connect.WithHandlerOptions(opts...),
 	)
 	bitcoinServiceGetRawTransactionHandler := connect.NewUnaryHandler(
 		BitcoinServiceGetRawTransactionProcedure,
 		svc.GetRawTransaction,
-		connect.WithSchema(bitcoinServiceGetRawTransactionMethodDescriptor),
+		connect.WithSchema(bitcoinServiceMethods.ByName("GetRawTransaction")),
 		connect.WithHandlerOptions(opts...),
 	)
 	bitcoinServiceDecodeRawTransactionHandler := connect.NewUnaryHandler(
 		BitcoinServiceDecodeRawTransactionProcedure,
 		svc.DecodeRawTransaction,
-		connect.WithSchema(bitcoinServiceDecodeRawTransactionMethodDescriptor),
+		connect.WithSchema(bitcoinServiceMethods.ByName("DecodeRawTransaction")),
 		connect.WithHandlerOptions(opts...),
 	)
 	bitcoinServiceGetBlockHandler := connect.NewUnaryHandler(
 		BitcoinServiceGetBlockProcedure,
 		svc.GetBlock,
-		connect.WithSchema(bitcoinServiceGetBlockMethodDescriptor),
+		connect.WithSchema(bitcoinServiceMethods.ByName("GetBlock")),
 		connect.WithHandlerOptions(opts...),
 	)
 	bitcoinServiceGetBlockHashHandler := connect.NewUnaryHandler(
 		BitcoinServiceGetBlockHashProcedure,
 		svc.GetBlockHash,
-		connect.WithSchema(bitcoinServiceGetBlockHashMethodDescriptor),
+		connect.WithSchema(bitcoinServiceMethods.ByName("GetBlockHash")),
 		connect.WithHandlerOptions(opts...),
 	)
 	return "/bitcoin.bitcoind.v1alpha.BitcoinService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
