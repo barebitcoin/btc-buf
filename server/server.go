@@ -581,6 +581,13 @@ func (b *Bitcoind) GetRawTransaction(ctx context.Context, c *connect.Request[pb.
 				Blocktime:     tx.Blocktime,
 				Inputs:        lo.Map(tx.Vin, inputProto),
 				Outputs:       lo.Map(tx.Vout, outputProto),
+				Size:          tx.Size,
+				Vsize:         tx.Vsize,
+				Weight:        tx.Weight,
+				Version:       tx.Version,
+				Locktime:      tx.LockTime,
+				Txid:          tx.Txid,
+				Hash:          tx.Hash,
 			}
 		},
 	)

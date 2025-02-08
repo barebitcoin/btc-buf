@@ -273,6 +273,13 @@ message Output {
 
 message GetRawTransactionResponse {
   RawTransaction tx = 1;
+  string txid = 8;
+  string hash = 9;
+  int32 size = 10;
+  int32 vsize = 11;
+  int32 weight = 12;
+  uint32 version = 13;
+  uint32 locktime = 14;
 
   repeated Input inputs = 2;
   repeated Output outputs = 3;
