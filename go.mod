@@ -1,6 +1,6 @@
 module github.com/barebitcoin/btc-buf
 
-go 1.23.0
+go 1.24.0
 
 require (
 	connectrpc.com/connect v1.18.1
