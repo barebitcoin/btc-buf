@@ -29,3 +29,7 @@ image:
 image-push: image
 	docker push barebitcoin/btc-buf:$(git rev-parse --short HEAD) 
 
+[positional-arguments]
+curl *args='':
+	#!/usr/bin/env bash
+	buf curl --schema . --timeout=30m --emit-defaults ${@:+ "$@"}
