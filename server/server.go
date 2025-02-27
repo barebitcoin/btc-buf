@@ -22,6 +22,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/samber/lo"
 	"golang.org/x/exp/slices"
+	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -420,11 +421,51 @@ func (b *Bitcoind) GetPeerInfo(
 		func(info []btcjson.GetPeerInfoResult) *pb.GetPeerInfoResponse {
 			return &pb.GetPeerInfoResponse{
 				Peers: lo.Map(info, func(peer btcjson.GetPeerInfoResult, idx int) *pb.Peer {
-					return &pb.Peer{
-						Id:           peer.ID,
-						Addr:         peer.Addr,
-						SyncedBlocks: peer.CurrentHeight,
+					// Create a peer object with all available fields from the GetPeerInfoResult struct
+					p := &pb.Peer{
+						Id:                  peer.ID,
+						Addr:                peer.Addr,
+						AddrLocal:           peer.AddrLocal,
+						BytesSent:           peer.BytesSent,
+						BytesReceived:       peer.BytesRecv,
+						AddrBind:            "",                                     // Not in the RPC client
+						Network:             pb.Peer_NETWORK_UNSPECIFIED,            // Not in the RPC client
+						MappedAs:            0,                                      // Not in the RPC client
+						ConnectionType:      pb.Peer_CONNECTION_TYPE_UNSPECIFIED,    // Not in the RPC client
+						TransportProtocol:   pb.Peer_TRANSPORT_PROTOCOL_UNSPECIFIED, // Not in the RPC client
+						LastTransactionAt:   nil,                                    // Not in the RPC client
+						LastBlockAt:         nil,                                    // Not in the RPC client
+						BytesSentPerMsg:     map[string]int64{},                     // Not in the RPC client
+						BytesReceivedPerMsg: map[string]int64{},                     // Not in the RPC client
+						MinPing:             nil,                                    // Not in the RPC client
+						Bip152HbTo:          false,                                  // Not in the RPC client
+						Bip152HbFrom:        false,                                  // Not in the RPC client
+						PresyncedHeaders:    0,                                      // Not in the RPC client
+						SyncedHeaders:       0,                                      // Not in the RPC client
+						SyncedBlocks:        0,                                      // Not in the RPC client
+						Inflight:            []int32{},                              // Not in the RPC client
+						AddrRelayEnabled:    false,                                  // Not in the RPC client
+						AddrProcessed:       0,                                      // Not in the RPC client
+						AddrRateLimited:     0,                                      // Not in the RPC client
+						Permissions:         []string{},                             // Not in the RPC client
+						MinFeeFilter:        0,                                      // Not in the RPC client
+						SessionId:           "",                                     // Not in the RPC client
+						ConnectedAt:         timestamppb.New(time.Unix(peer.ConnTime, 0)),
+						LastSendAt:          timestamppb.New(time.Unix(peer.LastSend, 0)),
+						LastRecvAt:          timestamppb.New(time.Unix(peer.LastRecv, 0)),
+						Version:             peer.Version,
+						Subver:              peer.SubVer,
+						Inbound:             peer.Inbound,
+						StartingHeight:      peer.StartingHeight,
+						TimeOffset:          durationpb.New(time.Duration(peer.TimeOffset) * time.Second),
+						Services:            peer.Services,
+						ServicesNames:       []string{}, // Not in the RPC client
+						RelayTransactions:   peer.RelayTxes,
+						PingTime:            durationpb.New(time.Millisecond * time.Duration(peer.PingTime)),
+						PingWait:            durationpb.New(time.Millisecond * time.Duration(peer.PingWait)),
 					}
+
+					return p
 				}),
 			}
 		})
@@ -927,8 +968,6 @@ func (b *Bitcoind) GetBalances(ctx context.Context, c *connect.Request[pb.GetBal
 					Trusted:          r.Mine.Trusted,
 					UntrustedPending: r.Mine.UntrustedPending,
 					Immature:         r.Mine.Immature,
-					// TODO: not present in rpcclient?
-					// Used: ,
 				},
 				Watchonly: watchonly,
 			}

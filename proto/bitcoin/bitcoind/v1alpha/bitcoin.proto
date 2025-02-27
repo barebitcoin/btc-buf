@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package bitcoin.bitcoind.v1alpha;
 
+import "google/protobuf/duration.proto";
 import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/wrappers.proto";
@@ -64,9 +65,149 @@ message GetBlockchainInfoResponse {
 message GetPeerInfoRequest {}
 
 message Peer {
+  // Peer index
   int32 id = 1;
+
+  // The IP address and port of the peer (host:port)
   string addr = 2;
-  int32 synced_blocks = 3;
+
+  // Bind address of the connection to the peer (ip:port)
+  string addr_bind = 3;
+
+  // Local address as reported by the peer (ip:port)
+  string addr_local = 4;
+
+  enum Network {
+    NETWORK_UNSPECIFIED = 0;
+    NETWORK_IPV4 = 1;
+    NETWORK_IPV6 = 2;
+    NETWORK_ONION = 3;
+    NETWORK_I2P = 4;
+    NETWORK_CJDNS = 5;
+    NETWORK_NOT_PUBLICLY_ROUTABLE = 6;
+  }
+  Network network = 5;
+
+  // The AS in the BGP route to the peer used for diversifying peer selection
+  int64 mapped_as = 6;
+
+  // The services offered (hex)
+  string services = 7;
+
+  // The services offered, in human-readable form
+  repeated string services_names = 8;
+
+  // Whether we relay transactions to this peer
+  bool relay_transactions = 9;
+
+  // The time of the last send
+  google.protobuf.Timestamp last_send_at = 10;
+
+  // The time of the last receive
+  google.protobuf.Timestamp last_recv_at = 11;
+
+  // The time of the last valid transaction received from this peer
+  google.protobuf.Timestamp last_transaction_at = 12;
+
+  // The time of the last block received from this peer
+  google.protobuf.Timestamp last_block_at = 13;
+
+  // The total bytes sent
+  uint64 bytes_sent = 14;
+
+  // The total bytes received
+  uint64 bytes_received = 15;
+
+  // The time of the connection
+  google.protobuf.Timestamp connected_at = 16;
+
+  // The time offset
+  google.protobuf.Duration time_offset = 17;
+
+  // The last ping time, if any
+  google.protobuf.Duration ping_time = 18;
+
+  // The minimum observed ping time, if any
+  google.protobuf.Duration min_ping = 19;
+
+  // The duration of an outstanding ping, if any
+  google.protobuf.Duration ping_wait = 20;
+
+  // The peer version, such as 70001
+  uint32 version = 21;
+
+  // The string version
+  string subver = 22;
+
+  // Inbound (true) or Outbound (false)
+  bool inbound = 23;
+
+  // Whether we selected peer as (compact blocks) high-bandwidth peer
+  bool bip152_hb_to = 24;
+
+  // Whether peer selected us as (compact blocks) high-bandwidth peer
+  bool bip152_hb_from = 25;
+
+  // The starting height (block) of the peer
+  int32 starting_height = 26;
+
+  // The current height of header pre-synchronization with this peer, or -1 if no low-work sync is in progress
+  int32 presynced_headers = 27;
+
+  // The last header we have in common with this peer
+  int32 synced_headers = 28;
+
+  // The last block we have in common with this peer
+  int32 synced_blocks = 29;
+
+  // The heights of blocks we're currently asking from this peer
+  repeated int32 inflight = 30;
+
+  // Whether we participate in address relay with this peer
+  bool addr_relay_enabled = 31;
+
+  // The total number of addresses processed, excluding those dropped due to rate limiting
+  int64 addr_processed = 32;
+
+  // The total number of addresses dropped due to rate limiting
+  int64 addr_rate_limited = 33;
+
+  // Any special permissions that have been granted to this peer
+  repeated string permissions = 34;
+
+  // The minimum fee rate for transactions this peer accepts
+  double min_fee_filter = 35;
+
+  // The total bytes sent aggregated by message type
+  map<string, int64> bytes_sent_per_msg = 36;
+
+  // The total bytes received aggregated by message type
+  map<string, int64> bytes_received_per_msg = 37;
+
+  enum ConnectionType {
+    CONNECTION_TYPE_UNSPECIFIED = 0;
+    CONNECTION_TYPE_OUTBOUND_FULL_RELAY = 1;
+    CONNECTION_TYPE_BLOCK_RELAY_ONLY = 2;
+    CONNECTION_TYPE_INBOUND = 3;
+    CONNECTION_TYPE_MANUAL = 4;
+    CONNECTION_TYPE_ADDR_FETCH = 5;
+    CONNECTION_TYPE_FEEDER = 6;
+  }
+  enum TransportProtocol {
+    TRANSPORT_PROTOCOL_UNSPECIFIED = 0;
+    TRANSPORT_PROTOCOL_DETECTING = 1;
+    TRANSPORT_PROTOCOL_V1 = 2;
+    TRANSPORT_PROTOCOL_V2 = 3;
+  }
+
+  // Type of connection
+  ConnectionType connection_type = 38;
+
+  // Type of transport protocol
+  TransportProtocol transport_protocol = 39;
+
+  // The session ID for this connection, or empty if there is none (v2 transport protocol only)
+  string session_id = 40;
 }
 
 message GetPeerInfoResponse {
