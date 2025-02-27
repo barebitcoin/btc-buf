@@ -60,7 +60,8 @@ func main() {
 
 	cfg, err := readConfig(ctx)
 	if err != nil {
-		panic(fmt.Sprintf("read config: %s", err))
+		fmt.Fprintln(os.Stderr, "unable to read config:", err)
+		os.Exit(1)
 	}
 
 	// important: this is only usable AFTER readConfig has been called

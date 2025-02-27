@@ -84,7 +84,7 @@ func readConfig(ctx context.Context) (*config, error) {
 
 		path, err := cookiePath(net)
 		if err != nil {
-			return nil, fmt.Errorf("could not find cookie path: %w", err)
+			return nil, fmt.Errorf("find cookie path: %w", err)
 		}
 
 		log.Debug().Str("path", path).
@@ -92,12 +92,12 @@ func readConfig(ctx context.Context) (*config, error) {
 
 		cookie, err := os.ReadFile(path)
 		if err != nil {
-			return nil, fmt.Errorf("could not read cookie: %w", err)
+			return nil, fmt.Errorf("read cookie: %w", err)
 		}
 
 		user, pass, found := strings.Cut(string(cookie), ":")
 		if !found {
-			return nil, fmt.Errorf("could not parse cookie: %s", string(cookie))
+			return nil, fmt.Errorf("parse cookie: %s", string(cookie))
 		}
 
 		cfg.Bitcoind.User = user
