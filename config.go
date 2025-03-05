@@ -26,6 +26,7 @@ type sshConfig struct {
 	LocalPort  int      `long:"local-port" description:"local port to connect to"`
 	RemotePort int      `long:"remote-port" description:"remote port to connect to"`
 	KnownHosts []string `long:"known-hosts"`
+	KeyFile    string   `long:"key-file" description:"path to SSH private key file"`
 }
 
 type bitcoindConfig struct {

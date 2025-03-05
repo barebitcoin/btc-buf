@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"net"
@@ -103,9 +104,20 @@ func findSetting(key string, settings []debug.BuildSetting) string {
 }
 
 // setupSSHTunnel creates an SSH tunnel by running the ssh command
-func setupSSHTunnel(ctx context.Context, conf sshConfig, out chan<- error) error {
+func setupSSHTunnel(ctx context.Context, conf sshConfig, out chan error) error {
+	if conf.KeyFile == "" {
+		return fmt.Errorf("ssh: key file is required")
+	}
+
 	args := []string{
-		"-N",
+		"-v", "-N",
+		"-F", "none", // don't read the default config file
+		"-o", "PasswordAuthentication=no", // disable password authentication
+		"-o", "PreferredAuthentications=publickey", // only use public key authentication
+		"-o", "IdentitiesOnly=yes", // only use explicitly provided keys
+		// "-o", "UseKeychain=no", // disable macOS keychain
+		// "-o", "IdentityAgent=none", // disable SSH agent
+		"-i", conf.KeyFile, // specify the key file to use
 		"-L", fmt.Sprintf("%d:localhost:%d", conf.LocalPort, conf.RemotePort),
 		conf.Host,
 	}
@@ -129,6 +141,17 @@ func setupSSHTunnel(ctx context.Context, conf sshConfig, out chan<- error) error
 	// -L: Local port forwarding
 	cmd := exec.CommandContext(ctx, "ssh", args...)
 
+	// Capture stdout and stderr
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return fmt.Errorf("create stdout pipe: %w", err)
+	}
+
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		return fmt.Errorf("create stderr pipe: %w", err)
+	}
+
 	// Start the SSH tunnel
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("starting SSH tunnel: %w", err)
@@ -144,6 +167,24 @@ func setupSSHTunnel(ctx context.Context, conf sshConfig, out chan<- error) error
 		}
 	}()
 
+	// Log stdout in background
+	go func() {
+		scanner := bufio.NewScanner(stdout)
+		for scanner.Scan() {
+			zerolog.Ctx(ctx).Debug().
+				Msgf("SSH tunnel stdout: %s", scanner.Text())
+		}
+	}()
+
+	// Log stderr in background
+	go func() {
+		scanner := bufio.NewScanner(stderr)
+		for scanner.Scan() {
+			zerolog.Ctx(ctx).Debug().
+				Msgf("SSH tunnel stderr: %s", scanner.Text())
+		}
+	}()
+
 	// Wait for the tunnel to be established
 	for i := 0; i < 10; i++ {
 		if conn, err := net.Dial("tcp", fmt.Sprintf("localhost:%d", conf.LocalPort)); err == nil {
@@ -153,6 +194,9 @@ func setupSSHTunnel(ctx context.Context, conf sshConfig, out chan<- error) error
 		select {
 		case <-ctx.Done():
 			return fmt.Errorf("wait for SSH tunnel: %w", ctx.Err())
+		case err := <-out:
+			return fmt.Errorf("setup SSH tunnel: %w", err)
+
 		case <-time.After(time.Second):
 		}
 	}
