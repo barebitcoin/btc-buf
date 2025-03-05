@@ -14,7 +14,14 @@ COPY . .
 
 RUN go build -v -o ./btc-buf .
 
-FROM alpine 
+FROM debian:bullseye-slim
+RUN apt-get update && \
+    apt-get install -y openssh-client && \
+    rm -rf /var/lib/apt/lists/*
+
+# Setup SSH directory
+RUN mkdir -p /root/.ssh && \
+    chmod 700 /root/.ssh
 
 COPY --from=builder /work/grpc-health-probe /usr/bin/grpc-health-probe
 COPY --from=builder /work/btc-buf /usr/bin/btc-buf

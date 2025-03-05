@@ -18,6 +18,14 @@ type config struct {
 	JsonLog  bool           `long:"logging.json" description:"log to JSON format (default human readable)"`
 	LogLevel string         `long:"logging.level" description:"log level" default:"debug"`
 	Bitcoind bitcoindConfig `group:"bitcoind" namespace:"bitcoind"`
+	SSH      sshConfig      `group:"ssh" namespace:"ssh"`
+}
+
+type sshConfig struct {
+	Host       string   `long:"host" description:"host to connect to"`
+	LocalPort  int      `long:"local-port" description:"local port to connect to"`
+	RemotePort int      `long:"remote-port" description:"remote port to connect to"`
+	KnownHosts []string `long:"known-hosts"`
 }
 
 type bitcoindConfig struct {
