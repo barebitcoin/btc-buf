@@ -115,8 +115,9 @@ func setupSSHTunnel(ctx context.Context, conf sshConfig, out chan error) error {
 		"-o", "PasswordAuthentication=no", // disable password authentication
 		"-o", "PreferredAuthentications=publickey", // only use public key authentication
 		"-o", "IdentitiesOnly=yes", // only use explicitly provided keys
-		// "-o", "UseKeychain=no", // disable macOS keychain
-		// "-o", "IdentityAgent=none", // disable SSH agent
+		"-o", "ServerAliveInterval=60", // send keep-alive every 60 seconds
+		"-o", "ServerAliveCountMax=3", // allow 3 missed keep-alive responses before disconnecting
+		"-o", "TCPKeepAlive=yes", // enable TCP keep-alive
 		"-i", conf.KeyFile, // specify the key file to use
 		"-L", fmt.Sprintf("%d:localhost:%d", conf.LocalPort, conf.RemotePort),
 		conf.Host,
