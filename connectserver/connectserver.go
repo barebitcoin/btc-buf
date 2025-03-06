@@ -53,8 +53,9 @@ func RequestID(ctx context.Context) string {
 func addRequestID() connect.Interceptor {
 	return connect.UnaryInterceptorFunc(func(next connect.UnaryFunc) connect.UnaryFunc {
 		return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
+			const traceHeader = "x-trace-id"
 			requestId := "req_" + ulid.Make().String()
-			if head := req.Header().Get("x-trace-id"); head != "" {
+			if head := req.Header().Get(traceHeader); head != "" {
 				requestId = head
 			}
 			log := zerolog.Ctx(ctx).With().Str("requestId", requestId).Logger()
@@ -62,7 +63,24 @@ func addRequestID() connect.Interceptor {
 			ctx = log.WithContext(ctx)
 			ctx = context.WithValue(ctx, requestIdKey, requestId)
 
-			return next(ctx, req)
+			res, err := next(ctx, req)
+
+			// Propagate the request ID back to the caller
+			if err == nil {
+				res.Header().Set(traceHeader, requestId)
+			}
+
+			if err != nil {
+				type withMeta interface {
+					Meta() http.Header
+				}
+
+				if err, ok := err.(withMeta); ok {
+					err.Meta().Set(traceHeader, requestId)
+				}
+			}
+
+			return res, err
 		}
 	})
 }
