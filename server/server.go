@@ -170,6 +170,8 @@ func withCancel[R any, M any](
 	ctx context.Context, fetch func(ctx context.Context) (R, error),
 	transform func(r R) *M,
 ) (*connect.Response[M], error) {
+	log := zerolog.Ctx(ctx)
+
 	ch := make(chan R)
 	errs := make(chan error)
 	requestID := connectserver.RequestID(ctx)
@@ -183,7 +185,11 @@ func withCancel[R any, M any](
 			addPendingRequest(requestID)
 		}
 
+		start := time.Now()
+		log.Debug().Msgf("rpc: starting fetch")
+
 		fetchResult, err := fetch(ctx)
+		log.Err(err).Msgf("rpc: fetch completed in %s", time.Since(start))
 		switch {
 		case err != nil && err.Error() == `status code: 401, response: ""`:
 			errs <- connect.NewError(connect.CodePermissionDenied, errors.New("permission denied"))
@@ -202,7 +208,13 @@ func withCancel[R any, M any](
 	case err := <-errs:
 		return nil, err
 	case fetchResult := <-ch:
-		return connect.NewResponse[M](transform(fetchResult)), nil
+		start := time.Now()
+		transformed := transform(fetchResult)
+
+		log.Debug().
+			Msgf("rpc: transformed raw result in %s", time.Since(start))
+
+		return connect.NewResponse[M](transformed), nil
 	}
 }
 
