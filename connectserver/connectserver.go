@@ -268,14 +268,17 @@ func (s *Server) Shutdown(ctx context.Context) {
 	atomic.AddInt64(&stopped, 1)
 }
 
-// TODO write what's going on here
-// _NOT_ a part of the Server API, because this is generic.
+// Register a new service with the server. This is not part of the Server API
+// because this is generic function.
 func Register[T any](
 	s *Server,
 	handler func(svc T, opts ...connect.HandlerOption) (string, http.Handler),
 	svc T,
 ) {
-	service, h := handler(svc, connect.WithInterceptors(s.interceptors...))
+	service, h := handler(svc,
+		connect.WithInterceptors(s.interceptors...),
+		connect.WithCodec(protoJsonCodec{}),
+	)
 
 	s.services = append(s.services, service)
 	s.mux.Handle(service, h)
