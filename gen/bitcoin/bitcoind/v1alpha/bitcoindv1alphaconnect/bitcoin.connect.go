@@ -94,6 +94,54 @@ const (
 	// BitcoinServiceGetBlockHashProcedure is the fully-qualified name of the BitcoinService's
 	// GetBlockHash RPC.
 	BitcoinServiceGetBlockHashProcedure = "/bitcoin.bitcoind.v1alpha.BitcoinService/GetBlockHash"
+	// BitcoinServiceCreateWalletProcedure is the fully-qualified name of the BitcoinService's
+	// CreateWallet RPC.
+	BitcoinServiceCreateWalletProcedure = "/bitcoin.bitcoind.v1alpha.BitcoinService/CreateWallet"
+	// BitcoinServiceBackupWalletProcedure is the fully-qualified name of the BitcoinService's
+	// BackupWallet RPC.
+	BitcoinServiceBackupWalletProcedure = "/bitcoin.bitcoind.v1alpha.BitcoinService/BackupWallet"
+	// BitcoinServiceDumpWalletProcedure is the fully-qualified name of the BitcoinService's DumpWallet
+	// RPC.
+	BitcoinServiceDumpWalletProcedure = "/bitcoin.bitcoind.v1alpha.BitcoinService/DumpWallet"
+	// BitcoinServiceImportWalletProcedure is the fully-qualified name of the BitcoinService's
+	// ImportWallet RPC.
+	BitcoinServiceImportWalletProcedure = "/bitcoin.bitcoind.v1alpha.BitcoinService/ImportWallet"
+	// BitcoinServiceUnloadWalletProcedure is the fully-qualified name of the BitcoinService's
+	// UnloadWallet RPC.
+	BitcoinServiceUnloadWalletProcedure = "/bitcoin.bitcoind.v1alpha.BitcoinService/UnloadWallet"
+	// BitcoinServiceDumpPrivKeyProcedure is the fully-qualified name of the BitcoinService's
+	// DumpPrivKey RPC.
+	BitcoinServiceDumpPrivKeyProcedure = "/bitcoin.bitcoind.v1alpha.BitcoinService/DumpPrivKey"
+	// BitcoinServiceImportPrivKeyProcedure is the fully-qualified name of the BitcoinService's
+	// ImportPrivKey RPC.
+	BitcoinServiceImportPrivKeyProcedure = "/bitcoin.bitcoind.v1alpha.BitcoinService/ImportPrivKey"
+	// BitcoinServiceImportAddressProcedure is the fully-qualified name of the BitcoinService's
+	// ImportAddress RPC.
+	BitcoinServiceImportAddressProcedure = "/bitcoin.bitcoind.v1alpha.BitcoinService/ImportAddress"
+	// BitcoinServiceImportPubKeyProcedure is the fully-qualified name of the BitcoinService's
+	// ImportPubKey RPC.
+	BitcoinServiceImportPubKeyProcedure = "/bitcoin.bitcoind.v1alpha.BitcoinService/ImportPubKey"
+	// BitcoinServiceKeyPoolRefillProcedure is the fully-qualified name of the BitcoinService's
+	// KeyPoolRefill RPC.
+	BitcoinServiceKeyPoolRefillProcedure = "/bitcoin.bitcoind.v1alpha.BitcoinService/KeyPoolRefill"
+	// BitcoinServiceGetAccountProcedure is the fully-qualified name of the BitcoinService's GetAccount
+	// RPC.
+	BitcoinServiceGetAccountProcedure = "/bitcoin.bitcoind.v1alpha.BitcoinService/GetAccount"
+	// BitcoinServiceSetAccountProcedure is the fully-qualified name of the BitcoinService's SetAccount
+	// RPC.
+	BitcoinServiceSetAccountProcedure = "/bitcoin.bitcoind.v1alpha.BitcoinService/SetAccount"
+	// BitcoinServiceGetAddressesByAccountProcedure is the fully-qualified name of the BitcoinService's
+	// GetAddressesByAccount RPC.
+	BitcoinServiceGetAddressesByAccountProcedure = "/bitcoin.bitcoind.v1alpha.BitcoinService/GetAddressesByAccount"
+	// BitcoinServiceListAccountsProcedure is the fully-qualified name of the BitcoinService's
+	// ListAccounts RPC.
+	BitcoinServiceListAccountsProcedure = "/bitcoin.bitcoind.v1alpha.BitcoinService/ListAccounts"
+	// BitcoinServiceAddMultisigAddressProcedure is the fully-qualified name of the BitcoinService's
+	// AddMultisigAddress RPC.
+	BitcoinServiceAddMultisigAddressProcedure = "/bitcoin.bitcoind.v1alpha.BitcoinService/AddMultisigAddress"
+	// BitcoinServiceCreateMultisigProcedure is the fully-qualified name of the BitcoinService's
+	// CreateMultisig RPC.
+	BitcoinServiceCreateMultisigProcedure = "/bitcoin.bitcoind.v1alpha.BitcoinService/CreateMultisig"
 )
 
 // BitcoinServiceClient is a client for the bitcoin.bitcoind.v1alpha.BitcoinService service.
@@ -126,6 +174,26 @@ type BitcoinServiceClient interface {
 	DecodeRawTransaction(context.Context, *connect.Request[v1alpha.DecodeRawTransactionRequest]) (*connect.Response[v1alpha.DecodeRawTransactionResponse], error)
 	GetBlock(context.Context, *connect.Request[v1alpha.GetBlockRequest]) (*connect.Response[v1alpha.GetBlockResponse], error)
 	GetBlockHash(context.Context, *connect.Request[v1alpha.GetBlockHashRequest]) (*connect.Response[v1alpha.GetBlockHashResponse], error)
+	// Wallet management
+	CreateWallet(context.Context, *connect.Request[v1alpha.CreateWalletRequest]) (*connect.Response[v1alpha.CreateWalletResponse], error)
+	BackupWallet(context.Context, *connect.Request[v1alpha.BackupWalletRequest]) (*connect.Response[v1alpha.BackupWalletResponse], error)
+	DumpWallet(context.Context, *connect.Request[v1alpha.DumpWalletRequest]) (*connect.Response[v1alpha.DumpWalletResponse], error)
+	ImportWallet(context.Context, *connect.Request[v1alpha.ImportWalletRequest]) (*connect.Response[v1alpha.ImportWalletResponse], error)
+	UnloadWallet(context.Context, *connect.Request[v1alpha.UnloadWalletRequest]) (*connect.Response[v1alpha.UnloadWalletResponse], error)
+	// Key/Address management
+	DumpPrivKey(context.Context, *connect.Request[v1alpha.DumpPrivKeyRequest]) (*connect.Response[v1alpha.DumpPrivKeyResponse], error)
+	ImportPrivKey(context.Context, *connect.Request[v1alpha.ImportPrivKeyRequest]) (*connect.Response[v1alpha.ImportPrivKeyResponse], error)
+	ImportAddress(context.Context, *connect.Request[v1alpha.ImportAddressRequest]) (*connect.Response[v1alpha.ImportAddressResponse], error)
+	ImportPubKey(context.Context, *connect.Request[v1alpha.ImportPubKeyRequest]) (*connect.Response[v1alpha.ImportPubKeyResponse], error)
+	KeyPoolRefill(context.Context, *connect.Request[v1alpha.KeyPoolRefillRequest]) (*connect.Response[v1alpha.KeyPoolRefillResponse], error)
+	// Account operations
+	GetAccount(context.Context, *connect.Request[v1alpha.GetAccountRequest]) (*connect.Response[v1alpha.GetAccountResponse], error)
+	SetAccount(context.Context, *connect.Request[v1alpha.SetAccountRequest]) (*connect.Response[v1alpha.SetAccountResponse], error)
+	GetAddressesByAccount(context.Context, *connect.Request[v1alpha.GetAddressesByAccountRequest]) (*connect.Response[v1alpha.GetAddressesByAccountResponse], error)
+	ListAccounts(context.Context, *connect.Request[v1alpha.ListAccountsRequest]) (*connect.Response[v1alpha.ListAccountsResponse], error)
+	// Multi-sig operations
+	AddMultisigAddress(context.Context, *connect.Request[v1alpha.AddMultisigAddressRequest]) (*connect.Response[v1alpha.AddMultisigAddressResponse], error)
+	CreateMultisig(context.Context, *connect.Request[v1alpha.CreateMultisigRequest]) (*connect.Response[v1alpha.CreateMultisigResponse], error)
 }
 
 // NewBitcoinServiceClient constructs a client for the bitcoin.bitcoind.v1alpha.BitcoinService
@@ -265,32 +333,144 @@ func NewBitcoinServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(bitcoinServiceMethods.ByName("GetBlockHash")),
 			connect.WithClientOptions(opts...),
 		),
+		createWallet: connect.NewClient[v1alpha.CreateWalletRequest, v1alpha.CreateWalletResponse](
+			httpClient,
+			baseURL+BitcoinServiceCreateWalletProcedure,
+			connect.WithSchema(bitcoinServiceMethods.ByName("CreateWallet")),
+			connect.WithClientOptions(opts...),
+		),
+		backupWallet: connect.NewClient[v1alpha.BackupWalletRequest, v1alpha.BackupWalletResponse](
+			httpClient,
+			baseURL+BitcoinServiceBackupWalletProcedure,
+			connect.WithSchema(bitcoinServiceMethods.ByName("BackupWallet")),
+			connect.WithClientOptions(opts...),
+		),
+		dumpWallet: connect.NewClient[v1alpha.DumpWalletRequest, v1alpha.DumpWalletResponse](
+			httpClient,
+			baseURL+BitcoinServiceDumpWalletProcedure,
+			connect.WithSchema(bitcoinServiceMethods.ByName("DumpWallet")),
+			connect.WithClientOptions(opts...),
+		),
+		importWallet: connect.NewClient[v1alpha.ImportWalletRequest, v1alpha.ImportWalletResponse](
+			httpClient,
+			baseURL+BitcoinServiceImportWalletProcedure,
+			connect.WithSchema(bitcoinServiceMethods.ByName("ImportWallet")),
+			connect.WithClientOptions(opts...),
+		),
+		unloadWallet: connect.NewClient[v1alpha.UnloadWalletRequest, v1alpha.UnloadWalletResponse](
+			httpClient,
+			baseURL+BitcoinServiceUnloadWalletProcedure,
+			connect.WithSchema(bitcoinServiceMethods.ByName("UnloadWallet")),
+			connect.WithClientOptions(opts...),
+		),
+		dumpPrivKey: connect.NewClient[v1alpha.DumpPrivKeyRequest, v1alpha.DumpPrivKeyResponse](
+			httpClient,
+			baseURL+BitcoinServiceDumpPrivKeyProcedure,
+			connect.WithSchema(bitcoinServiceMethods.ByName("DumpPrivKey")),
+			connect.WithClientOptions(opts...),
+		),
+		importPrivKey: connect.NewClient[v1alpha.ImportPrivKeyRequest, v1alpha.ImportPrivKeyResponse](
+			httpClient,
+			baseURL+BitcoinServiceImportPrivKeyProcedure,
+			connect.WithSchema(bitcoinServiceMethods.ByName("ImportPrivKey")),
+			connect.WithClientOptions(opts...),
+		),
+		importAddress: connect.NewClient[v1alpha.ImportAddressRequest, v1alpha.ImportAddressResponse](
+			httpClient,
+			baseURL+BitcoinServiceImportAddressProcedure,
+			connect.WithSchema(bitcoinServiceMethods.ByName("ImportAddress")),
+			connect.WithClientOptions(opts...),
+		),
+		importPubKey: connect.NewClient[v1alpha.ImportPubKeyRequest, v1alpha.ImportPubKeyResponse](
+			httpClient,
+			baseURL+BitcoinServiceImportPubKeyProcedure,
+			connect.WithSchema(bitcoinServiceMethods.ByName("ImportPubKey")),
+			connect.WithClientOptions(opts...),
+		),
+		keyPoolRefill: connect.NewClient[v1alpha.KeyPoolRefillRequest, v1alpha.KeyPoolRefillResponse](
+			httpClient,
+			baseURL+BitcoinServiceKeyPoolRefillProcedure,
+			connect.WithSchema(bitcoinServiceMethods.ByName("KeyPoolRefill")),
+			connect.WithClientOptions(opts...),
+		),
+		getAccount: connect.NewClient[v1alpha.GetAccountRequest, v1alpha.GetAccountResponse](
+			httpClient,
+			baseURL+BitcoinServiceGetAccountProcedure,
+			connect.WithSchema(bitcoinServiceMethods.ByName("GetAccount")),
+			connect.WithClientOptions(opts...),
+		),
+		setAccount: connect.NewClient[v1alpha.SetAccountRequest, v1alpha.SetAccountResponse](
+			httpClient,
+			baseURL+BitcoinServiceSetAccountProcedure,
+			connect.WithSchema(bitcoinServiceMethods.ByName("SetAccount")),
+			connect.WithClientOptions(opts...),
+		),
+		getAddressesByAccount: connect.NewClient[v1alpha.GetAddressesByAccountRequest, v1alpha.GetAddressesByAccountResponse](
+			httpClient,
+			baseURL+BitcoinServiceGetAddressesByAccountProcedure,
+			connect.WithSchema(bitcoinServiceMethods.ByName("GetAddressesByAccount")),
+			connect.WithClientOptions(opts...),
+		),
+		listAccounts: connect.NewClient[v1alpha.ListAccountsRequest, v1alpha.ListAccountsResponse](
+			httpClient,
+			baseURL+BitcoinServiceListAccountsProcedure,
+			connect.WithSchema(bitcoinServiceMethods.ByName("ListAccounts")),
+			connect.WithClientOptions(opts...),
+		),
+		addMultisigAddress: connect.NewClient[v1alpha.AddMultisigAddressRequest, v1alpha.AddMultisigAddressResponse](
+			httpClient,
+			baseURL+BitcoinServiceAddMultisigAddressProcedure,
+			connect.WithSchema(bitcoinServiceMethods.ByName("AddMultisigAddress")),
+			connect.WithClientOptions(opts...),
+		),
+		createMultisig: connect.NewClient[v1alpha.CreateMultisigRequest, v1alpha.CreateMultisigResponse](
+			httpClient,
+			baseURL+BitcoinServiceCreateMultisigProcedure,
+			connect.WithSchema(bitcoinServiceMethods.ByName("CreateMultisig")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // bitcoinServiceClient implements BitcoinServiceClient.
 type bitcoinServiceClient struct {
-	getBlockchainInfo    *connect.Client[v1alpha.GetBlockchainInfoRequest, v1alpha.GetBlockchainInfoResponse]
-	getPeerInfo          *connect.Client[v1alpha.GetPeerInfoRequest, v1alpha.GetPeerInfoResponse]
-	getTransaction       *connect.Client[v1alpha.GetTransactionRequest, v1alpha.GetTransactionResponse]
-	listSinceBlock       *connect.Client[v1alpha.ListSinceBlockRequest, v1alpha.ListSinceBlockResponse]
-	getNewAddress        *connect.Client[v1alpha.GetNewAddressRequest, v1alpha.GetNewAddressResponse]
-	getWalletInfo        *connect.Client[v1alpha.GetWalletInfoRequest, v1alpha.GetWalletInfoResponse]
-	getBalances          *connect.Client[v1alpha.GetBalancesRequest, v1alpha.GetBalancesResponse]
-	send                 *connect.Client[v1alpha.SendRequest, v1alpha.SendResponse]
-	sendToAddress        *connect.Client[v1alpha.SendToAddressRequest, v1alpha.SendToAddressResponse]
-	bumpFee              *connect.Client[v1alpha.BumpFeeRequest, v1alpha.BumpFeeResponse]
-	estimateSmartFee     *connect.Client[v1alpha.EstimateSmartFeeRequest, v1alpha.EstimateSmartFeeResponse]
-	importDescriptors    *connect.Client[v1alpha.ImportDescriptorsRequest, v1alpha.ImportDescriptorsResponse]
-	listWallets          *connect.Client[emptypb.Empty, v1alpha.ListWalletsResponse]
-	listTransactions     *connect.Client[v1alpha.ListTransactionsRequest, v1alpha.ListTransactionsResponse]
-	getDescriptorInfo    *connect.Client[v1alpha.GetDescriptorInfoRequest, v1alpha.GetDescriptorInfoResponse]
-	getAddressInfo       *connect.Client[v1alpha.GetAddressInfoRequest, v1alpha.GetAddressInfoResponse]
-	getRawMempool        *connect.Client[v1alpha.GetRawMempoolRequest, v1alpha.GetRawMempoolResponse]
-	getRawTransaction    *connect.Client[v1alpha.GetRawTransactionRequest, v1alpha.GetRawTransactionResponse]
-	decodeRawTransaction *connect.Client[v1alpha.DecodeRawTransactionRequest, v1alpha.DecodeRawTransactionResponse]
-	getBlock             *connect.Client[v1alpha.GetBlockRequest, v1alpha.GetBlockResponse]
-	getBlockHash         *connect.Client[v1alpha.GetBlockHashRequest, v1alpha.GetBlockHashResponse]
+	getBlockchainInfo     *connect.Client[v1alpha.GetBlockchainInfoRequest, v1alpha.GetBlockchainInfoResponse]
+	getPeerInfo           *connect.Client[v1alpha.GetPeerInfoRequest, v1alpha.GetPeerInfoResponse]
+	getTransaction        *connect.Client[v1alpha.GetTransactionRequest, v1alpha.GetTransactionResponse]
+	listSinceBlock        *connect.Client[v1alpha.ListSinceBlockRequest, v1alpha.ListSinceBlockResponse]
+	getNewAddress         *connect.Client[v1alpha.GetNewAddressRequest, v1alpha.GetNewAddressResponse]
+	getWalletInfo         *connect.Client[v1alpha.GetWalletInfoRequest, v1alpha.GetWalletInfoResponse]
+	getBalances           *connect.Client[v1alpha.GetBalancesRequest, v1alpha.GetBalancesResponse]
+	send                  *connect.Client[v1alpha.SendRequest, v1alpha.SendResponse]
+	sendToAddress         *connect.Client[v1alpha.SendToAddressRequest, v1alpha.SendToAddressResponse]
+	bumpFee               *connect.Client[v1alpha.BumpFeeRequest, v1alpha.BumpFeeResponse]
+	estimateSmartFee      *connect.Client[v1alpha.EstimateSmartFeeRequest, v1alpha.EstimateSmartFeeResponse]
+	importDescriptors     *connect.Client[v1alpha.ImportDescriptorsRequest, v1alpha.ImportDescriptorsResponse]
+	listWallets           *connect.Client[emptypb.Empty, v1alpha.ListWalletsResponse]
+	listTransactions      *connect.Client[v1alpha.ListTransactionsRequest, v1alpha.ListTransactionsResponse]
+	getDescriptorInfo     *connect.Client[v1alpha.GetDescriptorInfoRequest, v1alpha.GetDescriptorInfoResponse]
+	getAddressInfo        *connect.Client[v1alpha.GetAddressInfoRequest, v1alpha.GetAddressInfoResponse]
+	getRawMempool         *connect.Client[v1alpha.GetRawMempoolRequest, v1alpha.GetRawMempoolResponse]
+	getRawTransaction     *connect.Client[v1alpha.GetRawTransactionRequest, v1alpha.GetRawTransactionResponse]
+	decodeRawTransaction  *connect.Client[v1alpha.DecodeRawTransactionRequest, v1alpha.DecodeRawTransactionResponse]
+	getBlock              *connect.Client[v1alpha.GetBlockRequest, v1alpha.GetBlockResponse]
+	getBlockHash          *connect.Client[v1alpha.GetBlockHashRequest, v1alpha.GetBlockHashResponse]
+	createWallet          *connect.Client[v1alpha.CreateWalletRequest, v1alpha.CreateWalletResponse]
+	backupWallet          *connect.Client[v1alpha.BackupWalletRequest, v1alpha.BackupWalletResponse]
+	dumpWallet            *connect.Client[v1alpha.DumpWalletRequest, v1alpha.DumpWalletResponse]
+	importWallet          *connect.Client[v1alpha.ImportWalletRequest, v1alpha.ImportWalletResponse]
+	unloadWallet          *connect.Client[v1alpha.UnloadWalletRequest, v1alpha.UnloadWalletResponse]
+	dumpPrivKey           *connect.Client[v1alpha.DumpPrivKeyRequest, v1alpha.DumpPrivKeyResponse]
+	importPrivKey         *connect.Client[v1alpha.ImportPrivKeyRequest, v1alpha.ImportPrivKeyResponse]
+	importAddress         *connect.Client[v1alpha.ImportAddressRequest, v1alpha.ImportAddressResponse]
+	importPubKey          *connect.Client[v1alpha.ImportPubKeyRequest, v1alpha.ImportPubKeyResponse]
+	keyPoolRefill         *connect.Client[v1alpha.KeyPoolRefillRequest, v1alpha.KeyPoolRefillResponse]
+	getAccount            *connect.Client[v1alpha.GetAccountRequest, v1alpha.GetAccountResponse]
+	setAccount            *connect.Client[v1alpha.SetAccountRequest, v1alpha.SetAccountResponse]
+	getAddressesByAccount *connect.Client[v1alpha.GetAddressesByAccountRequest, v1alpha.GetAddressesByAccountResponse]
+	listAccounts          *connect.Client[v1alpha.ListAccountsRequest, v1alpha.ListAccountsResponse]
+	addMultisigAddress    *connect.Client[v1alpha.AddMultisigAddressRequest, v1alpha.AddMultisigAddressResponse]
+	createMultisig        *connect.Client[v1alpha.CreateMultisigRequest, v1alpha.CreateMultisigResponse]
 }
 
 // GetBlockchainInfo calls bitcoin.bitcoind.v1alpha.BitcoinService.GetBlockchainInfo.
@@ -398,6 +578,86 @@ func (c *bitcoinServiceClient) GetBlockHash(ctx context.Context, req *connect.Re
 	return c.getBlockHash.CallUnary(ctx, req)
 }
 
+// CreateWallet calls bitcoin.bitcoind.v1alpha.BitcoinService.CreateWallet.
+func (c *bitcoinServiceClient) CreateWallet(ctx context.Context, req *connect.Request[v1alpha.CreateWalletRequest]) (*connect.Response[v1alpha.CreateWalletResponse], error) {
+	return c.createWallet.CallUnary(ctx, req)
+}
+
+// BackupWallet calls bitcoin.bitcoind.v1alpha.BitcoinService.BackupWallet.
+func (c *bitcoinServiceClient) BackupWallet(ctx context.Context, req *connect.Request[v1alpha.BackupWalletRequest]) (*connect.Response[v1alpha.BackupWalletResponse], error) {
+	return c.backupWallet.CallUnary(ctx, req)
+}
+
+// DumpWallet calls bitcoin.bitcoind.v1alpha.BitcoinService.DumpWallet.
+func (c *bitcoinServiceClient) DumpWallet(ctx context.Context, req *connect.Request[v1alpha.DumpWalletRequest]) (*connect.Response[v1alpha.DumpWalletResponse], error) {
+	return c.dumpWallet.CallUnary(ctx, req)
+}
+
+// ImportWallet calls bitcoin.bitcoind.v1alpha.BitcoinService.ImportWallet.
+func (c *bitcoinServiceClient) ImportWallet(ctx context.Context, req *connect.Request[v1alpha.ImportWalletRequest]) (*connect.Response[v1alpha.ImportWalletResponse], error) {
+	return c.importWallet.CallUnary(ctx, req)
+}
+
+// UnloadWallet calls bitcoin.bitcoind.v1alpha.BitcoinService.UnloadWallet.
+func (c *bitcoinServiceClient) UnloadWallet(ctx context.Context, req *connect.Request[v1alpha.UnloadWalletRequest]) (*connect.Response[v1alpha.UnloadWalletResponse], error) {
+	return c.unloadWallet.CallUnary(ctx, req)
+}
+
+// DumpPrivKey calls bitcoin.bitcoind.v1alpha.BitcoinService.DumpPrivKey.
+func (c *bitcoinServiceClient) DumpPrivKey(ctx context.Context, req *connect.Request[v1alpha.DumpPrivKeyRequest]) (*connect.Response[v1alpha.DumpPrivKeyResponse], error) {
+	return c.dumpPrivKey.CallUnary(ctx, req)
+}
+
+// ImportPrivKey calls bitcoin.bitcoind.v1alpha.BitcoinService.ImportPrivKey.
+func (c *bitcoinServiceClient) ImportPrivKey(ctx context.Context, req *connect.Request[v1alpha.ImportPrivKeyRequest]) (*connect.Response[v1alpha.ImportPrivKeyResponse], error) {
+	return c.importPrivKey.CallUnary(ctx, req)
+}
+
+// ImportAddress calls bitcoin.bitcoind.v1alpha.BitcoinService.ImportAddress.
+func (c *bitcoinServiceClient) ImportAddress(ctx context.Context, req *connect.Request[v1alpha.ImportAddressRequest]) (*connect.Response[v1alpha.ImportAddressResponse], error) {
+	return c.importAddress.CallUnary(ctx, req)
+}
+
+// ImportPubKey calls bitcoin.bitcoind.v1alpha.BitcoinService.ImportPubKey.
+func (c *bitcoinServiceClient) ImportPubKey(ctx context.Context, req *connect.Request[v1alpha.ImportPubKeyRequest]) (*connect.Response[v1alpha.ImportPubKeyResponse], error) {
+	return c.importPubKey.CallUnary(ctx, req)
+}
+
+// KeyPoolRefill calls bitcoin.bitcoind.v1alpha.BitcoinService.KeyPoolRefill.
+func (c *bitcoinServiceClient) KeyPoolRefill(ctx context.Context, req *connect.Request[v1alpha.KeyPoolRefillRequest]) (*connect.Response[v1alpha.KeyPoolRefillResponse], error) {
+	return c.keyPoolRefill.CallUnary(ctx, req)
+}
+
+// GetAccount calls bitcoin.bitcoind.v1alpha.BitcoinService.GetAccount.
+func (c *bitcoinServiceClient) GetAccount(ctx context.Context, req *connect.Request[v1alpha.GetAccountRequest]) (*connect.Response[v1alpha.GetAccountResponse], error) {
+	return c.getAccount.CallUnary(ctx, req)
+}
+
+// SetAccount calls bitcoin.bitcoind.v1alpha.BitcoinService.SetAccount.
+func (c *bitcoinServiceClient) SetAccount(ctx context.Context, req *connect.Request[v1alpha.SetAccountRequest]) (*connect.Response[v1alpha.SetAccountResponse], error) {
+	return c.setAccount.CallUnary(ctx, req)
+}
+
+// GetAddressesByAccount calls bitcoin.bitcoind.v1alpha.BitcoinService.GetAddressesByAccount.
+func (c *bitcoinServiceClient) GetAddressesByAccount(ctx context.Context, req *connect.Request[v1alpha.GetAddressesByAccountRequest]) (*connect.Response[v1alpha.GetAddressesByAccountResponse], error) {
+	return c.getAddressesByAccount.CallUnary(ctx, req)
+}
+
+// ListAccounts calls bitcoin.bitcoind.v1alpha.BitcoinService.ListAccounts.
+func (c *bitcoinServiceClient) ListAccounts(ctx context.Context, req *connect.Request[v1alpha.ListAccountsRequest]) (*connect.Response[v1alpha.ListAccountsResponse], error) {
+	return c.listAccounts.CallUnary(ctx, req)
+}
+
+// AddMultisigAddress calls bitcoin.bitcoind.v1alpha.BitcoinService.AddMultisigAddress.
+func (c *bitcoinServiceClient) AddMultisigAddress(ctx context.Context, req *connect.Request[v1alpha.AddMultisigAddressRequest]) (*connect.Response[v1alpha.AddMultisigAddressResponse], error) {
+	return c.addMultisigAddress.CallUnary(ctx, req)
+}
+
+// CreateMultisig calls bitcoin.bitcoind.v1alpha.BitcoinService.CreateMultisig.
+func (c *bitcoinServiceClient) CreateMultisig(ctx context.Context, req *connect.Request[v1alpha.CreateMultisigRequest]) (*connect.Response[v1alpha.CreateMultisigResponse], error) {
+	return c.createMultisig.CallUnary(ctx, req)
+}
+
 // BitcoinServiceHandler is an implementation of the bitcoin.bitcoind.v1alpha.BitcoinService
 // service.
 type BitcoinServiceHandler interface {
@@ -429,6 +689,26 @@ type BitcoinServiceHandler interface {
 	DecodeRawTransaction(context.Context, *connect.Request[v1alpha.DecodeRawTransactionRequest]) (*connect.Response[v1alpha.DecodeRawTransactionResponse], error)
 	GetBlock(context.Context, *connect.Request[v1alpha.GetBlockRequest]) (*connect.Response[v1alpha.GetBlockResponse], error)
 	GetBlockHash(context.Context, *connect.Request[v1alpha.GetBlockHashRequest]) (*connect.Response[v1alpha.GetBlockHashResponse], error)
+	// Wallet management
+	CreateWallet(context.Context, *connect.Request[v1alpha.CreateWalletRequest]) (*connect.Response[v1alpha.CreateWalletResponse], error)
+	BackupWallet(context.Context, *connect.Request[v1alpha.BackupWalletRequest]) (*connect.Response[v1alpha.BackupWalletResponse], error)
+	DumpWallet(context.Context, *connect.Request[v1alpha.DumpWalletRequest]) (*connect.Response[v1alpha.DumpWalletResponse], error)
+	ImportWallet(context.Context, *connect.Request[v1alpha.ImportWalletRequest]) (*connect.Response[v1alpha.ImportWalletResponse], error)
+	UnloadWallet(context.Context, *connect.Request[v1alpha.UnloadWalletRequest]) (*connect.Response[v1alpha.UnloadWalletResponse], error)
+	// Key/Address management
+	DumpPrivKey(context.Context, *connect.Request[v1alpha.DumpPrivKeyRequest]) (*connect.Response[v1alpha.DumpPrivKeyResponse], error)
+	ImportPrivKey(context.Context, *connect.Request[v1alpha.ImportPrivKeyRequest]) (*connect.Response[v1alpha.ImportPrivKeyResponse], error)
+	ImportAddress(context.Context, *connect.Request[v1alpha.ImportAddressRequest]) (*connect.Response[v1alpha.ImportAddressResponse], error)
+	ImportPubKey(context.Context, *connect.Request[v1alpha.ImportPubKeyRequest]) (*connect.Response[v1alpha.ImportPubKeyResponse], error)
+	KeyPoolRefill(context.Context, *connect.Request[v1alpha.KeyPoolRefillRequest]) (*connect.Response[v1alpha.KeyPoolRefillResponse], error)
+	// Account operations
+	GetAccount(context.Context, *connect.Request[v1alpha.GetAccountRequest]) (*connect.Response[v1alpha.GetAccountResponse], error)
+	SetAccount(context.Context, *connect.Request[v1alpha.SetAccountRequest]) (*connect.Response[v1alpha.SetAccountResponse], error)
+	GetAddressesByAccount(context.Context, *connect.Request[v1alpha.GetAddressesByAccountRequest]) (*connect.Response[v1alpha.GetAddressesByAccountResponse], error)
+	ListAccounts(context.Context, *connect.Request[v1alpha.ListAccountsRequest]) (*connect.Response[v1alpha.ListAccountsResponse], error)
+	// Multi-sig operations
+	AddMultisigAddress(context.Context, *connect.Request[v1alpha.AddMultisigAddressRequest]) (*connect.Response[v1alpha.AddMultisigAddressResponse], error)
+	CreateMultisig(context.Context, *connect.Request[v1alpha.CreateMultisigRequest]) (*connect.Response[v1alpha.CreateMultisigResponse], error)
 }
 
 // NewBitcoinServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -564,6 +844,102 @@ func NewBitcoinServiceHandler(svc BitcoinServiceHandler, opts ...connect.Handler
 		connect.WithSchema(bitcoinServiceMethods.ByName("GetBlockHash")),
 		connect.WithHandlerOptions(opts...),
 	)
+	bitcoinServiceCreateWalletHandler := connect.NewUnaryHandler(
+		BitcoinServiceCreateWalletProcedure,
+		svc.CreateWallet,
+		connect.WithSchema(bitcoinServiceMethods.ByName("CreateWallet")),
+		connect.WithHandlerOptions(opts...),
+	)
+	bitcoinServiceBackupWalletHandler := connect.NewUnaryHandler(
+		BitcoinServiceBackupWalletProcedure,
+		svc.BackupWallet,
+		connect.WithSchema(bitcoinServiceMethods.ByName("BackupWallet")),
+		connect.WithHandlerOptions(opts...),
+	)
+	bitcoinServiceDumpWalletHandler := connect.NewUnaryHandler(
+		BitcoinServiceDumpWalletProcedure,
+		svc.DumpWallet,
+		connect.WithSchema(bitcoinServiceMethods.ByName("DumpWallet")),
+		connect.WithHandlerOptions(opts...),
+	)
+	bitcoinServiceImportWalletHandler := connect.NewUnaryHandler(
+		BitcoinServiceImportWalletProcedure,
+		svc.ImportWallet,
+		connect.WithSchema(bitcoinServiceMethods.ByName("ImportWallet")),
+		connect.WithHandlerOptions(opts...),
+	)
+	bitcoinServiceUnloadWalletHandler := connect.NewUnaryHandler(
+		BitcoinServiceUnloadWalletProcedure,
+		svc.UnloadWallet,
+		connect.WithSchema(bitcoinServiceMethods.ByName("UnloadWallet")),
+		connect.WithHandlerOptions(opts...),
+	)
+	bitcoinServiceDumpPrivKeyHandler := connect.NewUnaryHandler(
+		BitcoinServiceDumpPrivKeyProcedure,
+		svc.DumpPrivKey,
+		connect.WithSchema(bitcoinServiceMethods.ByName("DumpPrivKey")),
+		connect.WithHandlerOptions(opts...),
+	)
+	bitcoinServiceImportPrivKeyHandler := connect.NewUnaryHandler(
+		BitcoinServiceImportPrivKeyProcedure,
+		svc.ImportPrivKey,
+		connect.WithSchema(bitcoinServiceMethods.ByName("ImportPrivKey")),
+		connect.WithHandlerOptions(opts...),
+	)
+	bitcoinServiceImportAddressHandler := connect.NewUnaryHandler(
+		BitcoinServiceImportAddressProcedure,
+		svc.ImportAddress,
+		connect.WithSchema(bitcoinServiceMethods.ByName("ImportAddress")),
+		connect.WithHandlerOptions(opts...),
+	)
+	bitcoinServiceImportPubKeyHandler := connect.NewUnaryHandler(
+		BitcoinServiceImportPubKeyProcedure,
+		svc.ImportPubKey,
+		connect.WithSchema(bitcoinServiceMethods.ByName("ImportPubKey")),
+		connect.WithHandlerOptions(opts...),
+	)
+	bitcoinServiceKeyPoolRefillHandler := connect.NewUnaryHandler(
+		BitcoinServiceKeyPoolRefillProcedure,
+		svc.KeyPoolRefill,
+		connect.WithSchema(bitcoinServiceMethods.ByName("KeyPoolRefill")),
+		connect.WithHandlerOptions(opts...),
+	)
+	bitcoinServiceGetAccountHandler := connect.NewUnaryHandler(
+		BitcoinServiceGetAccountProcedure,
+		svc.GetAccount,
+		connect.WithSchema(bitcoinServiceMethods.ByName("GetAccount")),
+		connect.WithHandlerOptions(opts...),
+	)
+	bitcoinServiceSetAccountHandler := connect.NewUnaryHandler(
+		BitcoinServiceSetAccountProcedure,
+		svc.SetAccount,
+		connect.WithSchema(bitcoinServiceMethods.ByName("SetAccount")),
+		connect.WithHandlerOptions(opts...),
+	)
+	bitcoinServiceGetAddressesByAccountHandler := connect.NewUnaryHandler(
+		BitcoinServiceGetAddressesByAccountProcedure,
+		svc.GetAddressesByAccount,
+		connect.WithSchema(bitcoinServiceMethods.ByName("GetAddressesByAccount")),
+		connect.WithHandlerOptions(opts...),
+	)
+	bitcoinServiceListAccountsHandler := connect.NewUnaryHandler(
+		BitcoinServiceListAccountsProcedure,
+		svc.ListAccounts,
+		connect.WithSchema(bitcoinServiceMethods.ByName("ListAccounts")),
+		connect.WithHandlerOptions(opts...),
+	)
+	bitcoinServiceAddMultisigAddressHandler := connect.NewUnaryHandler(
+		BitcoinServiceAddMultisigAddressProcedure,
+		svc.AddMultisigAddress,
+		connect.WithSchema(bitcoinServiceMethods.ByName("AddMultisigAddress")),
+		connect.WithHandlerOptions(opts...),
+	)
+	bitcoinServiceCreateMultisigHandler := connect.NewUnaryHandler(
+		BitcoinServiceCreateMultisigProcedure,
+		svc.CreateMultisig,
+		connect.WithSchema(bitcoinServiceMethods.ByName("CreateMultisig")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/bitcoin.bitcoind.v1alpha.BitcoinService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case BitcoinServiceGetBlockchainInfoProcedure:
@@ -608,6 +984,38 @@ func NewBitcoinServiceHandler(svc BitcoinServiceHandler, opts ...connect.Handler
 			bitcoinServiceGetBlockHandler.ServeHTTP(w, r)
 		case BitcoinServiceGetBlockHashProcedure:
 			bitcoinServiceGetBlockHashHandler.ServeHTTP(w, r)
+		case BitcoinServiceCreateWalletProcedure:
+			bitcoinServiceCreateWalletHandler.ServeHTTP(w, r)
+		case BitcoinServiceBackupWalletProcedure:
+			bitcoinServiceBackupWalletHandler.ServeHTTP(w, r)
+		case BitcoinServiceDumpWalletProcedure:
+			bitcoinServiceDumpWalletHandler.ServeHTTP(w, r)
+		case BitcoinServiceImportWalletProcedure:
+			bitcoinServiceImportWalletHandler.ServeHTTP(w, r)
+		case BitcoinServiceUnloadWalletProcedure:
+			bitcoinServiceUnloadWalletHandler.ServeHTTP(w, r)
+		case BitcoinServiceDumpPrivKeyProcedure:
+			bitcoinServiceDumpPrivKeyHandler.ServeHTTP(w, r)
+		case BitcoinServiceImportPrivKeyProcedure:
+			bitcoinServiceImportPrivKeyHandler.ServeHTTP(w, r)
+		case BitcoinServiceImportAddressProcedure:
+			bitcoinServiceImportAddressHandler.ServeHTTP(w, r)
+		case BitcoinServiceImportPubKeyProcedure:
+			bitcoinServiceImportPubKeyHandler.ServeHTTP(w, r)
+		case BitcoinServiceKeyPoolRefillProcedure:
+			bitcoinServiceKeyPoolRefillHandler.ServeHTTP(w, r)
+		case BitcoinServiceGetAccountProcedure:
+			bitcoinServiceGetAccountHandler.ServeHTTP(w, r)
+		case BitcoinServiceSetAccountProcedure:
+			bitcoinServiceSetAccountHandler.ServeHTTP(w, r)
+		case BitcoinServiceGetAddressesByAccountProcedure:
+			bitcoinServiceGetAddressesByAccountHandler.ServeHTTP(w, r)
+		case BitcoinServiceListAccountsProcedure:
+			bitcoinServiceListAccountsHandler.ServeHTTP(w, r)
+		case BitcoinServiceAddMultisigAddressProcedure:
+			bitcoinServiceAddMultisigAddressHandler.ServeHTTP(w, r)
+		case BitcoinServiceCreateMultisigProcedure:
+			bitcoinServiceCreateMultisigHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -699,4 +1107,68 @@ func (UnimplementedBitcoinServiceHandler) GetBlock(context.Context, *connect.Req
 
 func (UnimplementedBitcoinServiceHandler) GetBlockHash(context.Context, *connect.Request[v1alpha.GetBlockHashRequest]) (*connect.Response[v1alpha.GetBlockHashResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("bitcoin.bitcoind.v1alpha.BitcoinService.GetBlockHash is not implemented"))
+}
+
+func (UnimplementedBitcoinServiceHandler) CreateWallet(context.Context, *connect.Request[v1alpha.CreateWalletRequest]) (*connect.Response[v1alpha.CreateWalletResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("bitcoin.bitcoind.v1alpha.BitcoinService.CreateWallet is not implemented"))
+}
+
+func (UnimplementedBitcoinServiceHandler) BackupWallet(context.Context, *connect.Request[v1alpha.BackupWalletRequest]) (*connect.Response[v1alpha.BackupWalletResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("bitcoin.bitcoind.v1alpha.BitcoinService.BackupWallet is not implemented"))
+}
+
+func (UnimplementedBitcoinServiceHandler) DumpWallet(context.Context, *connect.Request[v1alpha.DumpWalletRequest]) (*connect.Response[v1alpha.DumpWalletResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("bitcoin.bitcoind.v1alpha.BitcoinService.DumpWallet is not implemented"))
+}
+
+func (UnimplementedBitcoinServiceHandler) ImportWallet(context.Context, *connect.Request[v1alpha.ImportWalletRequest]) (*connect.Response[v1alpha.ImportWalletResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("bitcoin.bitcoind.v1alpha.BitcoinService.ImportWallet is not implemented"))
+}
+
+func (UnimplementedBitcoinServiceHandler) UnloadWallet(context.Context, *connect.Request[v1alpha.UnloadWalletRequest]) (*connect.Response[v1alpha.UnloadWalletResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("bitcoin.bitcoind.v1alpha.BitcoinService.UnloadWallet is not implemented"))
+}
+
+func (UnimplementedBitcoinServiceHandler) DumpPrivKey(context.Context, *connect.Request[v1alpha.DumpPrivKeyRequest]) (*connect.Response[v1alpha.DumpPrivKeyResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("bitcoin.bitcoind.v1alpha.BitcoinService.DumpPrivKey is not implemented"))
+}
+
+func (UnimplementedBitcoinServiceHandler) ImportPrivKey(context.Context, *connect.Request[v1alpha.ImportPrivKeyRequest]) (*connect.Response[v1alpha.ImportPrivKeyResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("bitcoin.bitcoind.v1alpha.BitcoinService.ImportPrivKey is not implemented"))
+}
+
+func (UnimplementedBitcoinServiceHandler) ImportAddress(context.Context, *connect.Request[v1alpha.ImportAddressRequest]) (*connect.Response[v1alpha.ImportAddressResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("bitcoin.bitcoind.v1alpha.BitcoinService.ImportAddress is not implemented"))
+}
+
+func (UnimplementedBitcoinServiceHandler) ImportPubKey(context.Context, *connect.Request[v1alpha.ImportPubKeyRequest]) (*connect.Response[v1alpha.ImportPubKeyResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("bitcoin.bitcoind.v1alpha.BitcoinService.ImportPubKey is not implemented"))
+}
+
+func (UnimplementedBitcoinServiceHandler) KeyPoolRefill(context.Context, *connect.Request[v1alpha.KeyPoolRefillRequest]) (*connect.Response[v1alpha.KeyPoolRefillResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("bitcoin.bitcoind.v1alpha.BitcoinService.KeyPoolRefill is not implemented"))
+}
+
+func (UnimplementedBitcoinServiceHandler) GetAccount(context.Context, *connect.Request[v1alpha.GetAccountRequest]) (*connect.Response[v1alpha.GetAccountResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("bitcoin.bitcoind.v1alpha.BitcoinService.GetAccount is not implemented"))
+}
+
+func (UnimplementedBitcoinServiceHandler) SetAccount(context.Context, *connect.Request[v1alpha.SetAccountRequest]) (*connect.Response[v1alpha.SetAccountResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("bitcoin.bitcoind.v1alpha.BitcoinService.SetAccount is not implemented"))
+}
+
+func (UnimplementedBitcoinServiceHandler) GetAddressesByAccount(context.Context, *connect.Request[v1alpha.GetAddressesByAccountRequest]) (*connect.Response[v1alpha.GetAddressesByAccountResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("bitcoin.bitcoind.v1alpha.BitcoinService.GetAddressesByAccount is not implemented"))
+}
+
+func (UnimplementedBitcoinServiceHandler) ListAccounts(context.Context, *connect.Request[v1alpha.ListAccountsRequest]) (*connect.Response[v1alpha.ListAccountsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("bitcoin.bitcoind.v1alpha.BitcoinService.ListAccounts is not implemented"))
+}
+
+func (UnimplementedBitcoinServiceHandler) AddMultisigAddress(context.Context, *connect.Request[v1alpha.AddMultisigAddressRequest]) (*connect.Response[v1alpha.AddMultisigAddressResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("bitcoin.bitcoind.v1alpha.BitcoinService.AddMultisigAddress is not implemented"))
+}
+
+func (UnimplementedBitcoinServiceHandler) CreateMultisig(context.Context, *connect.Request[v1alpha.CreateMultisigRequest]) (*connect.Response[v1alpha.CreateMultisigResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("bitcoin.bitcoind.v1alpha.BitcoinService.CreateMultisig is not implemented"))
 }
