@@ -186,10 +186,10 @@ func withCancel[R any, M any](
 		}
 
 		start := time.Now()
-		log.Debug().Msgf("rpc: starting fetch")
+		log.Trace().Msgf("rpc: starting fetch")
 
 		fetchResult, err := fetch(ctx)
-		log.Err(err).Msgf("rpc: fetch completed in %s", time.Since(start))
+		log.Trace().Err(err).Msgf("rpc: fetch completed in %s", time.Since(start))
 		switch {
 		case err != nil && err.Error() == `status code: 401, response: ""`:
 			errs <- connect.NewError(connect.CodePermissionDenied, errors.New("permission denied"))
