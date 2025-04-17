@@ -129,7 +129,10 @@ func setupSSHTunnel(ctx context.Context, conf sshConfig, out chan error) error {
 		}
 
 		for _, host := range conf.KnownHosts {
-			fmt.Fprintln(tempFile, host)
+			_, err := fmt.Fprintln(tempFile, host)
+			if err != nil {
+				return fmt.Errorf("write temp file: %w", err)
+			}
 		}
 		if err := tempFile.Close(); err != nil {
 			return fmt.Errorf("close temp file: %w", err)
@@ -189,7 +192,9 @@ func setupSSHTunnel(ctx context.Context, conf sshConfig, out chan error) error {
 	// Wait for the tunnel to be established
 	for i := 0; i < 10; i++ {
 		if conn, err := net.Dial("tcp", fmt.Sprintf("localhost:%d", conf.LocalPort)); err == nil {
-			conn.Close()
+			if err := conn.Close(); err != nil {
+				return fmt.Errorf("close connection: %w", err)
+			}
 			return nil
 		}
 		select {
