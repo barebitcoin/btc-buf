@@ -76,6 +76,9 @@ service BitcoinService {
   rpc CombinePsbt(CombinePsbtRequest) returns (CombinePsbtResponse);
   rpc UtxoUpdatePsbt(UtxoUpdatePsbtRequest) returns (UtxoUpdatePsbtResponse);
   rpc JoinPsbts(JoinPsbtsRequest) returns (JoinPsbtsResponse);
+
+  // Transaction misc
+  rpc TestMempoolAccept(TestMempoolAcceptRequest) returns (TestMempoolAcceptResponse);
 }
 
 message GetBlockchainInfoRequest {}
@@ -1098,6 +1101,22 @@ message JoinPsbtsRequest {
 
 message JoinPsbtsResponse {
   string psbt = 1; // Joined base64 encoded PSBT
+}
+
+message TestMempoolAcceptRequest {
+  repeated string rawtxs = 1;
+  double max_fee_rate = 2;
+}
+
+message TestMempoolAcceptResponse {
+  message Result {
+    string txid = 1;
+    bool allowed = 2;
+    string reject_reason = 3;
+    uint32 vsize = 4;
+    double fees = 5;
+  }
+  repeated Result results = 1;
 }
 
 // Add a new message for descriptor range

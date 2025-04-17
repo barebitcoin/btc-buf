@@ -18,6 +18,7 @@ import (
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
+	"github.com/btcsuite/btcd/wire"
 	"github.com/btcsuite/btclog"
 	"github.com/rs/zerolog"
 	"github.com/samber/lo"
@@ -1683,6 +1684,39 @@ func (b *Bitcoind) JoinPsbts(ctx context.Context, c *connect.Request[pb.JoinPsbt
 		func(r string) *pb.JoinPsbtsResponse {
 			return &pb.JoinPsbtsResponse{
 				Psbt: r,
+			}
+		})
+}
+
+// TestMempoolAccept implements bitcoindv1alphaconnect.BitcoinServiceHandler.
+func (b *Bitcoind) TestMempoolAccept(ctx context.Context, c *connect.Request[pb.TestMempoolAcceptRequest]) (*connect.Response[pb.TestMempoolAcceptResponse], error) {
+	if len(c.Msg.Rawtxs) == 0 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("at least one raw transaction is required"))
+	}
+
+	return withCancel(ctx,
+		func(ctx context.Context) ([]*btcjson.TestMempoolAcceptResult, error) {
+			msgTxs := make([]*wire.MsgTx, len(c.Msg.Rawtxs))
+			for i, tx := range c.Msg.Rawtxs {
+				msgTx := wire.NewMsgTx(wire.TxVersion)
+				if err := msgTx.Deserialize(bytes.NewReader([]byte(tx))); err != nil {
+					return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("could not deserialize raw transaction %d: %w", i, err))
+				}
+				msgTxs[i] = msgTx
+			}
+			return b.rpc.TestMempoolAccept(ctx, msgTxs, c.Msg.MaxFeeRate)
+		},
+		func(results []*btcjson.TestMempoolAcceptResult) *pb.TestMempoolAcceptResponse {
+			return &pb.TestMempoolAcceptResponse{
+				Results: lo.Map(results, func(r *btcjson.TestMempoolAcceptResult, _ int) *pb.TestMempoolAcceptResponse_Result {
+					return &pb.TestMempoolAcceptResponse_Result{
+						Txid:         r.Txid,
+						Allowed:      r.Allowed,
+						RejectReason: r.RejectReason,
+						Vsize:        uint32(r.Vsize),
+						Fees:         r.Fees.Base,
+					}
+				}),
 			}
 		})
 }

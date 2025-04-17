@@ -163,6 +163,9 @@ const (
 	// BitcoinServiceJoinPsbtsProcedure is the fully-qualified name of the BitcoinService's JoinPsbts
 	// RPC.
 	BitcoinServiceJoinPsbtsProcedure = "/bitcoin.bitcoind.v1alpha.BitcoinService/JoinPsbts"
+	// BitcoinServiceTestMempoolAcceptProcedure is the fully-qualified name of the BitcoinService's
+	// TestMempoolAccept RPC.
+	BitcoinServiceTestMempoolAcceptProcedure = "/bitcoin.bitcoind.v1alpha.BitcoinService/TestMempoolAccept"
 )
 
 // BitcoinServiceClient is a client for the bitcoin.bitcoind.v1alpha.BitcoinService service.
@@ -223,6 +226,8 @@ type BitcoinServiceClient interface {
 	CombinePsbt(context.Context, *connect.Request[v1alpha.CombinePsbtRequest]) (*connect.Response[v1alpha.CombinePsbtResponse], error)
 	UtxoUpdatePsbt(context.Context, *connect.Request[v1alpha.UtxoUpdatePsbtRequest]) (*connect.Response[v1alpha.UtxoUpdatePsbtResponse], error)
 	JoinPsbts(context.Context, *connect.Request[v1alpha.JoinPsbtsRequest]) (*connect.Response[v1alpha.JoinPsbtsResponse], error)
+	// Transaction misc
+	TestMempoolAccept(context.Context, *connect.Request[v1alpha.TestMempoolAcceptRequest]) (*connect.Response[v1alpha.TestMempoolAcceptResponse], error)
 }
 
 // NewBitcoinServiceClient constructs a client for the bitcoin.bitcoind.v1alpha.BitcoinService
@@ -500,6 +505,12 @@ func NewBitcoinServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(bitcoinServiceMethods.ByName("JoinPsbts")),
 			connect.WithClientOptions(opts...),
 		),
+		testMempoolAccept: connect.NewClient[v1alpha.TestMempoolAcceptRequest, v1alpha.TestMempoolAcceptResponse](
+			httpClient,
+			baseURL+BitcoinServiceTestMempoolAcceptProcedure,
+			connect.WithSchema(bitcoinServiceMethods.ByName("TestMempoolAccept")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -549,6 +560,7 @@ type bitcoinServiceClient struct {
 	combinePsbt           *connect.Client[v1alpha.CombinePsbtRequest, v1alpha.CombinePsbtResponse]
 	utxoUpdatePsbt        *connect.Client[v1alpha.UtxoUpdatePsbtRequest, v1alpha.UtxoUpdatePsbtResponse]
 	joinPsbts             *connect.Client[v1alpha.JoinPsbtsRequest, v1alpha.JoinPsbtsResponse]
+	testMempoolAccept     *connect.Client[v1alpha.TestMempoolAcceptRequest, v1alpha.TestMempoolAcceptResponse]
 }
 
 // GetBlockchainInfo calls bitcoin.bitcoind.v1alpha.BitcoinService.GetBlockchainInfo.
@@ -771,6 +783,11 @@ func (c *bitcoinServiceClient) JoinPsbts(ctx context.Context, req *connect.Reque
 	return c.joinPsbts.CallUnary(ctx, req)
 }
 
+// TestMempoolAccept calls bitcoin.bitcoind.v1alpha.BitcoinService.TestMempoolAccept.
+func (c *bitcoinServiceClient) TestMempoolAccept(ctx context.Context, req *connect.Request[v1alpha.TestMempoolAcceptRequest]) (*connect.Response[v1alpha.TestMempoolAcceptResponse], error) {
+	return c.testMempoolAccept.CallUnary(ctx, req)
+}
+
 // BitcoinServiceHandler is an implementation of the bitcoin.bitcoind.v1alpha.BitcoinService
 // service.
 type BitcoinServiceHandler interface {
@@ -830,6 +847,8 @@ type BitcoinServiceHandler interface {
 	CombinePsbt(context.Context, *connect.Request[v1alpha.CombinePsbtRequest]) (*connect.Response[v1alpha.CombinePsbtResponse], error)
 	UtxoUpdatePsbt(context.Context, *connect.Request[v1alpha.UtxoUpdatePsbtRequest]) (*connect.Response[v1alpha.UtxoUpdatePsbtResponse], error)
 	JoinPsbts(context.Context, *connect.Request[v1alpha.JoinPsbtsRequest]) (*connect.Response[v1alpha.JoinPsbtsResponse], error)
+	// Transaction misc
+	TestMempoolAccept(context.Context, *connect.Request[v1alpha.TestMempoolAcceptRequest]) (*connect.Response[v1alpha.TestMempoolAcceptResponse], error)
 }
 
 // NewBitcoinServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -1103,6 +1122,12 @@ func NewBitcoinServiceHandler(svc BitcoinServiceHandler, opts ...connect.Handler
 		connect.WithSchema(bitcoinServiceMethods.ByName("JoinPsbts")),
 		connect.WithHandlerOptions(opts...),
 	)
+	bitcoinServiceTestMempoolAcceptHandler := connect.NewUnaryHandler(
+		BitcoinServiceTestMempoolAcceptProcedure,
+		svc.TestMempoolAccept,
+		connect.WithSchema(bitcoinServiceMethods.ByName("TestMempoolAccept")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/bitcoin.bitcoind.v1alpha.BitcoinService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case BitcoinServiceGetBlockchainInfoProcedure:
@@ -1193,6 +1218,8 @@ func NewBitcoinServiceHandler(svc BitcoinServiceHandler, opts ...connect.Handler
 			bitcoinServiceUtxoUpdatePsbtHandler.ServeHTTP(w, r)
 		case BitcoinServiceJoinPsbtsProcedure:
 			bitcoinServiceJoinPsbtsHandler.ServeHTTP(w, r)
+		case BitcoinServiceTestMempoolAcceptProcedure:
+			bitcoinServiceTestMempoolAcceptHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -1376,4 +1403,8 @@ func (UnimplementedBitcoinServiceHandler) UtxoUpdatePsbt(context.Context, *conne
 
 func (UnimplementedBitcoinServiceHandler) JoinPsbts(context.Context, *connect.Request[v1alpha.JoinPsbtsRequest]) (*connect.Response[v1alpha.JoinPsbtsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("bitcoin.bitcoind.v1alpha.BitcoinService.JoinPsbts is not implemented"))
+}
+
+func (UnimplementedBitcoinServiceHandler) TestMempoolAccept(context.Context, *connect.Request[v1alpha.TestMempoolAcceptRequest]) (*connect.Response[v1alpha.TestMempoolAcceptResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("bitcoin.bitcoind.v1alpha.BitcoinService.TestMempoolAccept is not implemented"))
 }
