@@ -9,7 +9,7 @@ build:
 	go build -v -o ./{{ bin }} .
 
 lint: 
-	golangci-lint run --exclude-dirs gen
+	golangci-lint run
 
 format: format-go format-proto
 
