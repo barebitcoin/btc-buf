@@ -1888,6 +1888,10 @@ type ScriptPubKey struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Type          string                 `protobuf:"bytes,1,opt,name=type,proto3" json:"type,omitempty"`
 	Address       string                 `protobuf:"bytes,2,opt,name=address,proto3" json:"address,omitempty"`
+	Asm           string                 `protobuf:"bytes,3,opt,name=asm,proto3" json:"asm,omitempty"`
+	Hex           string                 `protobuf:"bytes,4,opt,name=hex,proto3" json:"hex,omitempty"`
+	Addresses     []string               `protobuf:"bytes,5,rep,name=addresses,proto3" json:"addresses,omitempty"`
+	ReqSigs       uint32                 `protobuf:"varint,6,opt,name=req_sigs,json=reqSigs,proto3" json:"req_sigs,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1934,6 +1938,34 @@ func (x *ScriptPubKey) GetAddress() string {
 		return x.Address
 	}
 	return ""
+}
+
+func (x *ScriptPubKey) GetAsm() string {
+	if x != nil {
+		return x.Asm
+	}
+	return ""
+}
+
+func (x *ScriptPubKey) GetHex() string {
+	if x != nil {
+		return x.Hex
+	}
+	return ""
+}
+
+func (x *ScriptPubKey) GetAddresses() []string {
+	if x != nil {
+		return x.Addresses
+	}
+	return nil
+}
+
+func (x *ScriptPubKey) GetReqSigs() uint32 {
+	if x != nil {
+		return x.ReqSigs
+	}
+	return 0
 }
 
 type Output struct {
@@ -5690,6 +5722,112 @@ func (x *CreateMultisigResponse) GetRedeemScript() string {
 	}
 	return ""
 }
+
+// Transaction creation messages
+type CreateRawTransactionRequest struct {
+	state         protoimpl.MessageState               `protogen:"open.v1"`
+	Inputs        []*CreateRawTransactionRequest_Input `protobuf:"bytes,1,rep,name=inputs,proto3" json:"inputs,omitempty"`
+	Outputs       map[string]float64                   `protobuf:"bytes,2,rep,name=outputs,proto3" json:"outputs,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"fixed64,2,opt,name=value"` // address -> amount
+	Locktime      uint32                               `protobuf:"varint,3,opt,name=locktime,proto3" json:"locktime,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateRawTransactionRequest) Reset() {
+	*x = CreateRawTransactionRequest{}
+	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[81]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateRawTransactionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateRawTransactionRequest) ProtoMessage() {}
+
+func (x *CreateRawTransactionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[81]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateRawTransactionRequest.ProtoReflect.Descriptor instead.
+func (*CreateRawTransactionRequest) Descriptor() ([]byte, []int) {
+	return file_bitcoin_bitcoind_v1alpha_bitcoin_proto_rawDescGZIP(), []int{81}
+}
+
+func (x *CreateRawTransactionRequest) GetInputs() []*CreateRawTransactionRequest_Input {
+	if x != nil {
+		return x.Inputs
+	}
+	return nil
+}
+
+func (x *CreateRawTransactionRequest) GetOutputs() map[string]float64 {
+	if x != nil {
+		return x.Outputs
+	}
+	return nil
+}
+
+func (x *CreateRawTransactionRequest) GetLocktime() uint32 {
+	if x != nil {
+		return x.Locktime
+	}
+	return 0
+}
+
+type CreateRawTransactionResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Tx            *RawTransaction        `protobuf:"bytes,1,opt,name=tx,proto3" json:"tx,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateRawTransactionResponse) Reset() {
+	*x = CreateRawTransactionResponse{}
+	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[82]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateRawTransactionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateRawTransactionResponse) ProtoMessage() {}
+
+func (x *CreateRawTransactionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[82]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateRawTransactionResponse.ProtoReflect.Descriptor instead.
+func (*CreateRawTransactionResponse) Descriptor() ([]byte, []int) {
+	return file_bitcoin_bitcoind_v1alpha_bitcoin_proto_rawDescGZIP(), []int{82}
+}
+
+func (x *CreateRawTransactionResponse) GetTx() *RawTransaction {
+	if x != nil {
+		return x.Tx
+	}
+	return nil
+}
+
 type CreatePsbtRequest struct {
 	state         protoimpl.MessageState     `protogen:"open.v1"`
 	Inputs        []*CreatePsbtRequest_Input `protobuf:"bytes,1,rep,name=inputs,proto3" json:"inputs,omitempty"`
@@ -5801,6 +5939,127 @@ func (x *CreatePsbtResponse) GetPsbt() string {
 	}
 	return ""
 }
+
+type DecodePsbtRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Psbt          string                 `protobuf:"bytes,1,opt,name=psbt,proto3" json:"psbt,omitempty"` // Base64 encoded PSBT
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DecodePsbtRequest) Reset() {
+	*x = DecodePsbtRequest{}
+	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[85]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DecodePsbtRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DecodePsbtRequest) ProtoMessage() {}
+
+func (x *DecodePsbtRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[85]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DecodePsbtRequest.ProtoReflect.Descriptor instead.
+func (*DecodePsbtRequest) Descriptor() ([]byte, []int) {
+	return file_bitcoin_bitcoind_v1alpha_bitcoin_proto_rawDescGZIP(), []int{85}
+}
+
+func (x *DecodePsbtRequest) GetPsbt() string {
+	if x != nil {
+		return x.Psbt
+	}
+	return ""
+}
+
+type DecodePsbtResponse struct {
+	state         protoimpl.MessageState        `protogen:"open.v1"`
+	Tx            *DecodeRawTransactionResponse `protobuf:"bytes,1,opt,name=tx,proto3" json:"tx,omitempty"`
+	Unknown       map[string]string             `protobuf:"bytes,2,rep,name=unknown,proto3" json:"unknown,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Inputs        []*DecodePsbtResponse_Input   `protobuf:"bytes,3,rep,name=inputs,proto3" json:"inputs,omitempty"`
+	Outputs       []*DecodePsbtResponse_Output  `protobuf:"bytes,4,rep,name=outputs,proto3" json:"outputs,omitempty"`
+	Fee           float64                       `protobuf:"fixed64,5,opt,name=fee,proto3" json:"fee,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DecodePsbtResponse) Reset() {
+	*x = DecodePsbtResponse{}
+	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[86]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DecodePsbtResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DecodePsbtResponse) ProtoMessage() {}
+
+func (x *DecodePsbtResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[86]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DecodePsbtResponse.ProtoReflect.Descriptor instead.
+func (*DecodePsbtResponse) Descriptor() ([]byte, []int) {
+	return file_bitcoin_bitcoind_v1alpha_bitcoin_proto_rawDescGZIP(), []int{86}
+}
+
+func (x *DecodePsbtResponse) GetTx() *DecodeRawTransactionResponse {
+	if x != nil {
+		return x.Tx
+	}
+	return nil
+}
+
+func (x *DecodePsbtResponse) GetUnknown() map[string]string {
+	if x != nil {
+		return x.Unknown
+	}
+	return nil
+}
+
+func (x *DecodePsbtResponse) GetInputs() []*DecodePsbtResponse_Input {
+	if x != nil {
+		return x.Inputs
+	}
+	return nil
+}
+
+func (x *DecodePsbtResponse) GetOutputs() []*DecodePsbtResponse_Output {
+	if x != nil {
+		return x.Outputs
+	}
+	return nil
+}
+
+func (x *DecodePsbtResponse) GetFee() float64 {
+	if x != nil {
+		return x.Fee
+	}
+	return 0
+}
+
 type AnalyzePsbtRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Psbt          string                 `protobuf:"bytes,1,opt,name=psbt,proto3" json:"psbt,omitempty"` // Base64 encoded PSBT
@@ -5810,7 +6069,7 @@ type AnalyzePsbtRequest struct {
 
 func (x *AnalyzePsbtRequest) Reset() {
 	*x = AnalyzePsbtRequest{}
-	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[89]
+	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[87]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5822,7 +6081,7 @@ func (x *AnalyzePsbtRequest) String() string {
 func (*AnalyzePsbtRequest) ProtoMessage() {}
 
 func (x *AnalyzePsbtRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[89]
+	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[87]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5835,7 +6094,7 @@ func (x *AnalyzePsbtRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AnalyzePsbtRequest.ProtoReflect.Descriptor instead.
 func (*AnalyzePsbtRequest) Descriptor() ([]byte, []int) {
-	return file_bitcoin_bitcoind_v1alpha_bitcoin_proto_rawDescGZIP(), []int{89}
+	return file_bitcoin_bitcoind_v1alpha_bitcoin_proto_rawDescGZIP(), []int{87}
 }
 
 func (x *AnalyzePsbtRequest) GetPsbt() string {
@@ -5859,7 +6118,7 @@ type AnalyzePsbtResponse struct {
 
 func (x *AnalyzePsbtResponse) Reset() {
 	*x = AnalyzePsbtResponse{}
-	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[90]
+	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[88]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5871,7 +6130,7 @@ func (x *AnalyzePsbtResponse) String() string {
 func (*AnalyzePsbtResponse) ProtoMessage() {}
 
 func (x *AnalyzePsbtResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[90]
+	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[88]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5884,7 +6143,7 @@ func (x *AnalyzePsbtResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AnalyzePsbtResponse.ProtoReflect.Descriptor instead.
 func (*AnalyzePsbtResponse) Descriptor() ([]byte, []int) {
-	return file_bitcoin_bitcoind_v1alpha_bitcoin_proto_rawDescGZIP(), []int{90}
+	return file_bitcoin_bitcoind_v1alpha_bitcoin_proto_rawDescGZIP(), []int{88}
 }
 
 func (x *AnalyzePsbtResponse) GetInputs() []*AnalyzePsbtResponse_Input {
@@ -5938,7 +6197,7 @@ type CombinePsbtRequest struct {
 
 func (x *CombinePsbtRequest) Reset() {
 	*x = CombinePsbtRequest{}
-	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[93]
+	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[89]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5950,7 +6209,7 @@ func (x *CombinePsbtRequest) String() string {
 func (*CombinePsbtRequest) ProtoMessage() {}
 
 func (x *CombinePsbtRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[93]
+	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[89]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5963,7 +6222,7 @@ func (x *CombinePsbtRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CombinePsbtRequest.ProtoReflect.Descriptor instead.
 func (*CombinePsbtRequest) Descriptor() ([]byte, []int) {
-	return file_bitcoin_bitcoind_v1alpha_bitcoin_proto_rawDescGZIP(), []int{93}
+	return file_bitcoin_bitcoind_v1alpha_bitcoin_proto_rawDescGZIP(), []int{89}
 }
 
 func (x *CombinePsbtRequest) GetPsbts() []string {
@@ -5982,7 +6241,7 @@ type CombinePsbtResponse struct {
 
 func (x *CombinePsbtResponse) Reset() {
 	*x = CombinePsbtResponse{}
-	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[94]
+	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[90]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5994,7 +6253,7 @@ func (x *CombinePsbtResponse) String() string {
 func (*CombinePsbtResponse) ProtoMessage() {}
 
 func (x *CombinePsbtResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[94]
+	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[90]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6007,7 +6266,7 @@ func (x *CombinePsbtResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CombinePsbtResponse.ProtoReflect.Descriptor instead.
 func (*CombinePsbtResponse) Descriptor() ([]byte, []int) {
-	return file_bitcoin_bitcoind_v1alpha_bitcoin_proto_rawDescGZIP(), []int{94}
+	return file_bitcoin_bitcoind_v1alpha_bitcoin_proto_rawDescGZIP(), []int{90}
 }
 
 func (x *CombinePsbtResponse) GetPsbt() string {
@@ -6016,7 +6275,6 @@ func (x *CombinePsbtResponse) GetPsbt() string {
 	}
 	return ""
 }
-
 
 // balances from outputs that the wallet can sign
 type GetBalancesResponse_Mine struct {
@@ -6035,7 +6293,7 @@ type GetBalancesResponse_Mine struct {
 
 func (x *GetBalancesResponse_Mine) Reset() {
 	*x = GetBalancesResponse_Mine{}
-	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[83]
+	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[93]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6047,7 +6305,7 @@ func (x *GetBalancesResponse_Mine) String() string {
 func (*GetBalancesResponse_Mine) ProtoMessage() {}
 
 func (x *GetBalancesResponse_Mine) ProtoReflect() protoreflect.Message {
-	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[83]
+	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[93]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6106,7 +6364,7 @@ type GetBalancesResponse_Watchonly struct {
 
 func (x *GetBalancesResponse_Watchonly) Reset() {
 	*x = GetBalancesResponse_Watchonly{}
-	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[84]
+	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[94]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6118,7 +6376,7 @@ func (x *GetBalancesResponse_Watchonly) String() string {
 func (*GetBalancesResponse_Watchonly) ProtoMessage() {}
 
 func (x *GetBalancesResponse_Watchonly) ProtoReflect() protoreflect.Message {
-	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[84]
+	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[94]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6170,7 +6428,7 @@ type GetTransactionResponse_Details struct {
 
 func (x *GetTransactionResponse_Details) Reset() {
 	*x = GetTransactionResponse_Details{}
-	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[85]
+	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[95]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6182,7 +6440,7 @@ func (x *GetTransactionResponse_Details) String() string {
 func (*GetTransactionResponse_Details) ProtoMessage() {}
 
 func (x *GetTransactionResponse_Details) ProtoReflect() protoreflect.Message {
-	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[85]
+	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[95]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6260,7 +6518,7 @@ type ImportDescriptorsRequest_Request struct {
 
 func (x *ImportDescriptorsRequest_Request) Reset() {
 	*x = ImportDescriptorsRequest_Request{}
-	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[87]
+	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[97]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6272,7 +6530,7 @@ func (x *ImportDescriptorsRequest_Request) String() string {
 func (*ImportDescriptorsRequest_Request) ProtoMessage() {}
 
 func (x *ImportDescriptorsRequest_Request) ProtoReflect() protoreflect.Message {
-	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[87]
+	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[97]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6347,7 +6605,7 @@ type ImportDescriptorsResponse_Error struct {
 
 func (x *ImportDescriptorsResponse_Error) Reset() {
 	*x = ImportDescriptorsResponse_Error{}
-	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[88]
+	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[98]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6359,7 +6617,7 @@ func (x *ImportDescriptorsResponse_Error) String() string {
 func (*ImportDescriptorsResponse_Error) ProtoMessage() {}
 
 func (x *ImportDescriptorsResponse_Error) ProtoReflect() protoreflect.Message {
-	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[88]
+	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[98]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6400,7 +6658,7 @@ type ImportDescriptorsResponse_Response struct {
 
 func (x *ImportDescriptorsResponse_Response) Reset() {
 	*x = ImportDescriptorsResponse_Response{}
-	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[89]
+	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[99]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6412,7 +6670,7 @@ func (x *ImportDescriptorsResponse_Response) String() string {
 func (*ImportDescriptorsResponse_Response) ProtoMessage() {}
 
 func (x *ImportDescriptorsResponse_Response) ProtoReflect() protoreflect.Message {
-	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[89]
+	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[99]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6462,7 +6720,7 @@ type MempoolEntry_Fees struct {
 
 func (x *MempoolEntry_Fees) Reset() {
 	*x = MempoolEntry_Fees{}
-	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[90]
+	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[100]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6474,7 +6732,7 @@ func (x *MempoolEntry_Fees) String() string {
 func (*MempoolEntry_Fees) ProtoMessage() {}
 
 func (x *MempoolEntry_Fees) ProtoReflect() protoreflect.Message {
-	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[90]
+	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[100]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6517,6 +6775,67 @@ func (x *MempoolEntry_Fees) GetDescendant() float64 {
 	}
 	return 0
 }
+
+type CreateRawTransactionRequest_Input struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Txid          string                 `protobuf:"bytes,1,opt,name=txid,proto3" json:"txid,omitempty"`
+	Vout          uint32                 `protobuf:"varint,2,opt,name=vout,proto3" json:"vout,omitempty"`
+	Sequence      uint32                 `protobuf:"varint,3,opt,name=sequence,proto3" json:"sequence,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateRawTransactionRequest_Input) Reset() {
+	*x = CreateRawTransactionRequest_Input{}
+	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[103]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateRawTransactionRequest_Input) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateRawTransactionRequest_Input) ProtoMessage() {}
+
+func (x *CreateRawTransactionRequest_Input) ProtoReflect() protoreflect.Message {
+	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[103]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateRawTransactionRequest_Input.ProtoReflect.Descriptor instead.
+func (*CreateRawTransactionRequest_Input) Descriptor() ([]byte, []int) {
+	return file_bitcoin_bitcoind_v1alpha_bitcoin_proto_rawDescGZIP(), []int{81, 0}
+}
+
+func (x *CreateRawTransactionRequest_Input) GetTxid() string {
+	if x != nil {
+		return x.Txid
+	}
+	return ""
+}
+
+func (x *CreateRawTransactionRequest_Input) GetVout() uint32 {
+	if x != nil {
+		return x.Vout
+	}
+	return 0
+}
+
+func (x *CreateRawTransactionRequest_Input) GetSequence() uint32 {
+	if x != nil {
+		return x.Sequence
+	}
+	return 0
+}
+
 type CreatePsbtRequest_Input struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Txid          string                 `protobuf:"bytes,1,opt,name=txid,proto3" json:"txid,omitempty"`
@@ -6528,7 +6847,7 @@ type CreatePsbtRequest_Input struct {
 
 func (x *CreatePsbtRequest_Input) Reset() {
 	*x = CreatePsbtRequest_Input{}
-	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[117]
+	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[105]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6540,7 +6859,7 @@ func (x *CreatePsbtRequest_Input) String() string {
 func (*CreatePsbtRequest_Input) ProtoMessage() {}
 
 func (x *CreatePsbtRequest_Input) ProtoReflect() protoreflect.Message {
-	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[117]
+	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[105]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6577,6 +6896,362 @@ func (x *CreatePsbtRequest_Input) GetSequence() uint32 {
 	return 0
 }
 
+type DecodePsbtResponse_WitnessUtxo struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Amount        float64                `protobuf:"fixed64,1,opt,name=amount,proto3" json:"amount,omitempty"`
+	ScriptPubKey  *ScriptPubKey          `protobuf:"bytes,2,opt,name=script_pub_key,json=scriptPubKey,proto3" json:"script_pub_key,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DecodePsbtResponse_WitnessUtxo) Reset() {
+	*x = DecodePsbtResponse_WitnessUtxo{}
+	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[107]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DecodePsbtResponse_WitnessUtxo) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DecodePsbtResponse_WitnessUtxo) ProtoMessage() {}
+
+func (x *DecodePsbtResponse_WitnessUtxo) ProtoReflect() protoreflect.Message {
+	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[107]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DecodePsbtResponse_WitnessUtxo.ProtoReflect.Descriptor instead.
+func (*DecodePsbtResponse_WitnessUtxo) Descriptor() ([]byte, []int) {
+	return file_bitcoin_bitcoind_v1alpha_bitcoin_proto_rawDescGZIP(), []int{86, 0}
+}
+
+func (x *DecodePsbtResponse_WitnessUtxo) GetAmount() float64 {
+	if x != nil {
+		return x.Amount
+	}
+	return 0
+}
+
+func (x *DecodePsbtResponse_WitnessUtxo) GetScriptPubKey() *ScriptPubKey {
+	if x != nil {
+		return x.ScriptPubKey
+	}
+	return nil
+}
+
+type DecodePsbtResponse_RedeemScript struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Asm           string                 `protobuf:"bytes,1,opt,name=asm,proto3" json:"asm,omitempty"`
+	Hex           string                 `protobuf:"bytes,2,opt,name=hex,proto3" json:"hex,omitempty"`
+	Type          string                 `protobuf:"bytes,3,opt,name=type,proto3" json:"type,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DecodePsbtResponse_RedeemScript) Reset() {
+	*x = DecodePsbtResponse_RedeemScript{}
+	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[108]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DecodePsbtResponse_RedeemScript) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DecodePsbtResponse_RedeemScript) ProtoMessage() {}
+
+func (x *DecodePsbtResponse_RedeemScript) ProtoReflect() protoreflect.Message {
+	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[108]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DecodePsbtResponse_RedeemScript.ProtoReflect.Descriptor instead.
+func (*DecodePsbtResponse_RedeemScript) Descriptor() ([]byte, []int) {
+	return file_bitcoin_bitcoind_v1alpha_bitcoin_proto_rawDescGZIP(), []int{86, 1}
+}
+
+func (x *DecodePsbtResponse_RedeemScript) GetAsm() string {
+	if x != nil {
+		return x.Asm
+	}
+	return ""
+}
+
+func (x *DecodePsbtResponse_RedeemScript) GetHex() string {
+	if x != nil {
+		return x.Hex
+	}
+	return ""
+}
+
+func (x *DecodePsbtResponse_RedeemScript) GetType() string {
+	if x != nil {
+		return x.Type
+	}
+	return ""
+}
+
+type DecodePsbtResponse_Bip32Deriv struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	Pubkey            string                 `protobuf:"bytes,1,opt,name=pubkey,proto3" json:"pubkey,omitempty"`
+	MasterFingerprint string                 `protobuf:"bytes,2,opt,name=master_fingerprint,json=masterFingerprint,proto3" json:"master_fingerprint,omitempty"`
+	Path              string                 `protobuf:"bytes,3,opt,name=path,proto3" json:"path,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *DecodePsbtResponse_Bip32Deriv) Reset() {
+	*x = DecodePsbtResponse_Bip32Deriv{}
+	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[109]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DecodePsbtResponse_Bip32Deriv) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DecodePsbtResponse_Bip32Deriv) ProtoMessage() {}
+
+func (x *DecodePsbtResponse_Bip32Deriv) ProtoReflect() protoreflect.Message {
+	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[109]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DecodePsbtResponse_Bip32Deriv.ProtoReflect.Descriptor instead.
+func (*DecodePsbtResponse_Bip32Deriv) Descriptor() ([]byte, []int) {
+	return file_bitcoin_bitcoind_v1alpha_bitcoin_proto_rawDescGZIP(), []int{86, 2}
+}
+
+func (x *DecodePsbtResponse_Bip32Deriv) GetPubkey() string {
+	if x != nil {
+		return x.Pubkey
+	}
+	return ""
+}
+
+func (x *DecodePsbtResponse_Bip32Deriv) GetMasterFingerprint() string {
+	if x != nil {
+		return x.MasterFingerprint
+	}
+	return ""
+}
+
+func (x *DecodePsbtResponse_Bip32Deriv) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+type DecodePsbtResponse_Input struct {
+	state              protoimpl.MessageState           `protogen:"open.v1"`
+	NonWitnessUtxo     *DecodeRawTransactionResponse    `protobuf:"bytes,1,opt,name=non_witness_utxo,json=nonWitnessUtxo,proto3" json:"non_witness_utxo,omitempty"`
+	WitnessUtxo        *DecodePsbtResponse_WitnessUtxo  `protobuf:"bytes,2,opt,name=witness_utxo,json=witnessUtxo,proto3" json:"witness_utxo,omitempty"`
+	PartialSignatures  map[string]string                `protobuf:"bytes,3,rep,name=partial_signatures,json=partialSignatures,proto3" json:"partial_signatures,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Sighash            string                           `protobuf:"bytes,4,opt,name=sighash,proto3" json:"sighash,omitempty"`
+	RedeemScript       *DecodePsbtResponse_RedeemScript `protobuf:"bytes,5,opt,name=redeem_script,json=redeemScript,proto3" json:"redeem_script,omitempty"`
+	WitnessScript      *DecodePsbtResponse_RedeemScript `protobuf:"bytes,6,opt,name=witness_script,json=witnessScript,proto3" json:"witness_script,omitempty"`
+	Bip32Derivs        []*DecodePsbtResponse_Bip32Deriv `protobuf:"bytes,7,rep,name=bip32_derivs,json=bip32Derivs,proto3" json:"bip32_derivs,omitempty"`
+	FinalScriptsig     *ScriptSig                       `protobuf:"bytes,8,opt,name=final_scriptsig,json=finalScriptsig,proto3" json:"final_scriptsig,omitempty"`
+	FinalScriptwitness []string                         `protobuf:"bytes,9,rep,name=final_scriptwitness,json=finalScriptwitness,proto3" json:"final_scriptwitness,omitempty"`
+	Unknown            map[string]string                `protobuf:"bytes,10,rep,name=unknown,proto3" json:"unknown,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *DecodePsbtResponse_Input) Reset() {
+	*x = DecodePsbtResponse_Input{}
+	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[110]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DecodePsbtResponse_Input) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DecodePsbtResponse_Input) ProtoMessage() {}
+
+func (x *DecodePsbtResponse_Input) ProtoReflect() protoreflect.Message {
+	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[110]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DecodePsbtResponse_Input.ProtoReflect.Descriptor instead.
+func (*DecodePsbtResponse_Input) Descriptor() ([]byte, []int) {
+	return file_bitcoin_bitcoind_v1alpha_bitcoin_proto_rawDescGZIP(), []int{86, 3}
+}
+
+func (x *DecodePsbtResponse_Input) GetNonWitnessUtxo() *DecodeRawTransactionResponse {
+	if x != nil {
+		return x.NonWitnessUtxo
+	}
+	return nil
+}
+
+func (x *DecodePsbtResponse_Input) GetWitnessUtxo() *DecodePsbtResponse_WitnessUtxo {
+	if x != nil {
+		return x.WitnessUtxo
+	}
+	return nil
+}
+
+func (x *DecodePsbtResponse_Input) GetPartialSignatures() map[string]string {
+	if x != nil {
+		return x.PartialSignatures
+	}
+	return nil
+}
+
+func (x *DecodePsbtResponse_Input) GetSighash() string {
+	if x != nil {
+		return x.Sighash
+	}
+	return ""
+}
+
+func (x *DecodePsbtResponse_Input) GetRedeemScript() *DecodePsbtResponse_RedeemScript {
+	if x != nil {
+		return x.RedeemScript
+	}
+	return nil
+}
+
+func (x *DecodePsbtResponse_Input) GetWitnessScript() *DecodePsbtResponse_RedeemScript {
+	if x != nil {
+		return x.WitnessScript
+	}
+	return nil
+}
+
+func (x *DecodePsbtResponse_Input) GetBip32Derivs() []*DecodePsbtResponse_Bip32Deriv {
+	if x != nil {
+		return x.Bip32Derivs
+	}
+	return nil
+}
+
+func (x *DecodePsbtResponse_Input) GetFinalScriptsig() *ScriptSig {
+	if x != nil {
+		return x.FinalScriptsig
+	}
+	return nil
+}
+
+func (x *DecodePsbtResponse_Input) GetFinalScriptwitness() []string {
+	if x != nil {
+		return x.FinalScriptwitness
+	}
+	return nil
+}
+
+func (x *DecodePsbtResponse_Input) GetUnknown() map[string]string {
+	if x != nil {
+		return x.Unknown
+	}
+	return nil
+}
+
+type DecodePsbtResponse_Output struct {
+	state         protoimpl.MessageState           `protogen:"open.v1"`
+	RedeemScript  *DecodePsbtResponse_RedeemScript `protobuf:"bytes,1,opt,name=redeem_script,json=redeemScript,proto3" json:"redeem_script,omitempty"`
+	WitnessScript *DecodePsbtResponse_RedeemScript `protobuf:"bytes,2,opt,name=witness_script,json=witnessScript,proto3" json:"witness_script,omitempty"`
+	Bip32Derivs   []*DecodePsbtResponse_Bip32Deriv `protobuf:"bytes,3,rep,name=bip32_derivs,json=bip32Derivs,proto3" json:"bip32_derivs,omitempty"`
+	Unknown       map[string]string                `protobuf:"bytes,4,rep,name=unknown,proto3" json:"unknown,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DecodePsbtResponse_Output) Reset() {
+	*x = DecodePsbtResponse_Output{}
+	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[111]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DecodePsbtResponse_Output) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DecodePsbtResponse_Output) ProtoMessage() {}
+
+func (x *DecodePsbtResponse_Output) ProtoReflect() protoreflect.Message {
+	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[111]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DecodePsbtResponse_Output.ProtoReflect.Descriptor instead.
+func (*DecodePsbtResponse_Output) Descriptor() ([]byte, []int) {
+	return file_bitcoin_bitcoind_v1alpha_bitcoin_proto_rawDescGZIP(), []int{86, 4}
+}
+
+func (x *DecodePsbtResponse_Output) GetRedeemScript() *DecodePsbtResponse_RedeemScript {
+	if x != nil {
+		return x.RedeemScript
+	}
+	return nil
+}
+
+func (x *DecodePsbtResponse_Output) GetWitnessScript() *DecodePsbtResponse_RedeemScript {
+	if x != nil {
+		return x.WitnessScript
+	}
+	return nil
+}
+
+func (x *DecodePsbtResponse_Output) GetBip32Derivs() []*DecodePsbtResponse_Bip32Deriv {
+	if x != nil {
+		return x.Bip32Derivs
+	}
+	return nil
+}
+
+func (x *DecodePsbtResponse_Output) GetUnknown() map[string]string {
+	if x != nil {
+		return x.Unknown
+	}
+	return nil
+}
+
 type AnalyzePsbtResponse_Input struct {
 	state         protoimpl.MessageState             `protogen:"open.v1"`
 	HasUtxo       bool                               `protobuf:"varint,1,opt,name=has_utxo,json=hasUtxo,proto3" json:"has_utxo,omitempty"`
@@ -6589,7 +7264,7 @@ type AnalyzePsbtResponse_Input struct {
 
 func (x *AnalyzePsbtResponse_Input) Reset() {
 	*x = AnalyzePsbtResponse_Input{}
-	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[126]
+	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[116]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6601,7 +7276,7 @@ func (x *AnalyzePsbtResponse_Input) String() string {
 func (*AnalyzePsbtResponse_Input) ProtoMessage() {}
 
 func (x *AnalyzePsbtResponse_Input) ProtoReflect() protoreflect.Message {
-	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[126]
+	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[116]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6614,7 +7289,7 @@ func (x *AnalyzePsbtResponse_Input) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AnalyzePsbtResponse_Input.ProtoReflect.Descriptor instead.
 func (*AnalyzePsbtResponse_Input) Descriptor() ([]byte, []int) {
-	return file_bitcoin_bitcoind_v1alpha_bitcoin_proto_rawDescGZIP(), []int{90, 0}
+	return file_bitcoin_bitcoind_v1alpha_bitcoin_proto_rawDescGZIP(), []int{88, 0}
 }
 
 func (x *AnalyzePsbtResponse_Input) GetHasUtxo() bool {
@@ -6657,7 +7332,7 @@ type AnalyzePsbtResponse_Input_Missing struct {
 
 func (x *AnalyzePsbtResponse_Input_Missing) Reset() {
 	*x = AnalyzePsbtResponse_Input_Missing{}
-	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[127]
+	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[117]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6669,7 +7344,7 @@ func (x *AnalyzePsbtResponse_Input_Missing) String() string {
 func (*AnalyzePsbtResponse_Input_Missing) ProtoMessage() {}
 
 func (x *AnalyzePsbtResponse_Input_Missing) ProtoReflect() protoreflect.Message {
-	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[127]
+	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[117]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6682,7 +7357,7 @@ func (x *AnalyzePsbtResponse_Input_Missing) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use AnalyzePsbtResponse_Input_Missing.ProtoReflect.Descriptor instead.
 func (*AnalyzePsbtResponse_Input_Missing) Descriptor() ([]byte, []int) {
-	return file_bitcoin_bitcoind_v1alpha_bitcoin_proto_rawDescGZIP(), []int{90, 0, 0}
+	return file_bitcoin_bitcoind_v1alpha_bitcoin_proto_rawDescGZIP(), []int{88, 0, 0}
 }
 
 func (x *AnalyzePsbtResponse_Input_Missing) GetPubkeys() []string {
@@ -6712,7 +7387,6 @@ func (x *AnalyzePsbtResponse_Input_Missing) GetWitnessScript() string {
 	}
 	return ""
 }
-
 
 var File_bitcoin_bitcoind_v1alpha_bitcoin_proto protoreflect.FileDescriptor
 
@@ -6907,10 +7581,14 @@ const file_bitcoin_bitcoind_v1alpha_bitcoin_proto_rawDesc = "" +
 	"\n" +
 	"script_sig\x18\x04 \x01(\v2#.bitcoin.bitcoind.v1alpha.ScriptSigR\tscriptSig\x12\x1a\n" +
 	"\bsequence\x18\x05 \x01(\rR\bsequence\x12\x18\n" +
-	"\awitness\x18\x06 \x03(\tR\awitness\"<\n" +
+	"\awitness\x18\x06 \x03(\tR\awitness\"\x99\x01\n" +
 	"\fScriptPubKey\x12\x12\n" +
 	"\x04type\x18\x01 \x01(\tR\x04type\x12\x18\n" +
-	"\aaddress\x18\x02 \x01(\tR\aaddress\"\xc6\x01\n" +
+	"\aaddress\x18\x02 \x01(\tR\aaddress\x12\x10\n" +
+	"\x03asm\x18\x03 \x01(\tR\x03asm\x12\x10\n" +
+	"\x03hex\x18\x04 \x01(\tR\x03hex\x12\x1c\n" +
+	"\taddresses\x18\x05 \x03(\tR\taddresses\x12\x19\n" +
+	"\breq_sigs\x18\x06 \x01(\rR\areqSigs\"\xc6\x01\n" +
 	"\x06Output\x12\x16\n" +
 	"\x06amount\x18\x01 \x01(\x01R\x06amount\x12\x12\n" +
 	"\x04vout\x18\x02 \x01(\rR\x04vout\x12L\n" +
@@ -7137,7 +7815,6 @@ const file_bitcoin_bitcoind_v1alpha_bitcoin_proto_rawDesc = "" +
 	"passphrase\x18\x04 \x01(\tR\n" +
 	"passphrase\x12\x1f\n" +
 	"\vavoid_reuse\x18\x05 \x01(\bR\n" +
-	"\x12CombinePsbtRequest\x12\x14\n" +
 	"avoidReuse\"D\n" +
 	"\x14CreateWalletResponse\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x18\n" +
@@ -7223,14 +7900,108 @@ const file_bitcoin_bitcoind_v1alpha_bitcoin_proto_rawDesc = "" +
 	"\x04keys\x18\x02 \x03(\tR\x04keys\"W\n" +
 	"\x16CreateMultisigResponse\x12\x18\n" +
 	"\aaddress\x18\x01 \x01(\tR\aaddress\x12#\n" +
+	"\rredeem_script\x18\x02 \x01(\tR\fredeemScript\"\xf5\x02\n" +
+	"\x1bCreateRawTransactionRequest\x12S\n" +
+	"\x06inputs\x18\x01 \x03(\v2;.bitcoin.bitcoind.v1alpha.CreateRawTransactionRequest.InputR\x06inputs\x12\\\n" +
+	"\aoutputs\x18\x02 \x03(\v2B.bitcoin.bitcoind.v1alpha.CreateRawTransactionRequest.OutputsEntryR\aoutputs\x12\x1a\n" +
+	"\blocktime\x18\x03 \x01(\rR\blocktime\x1aK\n" +
+	"\x05Input\x12\x12\n" +
+	"\x04txid\x18\x01 \x01(\tR\x04txid\x12\x12\n" +
+	"\x04vout\x18\x02 \x01(\rR\x04vout\x12\x1a\n" +
+	"\bsequence\x18\x03 \x01(\rR\bsequence\x1a:\n" +
+	"\fOutputsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\x01R\x05value:\x028\x01\"X\n" +
+	"\x1cCreateRawTransactionResponse\x128\n" +
+	"\x02tx\x18\x01 \x01(\v2(.bitcoin.bitcoind.v1alpha.RawTransactionR\x02tx\"\xf9\x02\n" +
 	"\x11CreatePsbtRequest\x12I\n" +
 	"\x06inputs\x18\x01 \x03(\v21.bitcoin.bitcoind.v1alpha.CreatePsbtRequest.InputR\x06inputs\x12R\n" +
 	"\aoutputs\x18\x02 \x03(\v28.bitcoin.bitcoind.v1alpha.CreatePsbtRequest.OutputsEntryR\aoutputs\x12\x1a\n" +
+	"\blocktime\x18\x03 \x01(\rR\blocktime\x12 \n" +
+	"\vreplaceable\x18\x04 \x01(\bR\vreplaceable\x1aK\n" +
+	"\x05Input\x12\x12\n" +
+	"\x04txid\x18\x01 \x01(\tR\x04txid\x12\x12\n" +
+	"\x04vout\x18\x02 \x01(\rR\x04vout\x12\x1a\n" +
+	"\bsequence\x18\x03 \x01(\rR\bsequence\x1a:\n" +
+	"\fOutputsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\x01R\x05value:\x028\x01\"(\n" +
 	"\x12CreatePsbtResponse\x12\x12\n" +
+	"\x04psbt\x18\x01 \x01(\tR\x04psbt\"'\n" +
+	"\x11DecodePsbtRequest\x12\x12\n" +
+	"\x04psbt\x18\x01 \x01(\tR\x04psbt\"\xd8\x10\n" +
+	"\x12DecodePsbtResponse\x12F\n" +
+	"\x02tx\x18\x01 \x01(\v26.bitcoin.bitcoind.v1alpha.DecodeRawTransactionResponseR\x02tx\x12S\n" +
+	"\aunknown\x18\x02 \x03(\v29.bitcoin.bitcoind.v1alpha.DecodePsbtResponse.UnknownEntryR\aunknown\x12J\n" +
+	"\x06inputs\x18\x03 \x03(\v22.bitcoin.bitcoind.v1alpha.DecodePsbtResponse.InputR\x06inputs\x12M\n" +
+	"\aoutputs\x18\x04 \x03(\v23.bitcoin.bitcoind.v1alpha.DecodePsbtResponse.OutputR\aoutputs\x12\x10\n" +
+	"\x03fee\x18\x05 \x01(\x01R\x03fee\x1as\n" +
+	"\vWitnessUtxo\x12\x16\n" +
+	"\x06amount\x18\x01 \x01(\x01R\x06amount\x12L\n" +
+	"\x0escript_pub_key\x18\x02 \x01(\v2&.bitcoin.bitcoind.v1alpha.ScriptPubKeyR\fscriptPubKey\x1aF\n" +
+	"\fRedeemScript\x12\x10\n" +
+	"\x03asm\x18\x01 \x01(\tR\x03asm\x12\x10\n" +
+	"\x03hex\x18\x02 \x01(\tR\x03hex\x12\x12\n" +
+	"\x04type\x18\x03 \x01(\tR\x04type\x1ag\n" +
+	"\n" +
+	"Bip32Deriv\x12\x16\n" +
+	"\x06pubkey\x18\x01 \x01(\tR\x06pubkey\x12-\n" +
+	"\x12master_fingerprint\x18\x02 \x01(\tR\x11masterFingerprint\x12\x12\n" +
+	"\x04path\x18\x03 \x01(\tR\x04path\x1a\xd4\a\n" +
+	"\x05Input\x12`\n" +
+	"\x10non_witness_utxo\x18\x01 \x01(\v26.bitcoin.bitcoind.v1alpha.DecodeRawTransactionResponseR\x0enonWitnessUtxo\x12[\n" +
+	"\fwitness_utxo\x18\x02 \x01(\v28.bitcoin.bitcoind.v1alpha.DecodePsbtResponse.WitnessUtxoR\vwitnessUtxo\x12x\n" +
+	"\x12partial_signatures\x18\x03 \x03(\v2I.bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Input.PartialSignaturesEntryR\x11partialSignatures\x12\x18\n" +
+	"\asighash\x18\x04 \x01(\tR\asighash\x12^\n" +
+	"\rredeem_script\x18\x05 \x01(\v29.bitcoin.bitcoind.v1alpha.DecodePsbtResponse.RedeemScriptR\fredeemScript\x12`\n" +
+	"\x0ewitness_script\x18\x06 \x01(\v29.bitcoin.bitcoind.v1alpha.DecodePsbtResponse.RedeemScriptR\rwitnessScript\x12Z\n" +
+	"\fbip32_derivs\x18\a \x03(\v27.bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Bip32DerivR\vbip32Derivs\x12L\n" +
+	"\x0ffinal_scriptsig\x18\b \x01(\v2#.bitcoin.bitcoind.v1alpha.ScriptSigR\x0efinalScriptsig\x12/\n" +
+	"\x13final_scriptwitness\x18\t \x03(\tR\x12finalScriptwitness\x12Y\n" +
+	"\aunknown\x18\n" +
+	" \x03(\v2?.bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Input.UnknownEntryR\aunknown\x1aD\n" +
+	"\x16PartialSignaturesEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1a:\n" +
+	"\fUnknownEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1a\xbe\x03\n" +
+	"\x06Output\x12^\n" +
+	"\rredeem_script\x18\x01 \x01(\v29.bitcoin.bitcoind.v1alpha.DecodePsbtResponse.RedeemScriptR\fredeemScript\x12`\n" +
+	"\x0ewitness_script\x18\x02 \x01(\v29.bitcoin.bitcoind.v1alpha.DecodePsbtResponse.RedeemScriptR\rwitnessScript\x12Z\n" +
+	"\fbip32_derivs\x18\x03 \x03(\v27.bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Bip32DerivR\vbip32Derivs\x12Z\n" +
+	"\aunknown\x18\x04 \x03(\v2@.bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Output.UnknownEntryR\aunknown\x1a:\n" +
+	"\fUnknownEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1a:\n" +
+	"\fUnknownEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"(\n" +
+	"\x12AnalyzePsbtRequest\x12\x12\n" +
+	"\x04psbt\x18\x01 \x01(\tR\x04psbt\"\xb1\x04\n" +
 	"\x13AnalyzePsbtResponse\x12K\n" +
-	"\amissing\x18\x03 \x01(\v2;.bitcoin.bitcoind.v1alpha.AnalyzePsbtResponse.Input.MissingR\amissing\x12\x12\n" +
 	"\x06inputs\x18\x01 \x03(\v23.bitcoin.bitcoind.v1alpha.AnalyzePsbtResponse.InputR\x06inputs\x12'\n" +
+	"\x0festimated_vsize\x18\x02 \x01(\x01R\x0eestimatedVsize\x12+\n" +
+	"\x11estimated_feerate\x18\x03 \x01(\x01R\x10estimatedFeerate\x12\x10\n" +
+	"\x03fee\x18\x04 \x01(\x01R\x03fee\x12\x12\n" +
+	"\x04next\x18\x05 \x01(\tR\x04next\x12\x14\n" +
+	"\x05error\x18\x06 \x01(\tR\x05error\x1a\xba\x02\n" +
+	"\x05Input\x12\x19\n" +
+	"\bhas_utxo\x18\x01 \x01(\bR\ahasUtxo\x12\x19\n" +
+	"\bis_final\x18\x02 \x01(\bR\aisFinal\x12U\n" +
+	"\amissing\x18\x03 \x01(\v2;.bitcoin.bitcoind.v1alpha.AnalyzePsbtResponse.Input.MissingR\amissing\x12\x12\n" +
+	"\x04next\x18\x04 \x01(\tR\x04next\x1a\x8f\x01\n" +
+	"\aMissing\x12\x18\n" +
+	"\apubkeys\x18\x01 \x03(\tR\apubkeys\x12\x1e\n" +
+	"\n" +
+	"signatures\x18\x02 \x03(\tR\n" +
+	"signatures\x12#\n" +
+	"\rredeem_script\x18\x03 \x01(\tR\fredeemScript\x12%\n" +
+	"\x0ewitness_script\x18\x04 \x01(\tR\rwitnessScript\"*\n" +
+	"\x12CombinePsbtRequest\x12\x14\n" +
+	"\x05psbts\x18\x01 \x03(\tR\x05psbts\")\n" +
 	"\x13CombinePsbtResponse\x12\x12\n" +
+	"\x04psbt\x18\x01 \x01(\tR\x04psbt2\xae%\n" +
 	"\x0eBitcoinService\x12|\n" +
 	"\x11GetBlockchainInfo\x122.bitcoin.bitcoind.v1alpha.GetBlockchainInfoRequest\x1a3.bitcoin.bitcoind.v1alpha.GetBlockchainInfoResponse\x12j\n" +
 	"\vGetPeerInfo\x12,.bitcoin.bitcoind.v1alpha.GetPeerInfoRequest\x1a-.bitcoin.bitcoind.v1alpha.GetPeerInfoResponse\x12s\n" +
@@ -7250,7 +8021,8 @@ const file_bitcoin_bitcoind_v1alpha_bitcoin_proto_rawDesc = "" +
 	"\x0eGetAddressInfo\x12/.bitcoin.bitcoind.v1alpha.GetAddressInfoRequest\x1a0.bitcoin.bitcoind.v1alpha.GetAddressInfoResponse\x12p\n" +
 	"\rGetRawMempool\x12..bitcoin.bitcoind.v1alpha.GetRawMempoolRequest\x1a/.bitcoin.bitcoind.v1alpha.GetRawMempoolResponse\x12|\n" +
 	"\x11GetRawTransaction\x122.bitcoin.bitcoind.v1alpha.GetRawTransactionRequest\x1a3.bitcoin.bitcoind.v1alpha.GetRawTransactionResponse\x12\x85\x01\n" +
-	"\x14DecodeRawTransaction\x125.bitcoin.bitcoind.v1alpha.DecodeRawTransactionRequest\x1a6.bitcoin.bitcoind.v1alpha.DecodeRawTransactionResponse\x12a\n" +
+	"\x14DecodeRawTransaction\x125.bitcoin.bitcoind.v1alpha.DecodeRawTransactionRequest\x1a6.bitcoin.bitcoind.v1alpha.DecodeRawTransactionResponse\x12\x85\x01\n" +
+	"\x14CreateRawTransaction\x125.bitcoin.bitcoind.v1alpha.CreateRawTransactionRequest\x1a6.bitcoin.bitcoind.v1alpha.CreateRawTransactionResponse\x12a\n" +
 	"\bGetBlock\x12).bitcoin.bitcoind.v1alpha.GetBlockRequest\x1a*.bitcoin.bitcoind.v1alpha.GetBlockResponse\x12m\n" +
 	"\fGetBlockHash\x12-.bitcoin.bitcoind.v1alpha.GetBlockHashRequest\x1a..bitcoin.bitcoind.v1alpha.GetBlockHashResponse\x12m\n" +
 	"\fCreateWallet\x12-.bitcoin.bitcoind.v1alpha.CreateWalletRequest\x1a..bitcoin.bitcoind.v1alpha.CreateWalletResponse\x12m\n" +
@@ -7271,9 +8043,13 @@ const file_bitcoin_bitcoind_v1alpha_bitcoin_proto_rawDesc = "" +
 	"\x15GetAddressesByAccount\x126.bitcoin.bitcoind.v1alpha.GetAddressesByAccountRequest\x1a7.bitcoin.bitcoind.v1alpha.GetAddressesByAccountResponse\x12m\n" +
 	"\fListAccounts\x12-.bitcoin.bitcoind.v1alpha.ListAccountsRequest\x1a..bitcoin.bitcoind.v1alpha.ListAccountsResponse\x12\x7f\n" +
 	"\x12AddMultisigAddress\x123.bitcoin.bitcoind.v1alpha.AddMultisigAddressRequest\x1a4.bitcoin.bitcoind.v1alpha.AddMultisigAddressResponse\x12s\n" +
-	"CreatePsbt\x12+.bitcoin.bitcoind.v1alpha.CreatePsbtRequest\x1a,.bitcoin.bitcoind.v1alpha.CreatePsbtResponse\x12\x8b\x01\n" +
-	"\vAnalyzePsbt\x12,.bitcoin.bitcoind.v1alpha.AnalyzePsbtRequest\x1a-.bitcoin.bitcoind.v1alpha.AnalyzePsbtResponse\x12|\n" +
-	"\vCombinePsbt\x12,.bitcoin.bitcoind.v1alpha.CombinePsbtRequest\x1a-.bitcoin.bitcoind.v1alpha.CombinePsbtResponse\x12m\n" +
+	"\x0eCreateMultisig\x12/.bitcoin.bitcoind.v1alpha.CreateMultisigRequest\x1a0.bitcoin.bitcoind.v1alpha.CreateMultisigResponse\x12g\n" +
+	"\n" +
+	"CreatePsbt\x12+.bitcoin.bitcoind.v1alpha.CreatePsbtRequest\x1a,.bitcoin.bitcoind.v1alpha.CreatePsbtResponse\x12g\n" +
+	"\n" +
+	"DecodePsbt\x12+.bitcoin.bitcoind.v1alpha.DecodePsbtRequest\x1a,.bitcoin.bitcoind.v1alpha.DecodePsbtResponse\x12j\n" +
+	"\vAnalyzePsbt\x12,.bitcoin.bitcoind.v1alpha.AnalyzePsbtRequest\x1a-.bitcoin.bitcoind.v1alpha.AnalyzePsbtResponse\x12j\n" +
+	"\vCombinePsbt\x12,.bitcoin.bitcoind.v1alpha.CombinePsbtRequest\x1a-.bitcoin.bitcoind.v1alpha.CombinePsbtResponseB\xfb\x01\n" +
 	"\x1ccom.bitcoin.bitcoind.v1alphaB\fBitcoinProtoP\x01ZKgithub.com/barebitcoin/btc-buf/gen/bitcoin/bitcoind/v1alpha;bitcoindv1alpha\xa2\x02\x03BBX\xaa\x02\x18Bitcoin.Bitcoind.V1alpha\xca\x02\x18Bitcoin\\Bitcoind\\V1alpha\xe2\x02$Bitcoin\\Bitcoind\\V1alpha\\GPBMetadata\xea\x02\x1aBitcoin::Bitcoind::V1alphab\x06proto3"
 
 var (
@@ -7289,7 +8065,7 @@ func file_bitcoin_bitcoind_v1alpha_bitcoin_proto_rawDescGZIP() []byte {
 }
 
 var file_bitcoin_bitcoind_v1alpha_bitcoin_proto_enumTypes = make([]protoimpl.EnumInfo, 7)
-var file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes = make([]protoimpl.MessageInfo, 93)
+var file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes = make([]protoimpl.MessageInfo, 118)
 var file_bitcoin_bitcoind_v1alpha_bitcoin_proto_goTypes = []any{
 	(Peer_Network)(0),                          // 0: bitcoin.bitcoind.v1alpha.Peer.Network
 	(Peer_ConnectionType)(0),                   // 1: bitcoin.bitcoind.v1alpha.Peer.ConnectionType
@@ -7379,73 +8155,212 @@ var file_bitcoin_bitcoind_v1alpha_bitcoin_proto_goTypes = []any{
 	(*AddMultisigAddressResponse)(nil),         // 85: bitcoin.bitcoind.v1alpha.AddMultisigAddressResponse
 	(*CreateMultisigRequest)(nil),              // 86: bitcoin.bitcoind.v1alpha.CreateMultisigRequest
 	(*CreateMultisigResponse)(nil),             // 87: bitcoin.bitcoind.v1alpha.CreateMultisigResponse
+	(*CreateRawTransactionRequest)(nil),        // 88: bitcoin.bitcoind.v1alpha.CreateRawTransactionRequest
+	(*CreateRawTransactionResponse)(nil),       // 89: bitcoin.bitcoind.v1alpha.CreateRawTransactionResponse
 	(*CreatePsbtRequest)(nil),                  // 90: bitcoin.bitcoind.v1alpha.CreatePsbtRequest
 	(*CreatePsbtResponse)(nil),                 // 91: bitcoin.bitcoind.v1alpha.CreatePsbtResponse
-	(*AnalyzePsbtRequest)(nil),                 // 96: bitcoin.bitcoind.v1alpha.AnalyzePsbtRequest
-	(*AnalyzePsbtResponse)(nil),                // 97: bitcoin.bitcoind.v1alpha.AnalyzePsbtResponse
-	(*CombinePsbtRequest)(nil),                 // 100: bitcoin.bitcoind.v1alpha.CombinePsbtRequest
-	(*CombinePsbtResponse)(nil),                // 101: bitcoin.bitcoind.v1alpha.CombinePsbtResponse
-	(*CreatePsbtRequest_Input)(nil), // 124: bitcoin.bitcoind.v1alpha.CreatePsbtRequest.Input
-	nil,                             // 125: bitcoin.bitcoind.v1alpha.CreatePsbtRequest.OutputsEntry
-	(*AnalyzePsbtResponse_Input)(nil),             // 133: bitcoin.bitcoind.v1alpha.AnalyzePsbtResponse.Input
-	(*AnalyzePsbtResponse_Input_Missing)(nil), // 134: bitcoin.bitcoind.v1alpha.AnalyzePsbtResponse.Input.Missing
+	(*DecodePsbtRequest)(nil),                  // 92: bitcoin.bitcoind.v1alpha.DecodePsbtRequest
+	(*DecodePsbtResponse)(nil),                 // 93: bitcoin.bitcoind.v1alpha.DecodePsbtResponse
+	(*AnalyzePsbtRequest)(nil),                 // 94: bitcoin.bitcoind.v1alpha.AnalyzePsbtRequest
+	(*AnalyzePsbtResponse)(nil),                // 95: bitcoin.bitcoind.v1alpha.AnalyzePsbtResponse
+	(*CombinePsbtRequest)(nil),                 // 96: bitcoin.bitcoind.v1alpha.CombinePsbtRequest
+	(*CombinePsbtResponse)(nil),                // 97: bitcoin.bitcoind.v1alpha.CombinePsbtResponse
+	nil,                                        // 98: bitcoin.bitcoind.v1alpha.Peer.BytesSentPerMsgEntry
+	nil,                                        // 99: bitcoin.bitcoind.v1alpha.Peer.BytesReceivedPerMsgEntry
+	(*GetBalancesResponse_Mine)(nil),           // 100: bitcoin.bitcoind.v1alpha.GetBalancesResponse.Mine
+	(*GetBalancesResponse_Watchonly)(nil),      // 101: bitcoin.bitcoind.v1alpha.GetBalancesResponse.Watchonly
+	(*GetTransactionResponse_Details)(nil),     // 102: bitcoin.bitcoind.v1alpha.GetTransactionResponse.Details
+	nil,                                        // 103: bitcoin.bitcoind.v1alpha.SendRequest.DestinationsEntry
+	(*ImportDescriptorsRequest_Request)(nil),   // 104: bitcoin.bitcoind.v1alpha.ImportDescriptorsRequest.Request
+	(*ImportDescriptorsResponse_Error)(nil),    // 105: bitcoin.bitcoind.v1alpha.ImportDescriptorsResponse.Error
+	(*ImportDescriptorsResponse_Response)(nil), // 106: bitcoin.bitcoind.v1alpha.ImportDescriptorsResponse.Response
+	(*MempoolEntry_Fees)(nil),                  // 107: bitcoin.bitcoind.v1alpha.MempoolEntry.Fees
+	nil,                                        // 108: bitcoin.bitcoind.v1alpha.GetRawMempoolResponse.TransactionsEntry
+	nil,                                        // 109: bitcoin.bitcoind.v1alpha.ListAccountsResponse.AccountsEntry
+	(*CreateRawTransactionRequest_Input)(nil),  // 110: bitcoin.bitcoind.v1alpha.CreateRawTransactionRequest.Input
+	nil,                                     // 111: bitcoin.bitcoind.v1alpha.CreateRawTransactionRequest.OutputsEntry
+	(*CreatePsbtRequest_Input)(nil),         // 112: bitcoin.bitcoind.v1alpha.CreatePsbtRequest.Input
+	nil,                                     // 113: bitcoin.bitcoind.v1alpha.CreatePsbtRequest.OutputsEntry
+	(*DecodePsbtResponse_WitnessUtxo)(nil),  // 114: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.WitnessUtxo
+	(*DecodePsbtResponse_RedeemScript)(nil), // 115: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.RedeemScript
+	(*DecodePsbtResponse_Bip32Deriv)(nil),   // 116: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Bip32Deriv
+	(*DecodePsbtResponse_Input)(nil),        // 117: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Input
+	(*DecodePsbtResponse_Output)(nil),       // 118: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Output
+	nil,                                     // 119: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.UnknownEntry
+	nil,                                     // 120: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Input.PartialSignaturesEntry
+	nil,                                     // 121: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Input.UnknownEntry
+	nil,                                     // 122: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Output.UnknownEntry
+	(*AnalyzePsbtResponse_Input)(nil),       // 123: bitcoin.bitcoind.v1alpha.AnalyzePsbtResponse.Input
+	(*AnalyzePsbtResponse_Input_Missing)(nil), // 124: bitcoin.bitcoind.v1alpha.AnalyzePsbtResponse.Input.Missing
+	(*timestamppb.Timestamp)(nil),             // 125: google.protobuf.Timestamp
+	(*durationpb.Duration)(nil),               // 126: google.protobuf.Duration
+	(*wrapperspb.BoolValue)(nil),              // 127: google.protobuf.BoolValue
+	(*emptypb.Empty)(nil),                     // 128: google.protobuf.Empty
 }
 var file_bitcoin_bitcoind_v1alpha_bitcoin_proto_depIdxs = []int32{
 	0,   // 0: bitcoin.bitcoind.v1alpha.Peer.network:type_name -> bitcoin.bitcoind.v1alpha.Peer.Network
-	100, // 1: bitcoin.bitcoind.v1alpha.Peer.last_send_at:type_name -> google.protobuf.Timestamp
-	100, // 2: bitcoin.bitcoind.v1alpha.Peer.last_recv_at:type_name -> google.protobuf.Timestamp
-	100, // 3: bitcoin.bitcoind.v1alpha.Peer.last_transaction_at:type_name -> google.protobuf.Timestamp
-	100, // 4: bitcoin.bitcoind.v1alpha.Peer.last_block_at:type_name -> google.protobuf.Timestamp
-	100, // 5: bitcoin.bitcoind.v1alpha.Peer.connected_at:type_name -> google.protobuf.Timestamp
-	101, // 6: bitcoin.bitcoind.v1alpha.Peer.time_offset:type_name -> google.protobuf.Duration
-	101, // 7: bitcoin.bitcoind.v1alpha.Peer.ping_time:type_name -> google.protobuf.Duration
-	101, // 8: bitcoin.bitcoind.v1alpha.Peer.min_ping:type_name -> google.protobuf.Duration
-	101, // 9: bitcoin.bitcoind.v1alpha.Peer.ping_wait:type_name -> google.protobuf.Duration
-	88,  // 10: bitcoin.bitcoind.v1alpha.Peer.bytes_sent_per_msg:type_name -> bitcoin.bitcoind.v1alpha.Peer.BytesSentPerMsgEntry
-	89,  // 11: bitcoin.bitcoind.v1alpha.Peer.bytes_received_per_msg:type_name -> bitcoin.bitcoind.v1alpha.Peer.BytesReceivedPerMsgEntry
+	125, // 1: bitcoin.bitcoind.v1alpha.Peer.last_send_at:type_name -> google.protobuf.Timestamp
+	125, // 2: bitcoin.bitcoind.v1alpha.Peer.last_recv_at:type_name -> google.protobuf.Timestamp
+	125, // 3: bitcoin.bitcoind.v1alpha.Peer.last_transaction_at:type_name -> google.protobuf.Timestamp
+	125, // 4: bitcoin.bitcoind.v1alpha.Peer.last_block_at:type_name -> google.protobuf.Timestamp
+	125, // 5: bitcoin.bitcoind.v1alpha.Peer.connected_at:type_name -> google.protobuf.Timestamp
+	126, // 6: bitcoin.bitcoind.v1alpha.Peer.time_offset:type_name -> google.protobuf.Duration
+	126, // 7: bitcoin.bitcoind.v1alpha.Peer.ping_time:type_name -> google.protobuf.Duration
+	126, // 8: bitcoin.bitcoind.v1alpha.Peer.min_ping:type_name -> google.protobuf.Duration
+	126, // 9: bitcoin.bitcoind.v1alpha.Peer.ping_wait:type_name -> google.protobuf.Duration
+	98,  // 10: bitcoin.bitcoind.v1alpha.Peer.bytes_sent_per_msg:type_name -> bitcoin.bitcoind.v1alpha.Peer.BytesSentPerMsgEntry
+	99,  // 11: bitcoin.bitcoind.v1alpha.Peer.bytes_received_per_msg:type_name -> bitcoin.bitcoind.v1alpha.Peer.BytesReceivedPerMsgEntry
 	1,   // 12: bitcoin.bitcoind.v1alpha.Peer.connection_type:type_name -> bitcoin.bitcoind.v1alpha.Peer.ConnectionType
 	2,   // 13: bitcoin.bitcoind.v1alpha.Peer.transport_protocol:type_name -> bitcoin.bitcoind.v1alpha.Peer.TransportProtocol
 	10,  // 14: bitcoin.bitcoind.v1alpha.GetPeerInfoResponse.peers:type_name -> bitcoin.bitcoind.v1alpha.Peer
 	18,  // 15: bitcoin.bitcoind.v1alpha.GetWalletInfoResponse.scanning:type_name -> bitcoin.bitcoind.v1alpha.WalletScan
-	90,  // 16: bitcoin.bitcoind.v1alpha.GetBalancesResponse.mine:type_name -> bitcoin.bitcoind.v1alpha.GetBalancesResponse.Mine
-	91,  // 17: bitcoin.bitcoind.v1alpha.GetBalancesResponse.watchonly:type_name -> bitcoin.bitcoind.v1alpha.GetBalancesResponse.Watchonly
-	100, // 18: bitcoin.bitcoind.v1alpha.GetTransactionResponse.block_time:type_name -> google.protobuf.Timestamp
-	100, // 19: bitcoin.bitcoind.v1alpha.GetTransactionResponse.time:type_name -> google.protobuf.Timestamp
-	100, // 20: bitcoin.bitcoind.v1alpha.GetTransactionResponse.time_received:type_name -> google.protobuf.Timestamp
+	100, // 16: bitcoin.bitcoind.v1alpha.GetBalancesResponse.mine:type_name -> bitcoin.bitcoind.v1alpha.GetBalancesResponse.Mine
+	101, // 17: bitcoin.bitcoind.v1alpha.GetBalancesResponse.watchonly:type_name -> bitcoin.bitcoind.v1alpha.GetBalancesResponse.Watchonly
+	125, // 18: bitcoin.bitcoind.v1alpha.GetTransactionResponse.block_time:type_name -> google.protobuf.Timestamp
+	125, // 19: bitcoin.bitcoind.v1alpha.GetTransactionResponse.time:type_name -> google.protobuf.Timestamp
+	125, // 20: bitcoin.bitcoind.v1alpha.GetTransactionResponse.time_received:type_name -> google.protobuf.Timestamp
 	3,   // 21: bitcoin.bitcoind.v1alpha.GetTransactionResponse.bip125_replaceable:type_name -> bitcoin.bitcoind.v1alpha.GetTransactionResponse.Replaceable
-	92,  // 22: bitcoin.bitcoind.v1alpha.GetTransactionResponse.details:type_name -> bitcoin.bitcoind.v1alpha.GetTransactionResponse.Details
+	102, // 22: bitcoin.bitcoind.v1alpha.GetTransactionResponse.details:type_name -> bitcoin.bitcoind.v1alpha.GetTransactionResponse.Details
 	22,  // 23: bitcoin.bitcoind.v1alpha.Input.script_sig:type_name -> bitcoin.bitcoind.v1alpha.ScriptSig
 	24,  // 24: bitcoin.bitcoind.v1alpha.Output.script_pub_key:type_name -> bitcoin.bitcoind.v1alpha.ScriptPubKey
 	22,  // 25: bitcoin.bitcoind.v1alpha.Output.script_sig:type_name -> bitcoin.bitcoind.v1alpha.ScriptSig
 	34,  // 26: bitcoin.bitcoind.v1alpha.GetRawTransactionResponse.tx:type_name -> bitcoin.bitcoind.v1alpha.RawTransaction
 	23,  // 27: bitcoin.bitcoind.v1alpha.GetRawTransactionResponse.inputs:type_name -> bitcoin.bitcoind.v1alpha.Input
 	25,  // 28: bitcoin.bitcoind.v1alpha.GetRawTransactionResponse.outputs:type_name -> bitcoin.bitcoind.v1alpha.Output
-	93,  // 29: bitcoin.bitcoind.v1alpha.SendRequest.destinations:type_name -> bitcoin.bitcoind.v1alpha.SendRequest.DestinationsEntry
-	102, // 30: bitcoin.bitcoind.v1alpha.SendRequest.add_to_wallet:type_name -> google.protobuf.BoolValue
+	103, // 29: bitcoin.bitcoind.v1alpha.SendRequest.destinations:type_name -> bitcoin.bitcoind.v1alpha.SendRequest.DestinationsEntry
+	127, // 30: bitcoin.bitcoind.v1alpha.SendRequest.add_to_wallet:type_name -> google.protobuf.BoolValue
 	34,  // 31: bitcoin.bitcoind.v1alpha.SendResponse.tx:type_name -> bitcoin.bitcoind.v1alpha.RawTransaction
 	5,   // 32: bitcoin.bitcoind.v1alpha.EstimateSmartFeeRequest.estimate_mode:type_name -> bitcoin.bitcoind.v1alpha.EstimateSmartFeeRequest.EstimateMode
 	34,  // 33: bitcoin.bitcoind.v1alpha.DecodeRawTransactionRequest.tx:type_name -> bitcoin.bitcoind.v1alpha.RawTransaction
 	23,  // 34: bitcoin.bitcoind.v1alpha.DecodeRawTransactionResponse.inputs:type_name -> bitcoin.bitcoind.v1alpha.Input
 	25,  // 35: bitcoin.bitcoind.v1alpha.DecodeRawTransactionResponse.outputs:type_name -> bitcoin.bitcoind.v1alpha.Output
-	94,  // 36: bitcoin.bitcoind.v1alpha.ImportDescriptorsRequest.requests:type_name -> bitcoin.bitcoind.v1alpha.ImportDescriptorsRequest.Request
-	96,  // 37: bitcoin.bitcoind.v1alpha.ImportDescriptorsResponse.responses:type_name -> bitcoin.bitcoind.v1alpha.ImportDescriptorsResponse.Response
+	104, // 36: bitcoin.bitcoind.v1alpha.ImportDescriptorsRequest.requests:type_name -> bitcoin.bitcoind.v1alpha.ImportDescriptorsRequest.Request
+	106, // 37: bitcoin.bitcoind.v1alpha.ImportDescriptorsResponse.responses:type_name -> bitcoin.bitcoind.v1alpha.ImportDescriptorsResponse.Response
 	6,   // 38: bitcoin.bitcoind.v1alpha.GetBlockRequest.verbosity:type_name -> bitcoin.bitcoind.v1alpha.GetBlockRequest.Verbosity
-	100, // 39: bitcoin.bitcoind.v1alpha.GetBlockResponse.time:type_name -> google.protobuf.Timestamp
+	125, // 39: bitcoin.bitcoind.v1alpha.GetBlockResponse.time:type_name -> google.protobuf.Timestamp
 	20,  // 40: bitcoin.bitcoind.v1alpha.ListSinceBlockResponse.transactions:type_name -> bitcoin.bitcoind.v1alpha.GetTransactionResponse
-	100, // 41: bitcoin.bitcoind.v1alpha.MempoolEntry.time:type_name -> google.protobuf.Timestamp
-	97,  // 42: bitcoin.bitcoind.v1alpha.MempoolEntry.fees:type_name -> bitcoin.bitcoind.v1alpha.MempoolEntry.Fees
-	98,  // 43: bitcoin.bitcoind.v1alpha.GetRawMempoolResponse.transactions:type_name -> bitcoin.bitcoind.v1alpha.GetRawMempoolResponse.TransactionsEntry
+	125, // 41: bitcoin.bitcoind.v1alpha.MempoolEntry.time:type_name -> google.protobuf.Timestamp
+	107, // 42: bitcoin.bitcoind.v1alpha.MempoolEntry.fees:type_name -> bitcoin.bitcoind.v1alpha.MempoolEntry.Fees
+	108, // 43: bitcoin.bitcoind.v1alpha.GetRawMempoolResponse.transactions:type_name -> bitcoin.bitcoind.v1alpha.GetRawMempoolResponse.TransactionsEntry
 	20,  // 44: bitcoin.bitcoind.v1alpha.ListTransactionsResponse.transactions:type_name -> bitcoin.bitcoind.v1alpha.GetTransactionResponse
-	124, // 49: bitcoin.bitcoind.v1alpha.CreatePsbtRequest.inputs:type_name -> bitcoin.bitcoind.v1alpha.CreatePsbtRequest.Input
-	125, // 50: bitcoin.bitcoind.v1alpha.CreatePsbtRequest.outputs:type_name -> bitcoin.bitcoind.v1alpha.CreatePsbtRequest.OutputsEntry
-	133, // 56: bitcoin.bitcoind.v1alpha.AnalyzePsbtResponse.inputs:type_name -> bitcoin.bitcoind.v1alpha.AnalyzePsbtResponse.Input
-	134, // 65: bitcoin.bitcoind.v1alpha.AnalyzePsbtResponse.Input.missing:type_name -> bitcoin.bitcoind.v1alpha.AnalyzePsbtResponse.Input.Missing
-	90,  // 104: bitcoin.bitcoind.v1alpha.BitcoinService.CreatePsbt:input_type -> bitcoin.bitcoind.v1alpha.CreatePsbtRequest
-	96,  // 107: bitcoin.bitcoind.v1alpha.BitcoinService.AnalyzePsbt:input_type -> bitcoin.bitcoind.v1alpha.AnalyzePsbtRequest
-	100, // 109: bitcoin.bitcoind.v1alpha.BitcoinService.CombinePsbt:input_type -> bitcoin.bitcoind.v1alpha.CombinePsbtRequest
-	91,  // 152: bitcoin.bitcoind.v1alpha.BitcoinService.CreatePsbt:output_type -> bitcoin.bitcoind.v1alpha.CreatePsbtResponse
-	97,  // 155: bitcoin.bitcoind.v1alpha.BitcoinService.AnalyzePsbt:output_type -> bitcoin.bitcoind.v1alpha.AnalyzePsbtResponse
-	101, // 157: bitcoin.bitcoind.v1alpha.BitcoinService.CombinePsbt:output_type -> bitcoin.bitcoind.v1alpha.CombinePsbtResponse
+	109, // 45: bitcoin.bitcoind.v1alpha.ListAccountsResponse.accounts:type_name -> bitcoin.bitcoind.v1alpha.ListAccountsResponse.AccountsEntry
+	110, // 46: bitcoin.bitcoind.v1alpha.CreateRawTransactionRequest.inputs:type_name -> bitcoin.bitcoind.v1alpha.CreateRawTransactionRequest.Input
+	111, // 47: bitcoin.bitcoind.v1alpha.CreateRawTransactionRequest.outputs:type_name -> bitcoin.bitcoind.v1alpha.CreateRawTransactionRequest.OutputsEntry
+	34,  // 48: bitcoin.bitcoind.v1alpha.CreateRawTransactionResponse.tx:type_name -> bitcoin.bitcoind.v1alpha.RawTransaction
+	112, // 49: bitcoin.bitcoind.v1alpha.CreatePsbtRequest.inputs:type_name -> bitcoin.bitcoind.v1alpha.CreatePsbtRequest.Input
+	113, // 50: bitcoin.bitcoind.v1alpha.CreatePsbtRequest.outputs:type_name -> bitcoin.bitcoind.v1alpha.CreatePsbtRequest.OutputsEntry
+	35,  // 51: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.tx:type_name -> bitcoin.bitcoind.v1alpha.DecodeRawTransactionResponse
+	119, // 52: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.unknown:type_name -> bitcoin.bitcoind.v1alpha.DecodePsbtResponse.UnknownEntry
+	117, // 53: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.inputs:type_name -> bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Input
+	118, // 54: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.outputs:type_name -> bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Output
+	123, // 55: bitcoin.bitcoind.v1alpha.AnalyzePsbtResponse.inputs:type_name -> bitcoin.bitcoind.v1alpha.AnalyzePsbtResponse.Input
+	4,   // 56: bitcoin.bitcoind.v1alpha.GetTransactionResponse.Details.category:type_name -> bitcoin.bitcoind.v1alpha.GetTransactionResponse.Category
+	125, // 57: bitcoin.bitcoind.v1alpha.ImportDescriptorsRequest.Request.timestamp:type_name -> google.protobuf.Timestamp
+	105, // 58: bitcoin.bitcoind.v1alpha.ImportDescriptorsResponse.Response.error:type_name -> bitcoin.bitcoind.v1alpha.ImportDescriptorsResponse.Error
+	47,  // 59: bitcoin.bitcoind.v1alpha.GetRawMempoolResponse.TransactionsEntry.value:type_name -> bitcoin.bitcoind.v1alpha.MempoolEntry
+	24,  // 60: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.WitnessUtxo.script_pub_key:type_name -> bitcoin.bitcoind.v1alpha.ScriptPubKey
+	35,  // 61: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Input.non_witness_utxo:type_name -> bitcoin.bitcoind.v1alpha.DecodeRawTransactionResponse
+	114, // 62: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Input.witness_utxo:type_name -> bitcoin.bitcoind.v1alpha.DecodePsbtResponse.WitnessUtxo
+	120, // 63: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Input.partial_signatures:type_name -> bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Input.PartialSignaturesEntry
+	115, // 64: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Input.redeem_script:type_name -> bitcoin.bitcoind.v1alpha.DecodePsbtResponse.RedeemScript
+	115, // 65: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Input.witness_script:type_name -> bitcoin.bitcoind.v1alpha.DecodePsbtResponse.RedeemScript
+	116, // 66: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Input.bip32_derivs:type_name -> bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Bip32Deriv
+	22,  // 67: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Input.final_scriptsig:type_name -> bitcoin.bitcoind.v1alpha.ScriptSig
+	121, // 68: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Input.unknown:type_name -> bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Input.UnknownEntry
+	115, // 69: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Output.redeem_script:type_name -> bitcoin.bitcoind.v1alpha.DecodePsbtResponse.RedeemScript
+	115, // 70: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Output.witness_script:type_name -> bitcoin.bitcoind.v1alpha.DecodePsbtResponse.RedeemScript
+	116, // 71: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Output.bip32_derivs:type_name -> bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Bip32Deriv
+	122, // 72: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Output.unknown:type_name -> bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Output.UnknownEntry
+	124, // 73: bitcoin.bitcoind.v1alpha.AnalyzePsbtResponse.Input.missing:type_name -> bitcoin.bitcoind.v1alpha.AnalyzePsbtResponse.Input.Missing
+	7,   // 74: bitcoin.bitcoind.v1alpha.BitcoinService.GetBlockchainInfo:input_type -> bitcoin.bitcoind.v1alpha.GetBlockchainInfoRequest
+	9,   // 75: bitcoin.bitcoind.v1alpha.BitcoinService.GetPeerInfo:input_type -> bitcoin.bitcoind.v1alpha.GetPeerInfoRequest
+	19,  // 76: bitcoin.bitcoind.v1alpha.BitcoinService.GetTransaction:input_type -> bitcoin.bitcoind.v1alpha.GetTransactionRequest
+	44,  // 77: bitcoin.bitcoind.v1alpha.BitcoinService.ListSinceBlock:input_type -> bitcoin.bitcoind.v1alpha.ListSinceBlockRequest
+	12,  // 78: bitcoin.bitcoind.v1alpha.BitcoinService.GetNewAddress:input_type -> bitcoin.bitcoind.v1alpha.GetNewAddressRequest
+	14,  // 79: bitcoin.bitcoind.v1alpha.BitcoinService.GetWalletInfo:input_type -> bitcoin.bitcoind.v1alpha.GetWalletInfoRequest
+	16,  // 80: bitcoin.bitcoind.v1alpha.BitcoinService.GetBalances:input_type -> bitcoin.bitcoind.v1alpha.GetBalancesRequest
+	27,  // 81: bitcoin.bitcoind.v1alpha.BitcoinService.Send:input_type -> bitcoin.bitcoind.v1alpha.SendRequest
+	29,  // 82: bitcoin.bitcoind.v1alpha.BitcoinService.SendToAddress:input_type -> bitcoin.bitcoind.v1alpha.SendToAddressRequest
+	42,  // 83: bitcoin.bitcoind.v1alpha.BitcoinService.BumpFee:input_type -> bitcoin.bitcoind.v1alpha.BumpFeeRequest
+	31,  // 84: bitcoin.bitcoind.v1alpha.BitcoinService.EstimateSmartFee:input_type -> bitcoin.bitcoind.v1alpha.EstimateSmartFeeRequest
+	36,  // 85: bitcoin.bitcoind.v1alpha.BitcoinService.ImportDescriptors:input_type -> bitcoin.bitcoind.v1alpha.ImportDescriptorsRequest
+	128, // 86: bitcoin.bitcoind.v1alpha.BitcoinService.ListWallets:input_type -> google.protobuf.Empty
+	51,  // 87: bitcoin.bitcoind.v1alpha.BitcoinService.ListTransactions:input_type -> bitcoin.bitcoind.v1alpha.ListTransactionsRequest
+	38,  // 88: bitcoin.bitcoind.v1alpha.BitcoinService.GetDescriptorInfo:input_type -> bitcoin.bitcoind.v1alpha.GetDescriptorInfoRequest
+	54,  // 89: bitcoin.bitcoind.v1alpha.BitcoinService.GetAddressInfo:input_type -> bitcoin.bitcoind.v1alpha.GetAddressInfoRequest
+	46,  // 90: bitcoin.bitcoind.v1alpha.BitcoinService.GetRawMempool:input_type -> bitcoin.bitcoind.v1alpha.GetRawMempoolRequest
+	21,  // 91: bitcoin.bitcoind.v1alpha.BitcoinService.GetRawTransaction:input_type -> bitcoin.bitcoind.v1alpha.GetRawTransactionRequest
+	33,  // 92: bitcoin.bitcoind.v1alpha.BitcoinService.DecodeRawTransaction:input_type -> bitcoin.bitcoind.v1alpha.DecodeRawTransactionRequest
+	88,  // 93: bitcoin.bitcoind.v1alpha.BitcoinService.CreateRawTransaction:input_type -> bitcoin.bitcoind.v1alpha.CreateRawTransactionRequest
+	40,  // 94: bitcoin.bitcoind.v1alpha.BitcoinService.GetBlock:input_type -> bitcoin.bitcoind.v1alpha.GetBlockRequest
+	49,  // 95: bitcoin.bitcoind.v1alpha.BitcoinService.GetBlockHash:input_type -> bitcoin.bitcoind.v1alpha.GetBlockHashRequest
+	56,  // 96: bitcoin.bitcoind.v1alpha.BitcoinService.CreateWallet:input_type -> bitcoin.bitcoind.v1alpha.CreateWalletRequest
+	58,  // 97: bitcoin.bitcoind.v1alpha.BitcoinService.BackupWallet:input_type -> bitcoin.bitcoind.v1alpha.BackupWalletRequest
+	60,  // 98: bitcoin.bitcoind.v1alpha.BitcoinService.DumpWallet:input_type -> bitcoin.bitcoind.v1alpha.DumpWalletRequest
+	62,  // 99: bitcoin.bitcoind.v1alpha.BitcoinService.ImportWallet:input_type -> bitcoin.bitcoind.v1alpha.ImportWalletRequest
+	64,  // 100: bitcoin.bitcoind.v1alpha.BitcoinService.UnloadWallet:input_type -> bitcoin.bitcoind.v1alpha.UnloadWalletRequest
+	66,  // 101: bitcoin.bitcoind.v1alpha.BitcoinService.DumpPrivKey:input_type -> bitcoin.bitcoind.v1alpha.DumpPrivKeyRequest
+	68,  // 102: bitcoin.bitcoind.v1alpha.BitcoinService.ImportPrivKey:input_type -> bitcoin.bitcoind.v1alpha.ImportPrivKeyRequest
+	70,  // 103: bitcoin.bitcoind.v1alpha.BitcoinService.ImportAddress:input_type -> bitcoin.bitcoind.v1alpha.ImportAddressRequest
+	72,  // 104: bitcoin.bitcoind.v1alpha.BitcoinService.ImportPubKey:input_type -> bitcoin.bitcoind.v1alpha.ImportPubKeyRequest
+	74,  // 105: bitcoin.bitcoind.v1alpha.BitcoinService.KeyPoolRefill:input_type -> bitcoin.bitcoind.v1alpha.KeyPoolRefillRequest
+	76,  // 106: bitcoin.bitcoind.v1alpha.BitcoinService.GetAccount:input_type -> bitcoin.bitcoind.v1alpha.GetAccountRequest
+	78,  // 107: bitcoin.bitcoind.v1alpha.BitcoinService.SetAccount:input_type -> bitcoin.bitcoind.v1alpha.SetAccountRequest
+	80,  // 108: bitcoin.bitcoind.v1alpha.BitcoinService.GetAddressesByAccount:input_type -> bitcoin.bitcoind.v1alpha.GetAddressesByAccountRequest
+	82,  // 109: bitcoin.bitcoind.v1alpha.BitcoinService.ListAccounts:input_type -> bitcoin.bitcoind.v1alpha.ListAccountsRequest
+	84,  // 110: bitcoin.bitcoind.v1alpha.BitcoinService.AddMultisigAddress:input_type -> bitcoin.bitcoind.v1alpha.AddMultisigAddressRequest
+	86,  // 111: bitcoin.bitcoind.v1alpha.BitcoinService.CreateMultisig:input_type -> bitcoin.bitcoind.v1alpha.CreateMultisigRequest
+	90,  // 112: bitcoin.bitcoind.v1alpha.BitcoinService.CreatePsbt:input_type -> bitcoin.bitcoind.v1alpha.CreatePsbtRequest
+	92,  // 113: bitcoin.bitcoind.v1alpha.BitcoinService.DecodePsbt:input_type -> bitcoin.bitcoind.v1alpha.DecodePsbtRequest
+	94,  // 114: bitcoin.bitcoind.v1alpha.BitcoinService.AnalyzePsbt:input_type -> bitcoin.bitcoind.v1alpha.AnalyzePsbtRequest
+	96,  // 115: bitcoin.bitcoind.v1alpha.BitcoinService.CombinePsbt:input_type -> bitcoin.bitcoind.v1alpha.CombinePsbtRequest
+	8,   // 116: bitcoin.bitcoind.v1alpha.BitcoinService.GetBlockchainInfo:output_type -> bitcoin.bitcoind.v1alpha.GetBlockchainInfoResponse
+	11,  // 117: bitcoin.bitcoind.v1alpha.BitcoinService.GetPeerInfo:output_type -> bitcoin.bitcoind.v1alpha.GetPeerInfoResponse
+	20,  // 118: bitcoin.bitcoind.v1alpha.BitcoinService.GetTransaction:output_type -> bitcoin.bitcoind.v1alpha.GetTransactionResponse
+	45,  // 119: bitcoin.bitcoind.v1alpha.BitcoinService.ListSinceBlock:output_type -> bitcoin.bitcoind.v1alpha.ListSinceBlockResponse
+	13,  // 120: bitcoin.bitcoind.v1alpha.BitcoinService.GetNewAddress:output_type -> bitcoin.bitcoind.v1alpha.GetNewAddressResponse
+	15,  // 121: bitcoin.bitcoind.v1alpha.BitcoinService.GetWalletInfo:output_type -> bitcoin.bitcoind.v1alpha.GetWalletInfoResponse
+	17,  // 122: bitcoin.bitcoind.v1alpha.BitcoinService.GetBalances:output_type -> bitcoin.bitcoind.v1alpha.GetBalancesResponse
+	28,  // 123: bitcoin.bitcoind.v1alpha.BitcoinService.Send:output_type -> bitcoin.bitcoind.v1alpha.SendResponse
+	30,  // 124: bitcoin.bitcoind.v1alpha.BitcoinService.SendToAddress:output_type -> bitcoin.bitcoind.v1alpha.SendToAddressResponse
+	43,  // 125: bitcoin.bitcoind.v1alpha.BitcoinService.BumpFee:output_type -> bitcoin.bitcoind.v1alpha.BumpFeeResponse
+	32,  // 126: bitcoin.bitcoind.v1alpha.BitcoinService.EstimateSmartFee:output_type -> bitcoin.bitcoind.v1alpha.EstimateSmartFeeResponse
+	37,  // 127: bitcoin.bitcoind.v1alpha.BitcoinService.ImportDescriptors:output_type -> bitcoin.bitcoind.v1alpha.ImportDescriptorsResponse
+	53,  // 128: bitcoin.bitcoind.v1alpha.BitcoinService.ListWallets:output_type -> bitcoin.bitcoind.v1alpha.ListWalletsResponse
+	52,  // 129: bitcoin.bitcoind.v1alpha.BitcoinService.ListTransactions:output_type -> bitcoin.bitcoind.v1alpha.ListTransactionsResponse
+	39,  // 130: bitcoin.bitcoind.v1alpha.BitcoinService.GetDescriptorInfo:output_type -> bitcoin.bitcoind.v1alpha.GetDescriptorInfoResponse
+	55,  // 131: bitcoin.bitcoind.v1alpha.BitcoinService.GetAddressInfo:output_type -> bitcoin.bitcoind.v1alpha.GetAddressInfoResponse
+	48,  // 132: bitcoin.bitcoind.v1alpha.BitcoinService.GetRawMempool:output_type -> bitcoin.bitcoind.v1alpha.GetRawMempoolResponse
+	26,  // 133: bitcoin.bitcoind.v1alpha.BitcoinService.GetRawTransaction:output_type -> bitcoin.bitcoind.v1alpha.GetRawTransactionResponse
+	35,  // 134: bitcoin.bitcoind.v1alpha.BitcoinService.DecodeRawTransaction:output_type -> bitcoin.bitcoind.v1alpha.DecodeRawTransactionResponse
+	89,  // 135: bitcoin.bitcoind.v1alpha.BitcoinService.CreateRawTransaction:output_type -> bitcoin.bitcoind.v1alpha.CreateRawTransactionResponse
+	41,  // 136: bitcoin.bitcoind.v1alpha.BitcoinService.GetBlock:output_type -> bitcoin.bitcoind.v1alpha.GetBlockResponse
+	50,  // 137: bitcoin.bitcoind.v1alpha.BitcoinService.GetBlockHash:output_type -> bitcoin.bitcoind.v1alpha.GetBlockHashResponse
+	57,  // 138: bitcoin.bitcoind.v1alpha.BitcoinService.CreateWallet:output_type -> bitcoin.bitcoind.v1alpha.CreateWalletResponse
+	59,  // 139: bitcoin.bitcoind.v1alpha.BitcoinService.BackupWallet:output_type -> bitcoin.bitcoind.v1alpha.BackupWalletResponse
+	61,  // 140: bitcoin.bitcoind.v1alpha.BitcoinService.DumpWallet:output_type -> bitcoin.bitcoind.v1alpha.DumpWalletResponse
+	63,  // 141: bitcoin.bitcoind.v1alpha.BitcoinService.ImportWallet:output_type -> bitcoin.bitcoind.v1alpha.ImportWalletResponse
+	65,  // 142: bitcoin.bitcoind.v1alpha.BitcoinService.UnloadWallet:output_type -> bitcoin.bitcoind.v1alpha.UnloadWalletResponse
+	67,  // 143: bitcoin.bitcoind.v1alpha.BitcoinService.DumpPrivKey:output_type -> bitcoin.bitcoind.v1alpha.DumpPrivKeyResponse
+	69,  // 144: bitcoin.bitcoind.v1alpha.BitcoinService.ImportPrivKey:output_type -> bitcoin.bitcoind.v1alpha.ImportPrivKeyResponse
+	71,  // 145: bitcoin.bitcoind.v1alpha.BitcoinService.ImportAddress:output_type -> bitcoin.bitcoind.v1alpha.ImportAddressResponse
+	73,  // 146: bitcoin.bitcoind.v1alpha.BitcoinService.ImportPubKey:output_type -> bitcoin.bitcoind.v1alpha.ImportPubKeyResponse
+	75,  // 147: bitcoin.bitcoind.v1alpha.BitcoinService.KeyPoolRefill:output_type -> bitcoin.bitcoind.v1alpha.KeyPoolRefillResponse
+	77,  // 148: bitcoin.bitcoind.v1alpha.BitcoinService.GetAccount:output_type -> bitcoin.bitcoind.v1alpha.GetAccountResponse
+	79,  // 149: bitcoin.bitcoind.v1alpha.BitcoinService.SetAccount:output_type -> bitcoin.bitcoind.v1alpha.SetAccountResponse
+	81,  // 150: bitcoin.bitcoind.v1alpha.BitcoinService.GetAddressesByAccount:output_type -> bitcoin.bitcoind.v1alpha.GetAddressesByAccountResponse
+	83,  // 151: bitcoin.bitcoind.v1alpha.BitcoinService.ListAccounts:output_type -> bitcoin.bitcoind.v1alpha.ListAccountsResponse
+	85,  // 152: bitcoin.bitcoind.v1alpha.BitcoinService.AddMultisigAddress:output_type -> bitcoin.bitcoind.v1alpha.AddMultisigAddressResponse
+	87,  // 153: bitcoin.bitcoind.v1alpha.BitcoinService.CreateMultisig:output_type -> bitcoin.bitcoind.v1alpha.CreateMultisigResponse
+	91,  // 154: bitcoin.bitcoind.v1alpha.BitcoinService.CreatePsbt:output_type -> bitcoin.bitcoind.v1alpha.CreatePsbtResponse
+	93,  // 155: bitcoin.bitcoind.v1alpha.BitcoinService.DecodePsbt:output_type -> bitcoin.bitcoind.v1alpha.DecodePsbtResponse
+	95,  // 156: bitcoin.bitcoind.v1alpha.BitcoinService.AnalyzePsbt:output_type -> bitcoin.bitcoind.v1alpha.AnalyzePsbtResponse
+	97,  // 157: bitcoin.bitcoind.v1alpha.BitcoinService.CombinePsbt:output_type -> bitcoin.bitcoind.v1alpha.CombinePsbtResponse
+	116, // [116:158] is the sub-list for method output_type
+	74,  // [74:116] is the sub-list for method input_type
+	74,  // [74:74] is the sub-list for extension type_name
+	74,  // [74:74] is the sub-list for extension extendee
+	0,   // [0:74] is the sub-list for field type_name
 }
 
 func init() { file_bitcoin_bitcoind_v1alpha_bitcoin_proto_init() }
@@ -7460,7 +8375,7 @@ func file_bitcoin_bitcoind_v1alpha_bitcoin_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_bitcoin_bitcoind_v1alpha_bitcoin_proto_rawDesc), len(file_bitcoin_bitcoind_v1alpha_bitcoin_proto_rawDesc)),
 			NumEnums:      7,
-			NumMessages:   93,
+			NumMessages:   118,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

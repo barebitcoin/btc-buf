@@ -148,6 +148,9 @@ const (
 	// BitcoinServiceCreatePsbtProcedure is the fully-qualified name of the BitcoinService's CreatePsbt
 	// RPC.
 	BitcoinServiceCreatePsbtProcedure = "/bitcoin.bitcoind.v1alpha.BitcoinService/CreatePsbt"
+	// BitcoinServiceDecodePsbtProcedure is the fully-qualified name of the BitcoinService's DecodePsbt
+	// RPC.
+	BitcoinServiceDecodePsbtProcedure = "/bitcoin.bitcoind.v1alpha.BitcoinService/DecodePsbt"
 	// BitcoinServiceAnalyzePsbtProcedure is the fully-qualified name of the BitcoinService's
 	// AnalyzePsbt RPC.
 	BitcoinServiceAnalyzePsbtProcedure = "/bitcoin.bitcoind.v1alpha.BitcoinService/AnalyzePsbt"
@@ -209,6 +212,7 @@ type BitcoinServiceClient interface {
 	CreateMultisig(context.Context, *connect.Request[v1alpha.CreateMultisigRequest]) (*connect.Response[v1alpha.CreateMultisigResponse], error)
 	// PSBT handling
 	CreatePsbt(context.Context, *connect.Request[v1alpha.CreatePsbtRequest]) (*connect.Response[v1alpha.CreatePsbtResponse], error)
+	DecodePsbt(context.Context, *connect.Request[v1alpha.DecodePsbtRequest]) (*connect.Response[v1alpha.DecodePsbtResponse], error)
 	AnalyzePsbt(context.Context, *connect.Request[v1alpha.AnalyzePsbtRequest]) (*connect.Response[v1alpha.AnalyzePsbtResponse], error)
 	CombinePsbt(context.Context, *connect.Request[v1alpha.CombinePsbtRequest]) (*connect.Response[v1alpha.CombinePsbtResponse], error)
 }
@@ -458,6 +462,12 @@ func NewBitcoinServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(bitcoinServiceMethods.ByName("CreatePsbt")),
 			connect.WithClientOptions(opts...),
 		),
+		decodePsbt: connect.NewClient[v1alpha.DecodePsbtRequest, v1alpha.DecodePsbtResponse](
+			httpClient,
+			baseURL+BitcoinServiceDecodePsbtProcedure,
+			connect.WithSchema(bitcoinServiceMethods.ByName("DecodePsbt")),
+			connect.WithClientOptions(opts...),
+		),
 		analyzePsbt: connect.NewClient[v1alpha.AnalyzePsbtRequest, v1alpha.AnalyzePsbtResponse](
 			httpClient,
 			baseURL+BitcoinServiceAnalyzePsbtProcedure,
@@ -475,10 +485,48 @@ func NewBitcoinServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 
 // bitcoinServiceClient implements BitcoinServiceClient.
 type bitcoinServiceClient struct {
-	createRawTransaction   *connect.Client[v1alpha.CreateRawTransactionRequest, v1alpha.CreateRawTransactionResponse]
-	createPsbt             *connect.Client[v1alpha.CreatePsbtRequest, v1alpha.CreatePsbtResponse]
-	analyzePsbt            *connect.Client[v1alpha.AnalyzePsbtRequest, v1alpha.AnalyzePsbtResponse]
-	combinePsbt            *connect.Client[v1alpha.CombinePsbtRequest, v1alpha.CombinePsbtResponse]
+	getBlockchainInfo     *connect.Client[v1alpha.GetBlockchainInfoRequest, v1alpha.GetBlockchainInfoResponse]
+	getPeerInfo           *connect.Client[v1alpha.GetPeerInfoRequest, v1alpha.GetPeerInfoResponse]
+	getTransaction        *connect.Client[v1alpha.GetTransactionRequest, v1alpha.GetTransactionResponse]
+	listSinceBlock        *connect.Client[v1alpha.ListSinceBlockRequest, v1alpha.ListSinceBlockResponse]
+	getNewAddress         *connect.Client[v1alpha.GetNewAddressRequest, v1alpha.GetNewAddressResponse]
+	getWalletInfo         *connect.Client[v1alpha.GetWalletInfoRequest, v1alpha.GetWalletInfoResponse]
+	getBalances           *connect.Client[v1alpha.GetBalancesRequest, v1alpha.GetBalancesResponse]
+	send                  *connect.Client[v1alpha.SendRequest, v1alpha.SendResponse]
+	sendToAddress         *connect.Client[v1alpha.SendToAddressRequest, v1alpha.SendToAddressResponse]
+	bumpFee               *connect.Client[v1alpha.BumpFeeRequest, v1alpha.BumpFeeResponse]
+	estimateSmartFee      *connect.Client[v1alpha.EstimateSmartFeeRequest, v1alpha.EstimateSmartFeeResponse]
+	importDescriptors     *connect.Client[v1alpha.ImportDescriptorsRequest, v1alpha.ImportDescriptorsResponse]
+	listWallets           *connect.Client[emptypb.Empty, v1alpha.ListWalletsResponse]
+	listTransactions      *connect.Client[v1alpha.ListTransactionsRequest, v1alpha.ListTransactionsResponse]
+	getDescriptorInfo     *connect.Client[v1alpha.GetDescriptorInfoRequest, v1alpha.GetDescriptorInfoResponse]
+	getAddressInfo        *connect.Client[v1alpha.GetAddressInfoRequest, v1alpha.GetAddressInfoResponse]
+	getRawMempool         *connect.Client[v1alpha.GetRawMempoolRequest, v1alpha.GetRawMempoolResponse]
+	getRawTransaction     *connect.Client[v1alpha.GetRawTransactionRequest, v1alpha.GetRawTransactionResponse]
+	decodeRawTransaction  *connect.Client[v1alpha.DecodeRawTransactionRequest, v1alpha.DecodeRawTransactionResponse]
+	createRawTransaction  *connect.Client[v1alpha.CreateRawTransactionRequest, v1alpha.CreateRawTransactionResponse]
+	getBlock              *connect.Client[v1alpha.GetBlockRequest, v1alpha.GetBlockResponse]
+	getBlockHash          *connect.Client[v1alpha.GetBlockHashRequest, v1alpha.GetBlockHashResponse]
+	createWallet          *connect.Client[v1alpha.CreateWalletRequest, v1alpha.CreateWalletResponse]
+	backupWallet          *connect.Client[v1alpha.BackupWalletRequest, v1alpha.BackupWalletResponse]
+	dumpWallet            *connect.Client[v1alpha.DumpWalletRequest, v1alpha.DumpWalletResponse]
+	importWallet          *connect.Client[v1alpha.ImportWalletRequest, v1alpha.ImportWalletResponse]
+	unloadWallet          *connect.Client[v1alpha.UnloadWalletRequest, v1alpha.UnloadWalletResponse]
+	dumpPrivKey           *connect.Client[v1alpha.DumpPrivKeyRequest, v1alpha.DumpPrivKeyResponse]
+	importPrivKey         *connect.Client[v1alpha.ImportPrivKeyRequest, v1alpha.ImportPrivKeyResponse]
+	importAddress         *connect.Client[v1alpha.ImportAddressRequest, v1alpha.ImportAddressResponse]
+	importPubKey          *connect.Client[v1alpha.ImportPubKeyRequest, v1alpha.ImportPubKeyResponse]
+	keyPoolRefill         *connect.Client[v1alpha.KeyPoolRefillRequest, v1alpha.KeyPoolRefillResponse]
+	getAccount            *connect.Client[v1alpha.GetAccountRequest, v1alpha.GetAccountResponse]
+	setAccount            *connect.Client[v1alpha.SetAccountRequest, v1alpha.SetAccountResponse]
+	getAddressesByAccount *connect.Client[v1alpha.GetAddressesByAccountRequest, v1alpha.GetAddressesByAccountResponse]
+	listAccounts          *connect.Client[v1alpha.ListAccountsRequest, v1alpha.ListAccountsResponse]
+	addMultisigAddress    *connect.Client[v1alpha.AddMultisigAddressRequest, v1alpha.AddMultisigAddressResponse]
+	createMultisig        *connect.Client[v1alpha.CreateMultisigRequest, v1alpha.CreateMultisigResponse]
+	createPsbt            *connect.Client[v1alpha.CreatePsbtRequest, v1alpha.CreatePsbtResponse]
+	decodePsbt            *connect.Client[v1alpha.DecodePsbtRequest, v1alpha.DecodePsbtResponse]
+	analyzePsbt           *connect.Client[v1alpha.AnalyzePsbtRequest, v1alpha.AnalyzePsbtResponse]
+	combinePsbt           *connect.Client[v1alpha.CombinePsbtRequest, v1alpha.CombinePsbtResponse]
 }
 
 // GetBlockchainInfo calls bitcoin.bitcoind.v1alpha.BitcoinService.GetBlockchainInfo.
@@ -670,9 +718,15 @@ func (c *bitcoinServiceClient) AddMultisigAddress(ctx context.Context, req *conn
 func (c *bitcoinServiceClient) CreateMultisig(ctx context.Context, req *connect.Request[v1alpha.CreateMultisigRequest]) (*connect.Response[v1alpha.CreateMultisigResponse], error) {
 	return c.createMultisig.CallUnary(ctx, req)
 }
+
 // CreatePsbt calls bitcoin.bitcoind.v1alpha.BitcoinService.CreatePsbt.
 func (c *bitcoinServiceClient) CreatePsbt(ctx context.Context, req *connect.Request[v1alpha.CreatePsbtRequest]) (*connect.Response[v1alpha.CreatePsbtResponse], error) {
 	return c.createPsbt.CallUnary(ctx, req)
+}
+
+// DecodePsbt calls bitcoin.bitcoind.v1alpha.BitcoinService.DecodePsbt.
+func (c *bitcoinServiceClient) DecodePsbt(ctx context.Context, req *connect.Request[v1alpha.DecodePsbtRequest]) (*connect.Response[v1alpha.DecodePsbtResponse], error) {
+	return c.decodePsbt.CallUnary(ctx, req)
 }
 
 // AnalyzePsbt calls bitcoin.bitcoind.v1alpha.BitcoinService.AnalyzePsbt.
@@ -684,7 +738,6 @@ func (c *bitcoinServiceClient) AnalyzePsbt(ctx context.Context, req *connect.Req
 func (c *bitcoinServiceClient) CombinePsbt(ctx context.Context, req *connect.Request[v1alpha.CombinePsbtRequest]) (*connect.Response[v1alpha.CombinePsbtResponse], error) {
 	return c.combinePsbt.CallUnary(ctx, req)
 }
-
 
 // BitcoinServiceHandler is an implementation of the bitcoin.bitcoind.v1alpha.BitcoinService
 // service.
@@ -740,6 +793,7 @@ type BitcoinServiceHandler interface {
 	CreateMultisig(context.Context, *connect.Request[v1alpha.CreateMultisigRequest]) (*connect.Response[v1alpha.CreateMultisigResponse], error)
 	// PSBT handling
 	CreatePsbt(context.Context, *connect.Request[v1alpha.CreatePsbtRequest]) (*connect.Response[v1alpha.CreatePsbtResponse], error)
+	DecodePsbt(context.Context, *connect.Request[v1alpha.DecodePsbtRequest]) (*connect.Response[v1alpha.DecodePsbtResponse], error)
 	AnalyzePsbt(context.Context, *connect.Request[v1alpha.AnalyzePsbtRequest]) (*connect.Response[v1alpha.AnalyzePsbtResponse], error)
 	CombinePsbt(context.Context, *connect.Request[v1alpha.CombinePsbtRequest]) (*connect.Response[v1alpha.CombinePsbtResponse], error)
 }
@@ -985,6 +1039,12 @@ func NewBitcoinServiceHandler(svc BitcoinServiceHandler, opts ...connect.Handler
 		connect.WithSchema(bitcoinServiceMethods.ByName("CreatePsbt")),
 		connect.WithHandlerOptions(opts...),
 	)
+	bitcoinServiceDecodePsbtHandler := connect.NewUnaryHandler(
+		BitcoinServiceDecodePsbtProcedure,
+		svc.DecodePsbt,
+		connect.WithSchema(bitcoinServiceMethods.ByName("DecodePsbt")),
+		connect.WithHandlerOptions(opts...),
+	)
 	bitcoinServiceAnalyzePsbtHandler := connect.NewUnaryHandler(
 		BitcoinServiceAnalyzePsbtProcedure,
 		svc.AnalyzePsbt,
@@ -1077,6 +1137,8 @@ func NewBitcoinServiceHandler(svc BitcoinServiceHandler, opts ...connect.Handler
 			bitcoinServiceCreateMultisigHandler.ServeHTTP(w, r)
 		case BitcoinServiceCreatePsbtProcedure:
 			bitcoinServiceCreatePsbtHandler.ServeHTTP(w, r)
+		case BitcoinServiceDecodePsbtProcedure:
+			bitcoinServiceDecodePsbtHandler.ServeHTTP(w, r)
 		case BitcoinServiceAnalyzePsbtProcedure:
 			bitcoinServiceAnalyzePsbtHandler.ServeHTTP(w, r)
 		case BitcoinServiceCombinePsbtProcedure:
@@ -1241,8 +1303,13 @@ func (UnimplementedBitcoinServiceHandler) AddMultisigAddress(context.Context, *c
 func (UnimplementedBitcoinServiceHandler) CreateMultisig(context.Context, *connect.Request[v1alpha.CreateMultisigRequest]) (*connect.Response[v1alpha.CreateMultisigResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("bitcoin.bitcoind.v1alpha.BitcoinService.CreateMultisig is not implemented"))
 }
+
 func (UnimplementedBitcoinServiceHandler) CreatePsbt(context.Context, *connect.Request[v1alpha.CreatePsbtRequest]) (*connect.Response[v1alpha.CreatePsbtResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("bitcoin.bitcoind.v1alpha.BitcoinService.CreatePsbt is not implemented"))
+}
+
+func (UnimplementedBitcoinServiceHandler) DecodePsbt(context.Context, *connect.Request[v1alpha.DecodePsbtRequest]) (*connect.Response[v1alpha.DecodePsbtResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("bitcoin.bitcoind.v1alpha.BitcoinService.DecodePsbt is not implemented"))
 }
 
 func (UnimplementedBitcoinServiceHandler) AnalyzePsbt(context.Context, *connect.Request[v1alpha.AnalyzePsbtRequest]) (*connect.Response[v1alpha.AnalyzePsbtResponse], error) {
@@ -1252,4 +1319,3 @@ func (UnimplementedBitcoinServiceHandler) AnalyzePsbt(context.Context, *connect.
 func (UnimplementedBitcoinServiceHandler) CombinePsbt(context.Context, *connect.Request[v1alpha.CombinePsbtRequest]) (*connect.Response[v1alpha.CombinePsbtResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("bitcoin.bitcoind.v1alpha.BitcoinService.CombinePsbt is not implemented"))
 }
-

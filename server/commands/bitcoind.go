@@ -32,3 +32,7 @@ type CreateRawTransaction struct {
 	Outputs  map[string]float64 `json:"outputs"`
 	Locktime uint32             `json:"locktime,omitempty"`
 }
+
+type DecodePsbt struct {
+	Psbt string `json:"psbt"`
+}
