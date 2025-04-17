@@ -67,6 +67,8 @@ service BitcoinService {
   // Multi-sig operations
   rpc AddMultisigAddress(AddMultisigAddressRequest) returns (AddMultisigAddressResponse);
   rpc CreateMultisig(CreateMultisigRequest) returns (CreateMultisigResponse);
+  // PSBT handling
+  rpc AnalyzePsbt(AnalyzePsbtRequest) returns (AnalyzePsbtResponse);
 }
 
 message GetBlockchainInfoRequest {}
@@ -954,4 +956,28 @@ message CreateMultisigRequest {
 message CreateMultisigResponse {
   string address = 1;
   string redeem_script = 2;
+}
+message AnalyzePsbtRequest {
+  string psbt = 1; // Base64 encoded PSBT
+}
+
+message AnalyzePsbtResponse {
+  message Input {
+    bool has_utxo = 1;
+    bool is_final = 2;
+    message Missing {
+      repeated string pubkeys = 1;
+      repeated string signatures = 2;
+      string redeem_script = 3;
+      string witness_script = 4;
+    }
+    Missing missing = 3;
+    string next = 4;
+  }
+  repeated Input inputs = 1;
+  double estimated_vsize = 2;
+  double estimated_feerate = 3;
+  double fee = 4;
+  string next = 5;
+  string error = 6;
 }
