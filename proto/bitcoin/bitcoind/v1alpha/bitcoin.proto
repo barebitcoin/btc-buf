@@ -75,6 +75,7 @@ service BitcoinService {
   rpc AnalyzePsbt(AnalyzePsbtRequest) returns (AnalyzePsbtResponse);
   rpc CombinePsbt(CombinePsbtRequest) returns (CombinePsbtResponse);
   rpc UtxoUpdatePsbt(UtxoUpdatePsbtRequest) returns (UtxoUpdatePsbtResponse);
+  rpc JoinPsbts(JoinPsbtsRequest) returns (JoinPsbtsResponse);
 }
 
 message GetBlockchainInfoRequest {}
@@ -1089,6 +1090,14 @@ message UtxoUpdatePsbtRequest {
 
 message UtxoUpdatePsbtResponse {
   string psbt = 1; // Updated base64 encoded PSBT
+}
+
+message JoinPsbtsRequest {
+  repeated string psbts = 1; // Array of base64 encoded PSBTs
+}
+
+message JoinPsbtsResponse {
+  string psbt = 1; // Joined base64 encoded PSBT
 }
 
 // Add a new message for descriptor range

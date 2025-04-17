@@ -44,3 +44,7 @@ type UtxoUpdatePsbt struct {
 		Range interface{} `json:"range,omitempty"` // Can be int or [int,int]
 	} `json:"descriptors,omitempty"`
 }
+
+type JoinPsbts struct {
+	Psbts []string `json:"psbts"`
+}

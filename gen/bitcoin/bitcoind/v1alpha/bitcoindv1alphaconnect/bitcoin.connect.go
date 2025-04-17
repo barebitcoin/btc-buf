@@ -160,6 +160,9 @@ const (
 	// BitcoinServiceUtxoUpdatePsbtProcedure is the fully-qualified name of the BitcoinService's
 	// UtxoUpdatePsbt RPC.
 	BitcoinServiceUtxoUpdatePsbtProcedure = "/bitcoin.bitcoind.v1alpha.BitcoinService/UtxoUpdatePsbt"
+	// BitcoinServiceJoinPsbtsProcedure is the fully-qualified name of the BitcoinService's JoinPsbts
+	// RPC.
+	BitcoinServiceJoinPsbtsProcedure = "/bitcoin.bitcoind.v1alpha.BitcoinService/JoinPsbts"
 )
 
 // BitcoinServiceClient is a client for the bitcoin.bitcoind.v1alpha.BitcoinService service.
@@ -219,6 +222,7 @@ type BitcoinServiceClient interface {
 	AnalyzePsbt(context.Context, *connect.Request[v1alpha.AnalyzePsbtRequest]) (*connect.Response[v1alpha.AnalyzePsbtResponse], error)
 	CombinePsbt(context.Context, *connect.Request[v1alpha.CombinePsbtRequest]) (*connect.Response[v1alpha.CombinePsbtResponse], error)
 	UtxoUpdatePsbt(context.Context, *connect.Request[v1alpha.UtxoUpdatePsbtRequest]) (*connect.Response[v1alpha.UtxoUpdatePsbtResponse], error)
+	JoinPsbts(context.Context, *connect.Request[v1alpha.JoinPsbtsRequest]) (*connect.Response[v1alpha.JoinPsbtsResponse], error)
 }
 
 // NewBitcoinServiceClient constructs a client for the bitcoin.bitcoind.v1alpha.BitcoinService
@@ -490,6 +494,12 @@ func NewBitcoinServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(bitcoinServiceMethods.ByName("UtxoUpdatePsbt")),
 			connect.WithClientOptions(opts...),
 		),
+		joinPsbts: connect.NewClient[v1alpha.JoinPsbtsRequest, v1alpha.JoinPsbtsResponse](
+			httpClient,
+			baseURL+BitcoinServiceJoinPsbtsProcedure,
+			connect.WithSchema(bitcoinServiceMethods.ByName("JoinPsbts")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -538,6 +548,7 @@ type bitcoinServiceClient struct {
 	analyzePsbt           *connect.Client[v1alpha.AnalyzePsbtRequest, v1alpha.AnalyzePsbtResponse]
 	combinePsbt           *connect.Client[v1alpha.CombinePsbtRequest, v1alpha.CombinePsbtResponse]
 	utxoUpdatePsbt        *connect.Client[v1alpha.UtxoUpdatePsbtRequest, v1alpha.UtxoUpdatePsbtResponse]
+	joinPsbts             *connect.Client[v1alpha.JoinPsbtsRequest, v1alpha.JoinPsbtsResponse]
 }
 
 // GetBlockchainInfo calls bitcoin.bitcoind.v1alpha.BitcoinService.GetBlockchainInfo.
@@ -755,6 +766,11 @@ func (c *bitcoinServiceClient) UtxoUpdatePsbt(ctx context.Context, req *connect.
 	return c.utxoUpdatePsbt.CallUnary(ctx, req)
 }
 
+// JoinPsbts calls bitcoin.bitcoind.v1alpha.BitcoinService.JoinPsbts.
+func (c *bitcoinServiceClient) JoinPsbts(ctx context.Context, req *connect.Request[v1alpha.JoinPsbtsRequest]) (*connect.Response[v1alpha.JoinPsbtsResponse], error) {
+	return c.joinPsbts.CallUnary(ctx, req)
+}
+
 // BitcoinServiceHandler is an implementation of the bitcoin.bitcoind.v1alpha.BitcoinService
 // service.
 type BitcoinServiceHandler interface {
@@ -813,6 +829,7 @@ type BitcoinServiceHandler interface {
 	AnalyzePsbt(context.Context, *connect.Request[v1alpha.AnalyzePsbtRequest]) (*connect.Response[v1alpha.AnalyzePsbtResponse], error)
 	CombinePsbt(context.Context, *connect.Request[v1alpha.CombinePsbtRequest]) (*connect.Response[v1alpha.CombinePsbtResponse], error)
 	UtxoUpdatePsbt(context.Context, *connect.Request[v1alpha.UtxoUpdatePsbtRequest]) (*connect.Response[v1alpha.UtxoUpdatePsbtResponse], error)
+	JoinPsbts(context.Context, *connect.Request[v1alpha.JoinPsbtsRequest]) (*connect.Response[v1alpha.JoinPsbtsResponse], error)
 }
 
 // NewBitcoinServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -1080,6 +1097,12 @@ func NewBitcoinServiceHandler(svc BitcoinServiceHandler, opts ...connect.Handler
 		connect.WithSchema(bitcoinServiceMethods.ByName("UtxoUpdatePsbt")),
 		connect.WithHandlerOptions(opts...),
 	)
+	bitcoinServiceJoinPsbtsHandler := connect.NewUnaryHandler(
+		BitcoinServiceJoinPsbtsProcedure,
+		svc.JoinPsbts,
+		connect.WithSchema(bitcoinServiceMethods.ByName("JoinPsbts")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/bitcoin.bitcoind.v1alpha.BitcoinService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case BitcoinServiceGetBlockchainInfoProcedure:
@@ -1168,6 +1191,8 @@ func NewBitcoinServiceHandler(svc BitcoinServiceHandler, opts ...connect.Handler
 			bitcoinServiceCombinePsbtHandler.ServeHTTP(w, r)
 		case BitcoinServiceUtxoUpdatePsbtProcedure:
 			bitcoinServiceUtxoUpdatePsbtHandler.ServeHTTP(w, r)
+		case BitcoinServiceJoinPsbtsProcedure:
+			bitcoinServiceJoinPsbtsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -1347,4 +1372,8 @@ func (UnimplementedBitcoinServiceHandler) CombinePsbt(context.Context, *connect.
 
 func (UnimplementedBitcoinServiceHandler) UtxoUpdatePsbt(context.Context, *connect.Request[v1alpha.UtxoUpdatePsbtRequest]) (*connect.Response[v1alpha.UtxoUpdatePsbtResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("bitcoin.bitcoind.v1alpha.BitcoinService.UtxoUpdatePsbt is not implemented"))
+}
+
+func (UnimplementedBitcoinServiceHandler) JoinPsbts(context.Context, *connect.Request[v1alpha.JoinPsbtsRequest]) (*connect.Response[v1alpha.JoinPsbtsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("bitcoin.bitcoind.v1alpha.BitcoinService.JoinPsbts is not implemented"))
 }
