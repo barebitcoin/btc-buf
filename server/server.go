@@ -38,6 +38,7 @@ func init() {
 	btcjson.MustRegisterCmd("importdescriptors", new(btcjson.ImportMultiCmd), btcjson.UFWalletOnly)
 	btcjson.MustRegisterCmd("bumpfee", new(commands.BumpFee), btcjson.UFWalletOnly)
 	btcjson.MustRegisterCmd("analyzepsbt", new(commands.AnalyzePsbt), btcjson.UFWalletOnly)
+	btcjson.MustRegisterCmd("combinepsbt", new(commands.CombinePsbt), btcjson.UFWalletOnly)
 }
 
 type Bitcoind struct {
@@ -1315,6 +1316,40 @@ func (b *Bitcoind) AnalyzePsbt(ctx context.Context, c *connect.Request[pb.Analyz
 				Fee:              lo.FromPtr(r.Fee),
 				Next:             r.Next,
 				Error:            r.Error,
+			}
+		})
+}
+
+// CombinePsbt implements bitcoindv1alphaconnect.BitcoinServiceHandler.
+func (b *Bitcoind) CombinePsbt(ctx context.Context, c *connect.Request[pb.CombinePsbtRequest]) (*connect.Response[pb.CombinePsbtResponse], error) {
+	if len(c.Msg.Psbts) == 0 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("at least one PSBT is required"))
+	}
+
+	return withCancel(ctx,
+		func(ctx context.Context) (string, error) {
+			cmd, err := btcjson.NewCmd("combinepsbt", c.Msg.Psbts)
+			if err != nil {
+				return "", err
+			}
+
+			res, err := rpcclient.ReceiveFuture(b.rpc.SendCmd(ctx, cmd))
+			if err != nil {
+				return "", fmt.Errorf("send combinepsbt: %w", err)
+			}
+			zerolog.Ctx(ctx).Err(err).
+				Msgf("combinepsbt response: %s", string(res))
+
+			var psbt string
+			if err := json.Unmarshal(res, &psbt); err != nil {
+				return "", fmt.Errorf("unmarshal combinepsbt response: %w", err)
+			}
+
+			return psbt, nil
+		},
+		func(r string) *pb.CombinePsbtResponse {
+			return &pb.CombinePsbtResponse{
+				Psbt: r,
 			}
 		})
 }

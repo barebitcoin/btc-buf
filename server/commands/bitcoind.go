@@ -7,3 +7,7 @@ type BumpFee struct {
 type AnalyzePsbt struct {
 	Psbt string `json:"psbt"`
 }
+
+type CombinePsbt struct {
+	Psbts []string `json:"psbts"`
+}
