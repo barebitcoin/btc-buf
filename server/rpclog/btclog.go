@@ -61,7 +61,7 @@ func (l *Logger) Critical(v ...interface{}) {
 }
 
 func (l *Logger) Level() btclog.Level {
-	lvl := l.Logger.GetLevel()
+	lvl := l.GetLevel()
 	switch lvl {
 	case zerolog.TraceLevel:
 		return btclog.LevelTrace

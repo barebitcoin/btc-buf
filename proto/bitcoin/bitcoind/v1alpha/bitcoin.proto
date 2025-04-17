@@ -71,6 +71,7 @@ service BitcoinService {
 
   // PSBT handling
   rpc CreatePsbt(CreatePsbtRequest) returns (CreatePsbtResponse);
+  rpc DecodePsbt(DecodePsbtRequest) returns (DecodePsbtResponse);
   rpc AnalyzePsbt(AnalyzePsbtRequest) returns (AnalyzePsbtResponse);
   rpc CombinePsbt(CombinePsbtRequest) returns (CombinePsbtResponse);
 }
@@ -432,6 +433,10 @@ message Input {
 message ScriptPubKey {
   string type = 1;
   string address = 2;
+  string asm = 3;
+  string hex = 4;
+  repeated string addresses = 5;
+  uint32 req_sigs = 6;
 }
 
 message Output {
@@ -994,6 +999,55 @@ message CreatePsbtResponse {
   string psbt = 1; // Base64 encoded PSBT
 }
 
+message DecodePsbtRequest {
+  string psbt = 1; // Base64 encoded PSBT
+}
+
+message DecodePsbtResponse {
+  message WitnessUtxo {
+    double amount = 1;
+    ScriptPubKey script_pub_key = 2;
+  }
+
+  message RedeemScript {
+    string asm = 1;
+    string hex = 2;
+    string type = 3;
+  }
+
+  message Bip32Deriv {
+    string pubkey = 1;
+    string master_fingerprint = 2;
+    string path = 3;
+  }
+
+  message Input {
+    DecodeRawTransactionResponse non_witness_utxo = 1;
+    WitnessUtxo witness_utxo = 2;
+    map<string, string> partial_signatures = 3;
+    string sighash = 4;
+    RedeemScript redeem_script = 5;
+    RedeemScript witness_script = 6;
+    repeated Bip32Deriv bip32_derivs = 7;
+    ScriptSig final_scriptsig = 8;
+    repeated string final_scriptwitness = 9;
+    map<string, string> unknown = 10;
+  }
+
+  message Output {
+    RedeemScript redeem_script = 1;
+    RedeemScript witness_script = 2;
+    repeated Bip32Deriv bip32_derivs = 3;
+    map<string, string> unknown = 4;
+  }
+
+  DecodeRawTransactionResponse tx = 1;
+  map<string, string> unknown = 2;
+  repeated Input inputs = 3;
+  repeated Output outputs = 4;
+  double fee = 5;
+}
+
 message AnalyzePsbtRequest {
   string psbt = 1; // Base64 encoded PSBT
 }
@@ -1026,4 +1080,3 @@ message CombinePsbtRequest {
 message CombinePsbtResponse {
   string psbt = 1; // Combined base64 encoded PSBT
 }
-

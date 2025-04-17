@@ -40,6 +40,7 @@ func init() {
 	btcjson.MustRegisterCmd("analyzepsbt", new(commands.AnalyzePsbt), btcjson.UFWalletOnly)
 	btcjson.MustRegisterCmd("combinepsbt", new(commands.CombinePsbt), btcjson.UFWalletOnly)
 	btcjson.MustRegisterCmd("createpsbt", new(commands.CreatePsbt), btcjson.UFWalletOnly)
+	btcjson.MustRegisterCmd("decodepsbt", new(commands.DecodePsbt), btcjson.UFWalletOnly)
 }
 
 type Bitcoind struct {
@@ -1449,6 +1450,211 @@ func (b *Bitcoind) CreateRawTransaction(ctx context.Context, c *connect.Request[
 		})
 }
 
+// DecodePsbt implements bitcoindv1alphaconnect.BitcoinServiceHandler.
+func (b *Bitcoind) DecodePsbt(ctx context.Context, c *connect.Request[pb.DecodePsbtRequest]) (*connect.Response[pb.DecodePsbtResponse], error) {
+	if c.Msg.Psbt == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("psbt is required"))
+	}
+
+	return withCancel(ctx,
+		func(ctx context.Context) (rawDecodePsbtResponse, error) {
+			cmd, err := btcjson.NewCmd("decodepsbt", c.Msg.Psbt)
+			if err != nil {
+				return rawDecodePsbtResponse{}, err
+			}
+
+			res, err := rpcclient.ReceiveFuture(b.rpc.SendCmd(ctx, cmd))
+			if err != nil {
+				return rawDecodePsbtResponse{}, fmt.Errorf("send decodepsbt: %w", err)
+			}
+			zerolog.Ctx(ctx).Err(err).
+				Msgf("decodepsbt response: %s", string(res))
+
+			var parsed rawDecodePsbtResponse
+			if err := json.Unmarshal(res, &parsed); err != nil {
+				return rawDecodePsbtResponse{}, fmt.Errorf("unmarshal decodepsbt response: %w", err)
+			}
+
+			return parsed, nil
+		},
+		func(r rawDecodePsbtResponse) *pb.DecodePsbtResponse {
+			inputs := make([]*pb.DecodePsbtResponse_Input, len(r.Inputs))
+			for i, in := range r.Inputs {
+				var nonWitnessUtxo *pb.DecodeRawTransactionResponse
+				if in.NonWitnessUtxo.Txid != "" {
+					nonWitnessUtxo = &pb.DecodeRawTransactionResponse{
+						Txid:        in.NonWitnessUtxo.Txid,
+						Hash:        in.NonWitnessUtxo.Hash,
+						Size:        in.NonWitnessUtxo.Size,
+						VirtualSize: in.NonWitnessUtxo.VirtualSize,
+						Weight:      in.NonWitnessUtxo.Weight,
+						Version:     in.NonWitnessUtxo.Version,
+						Locktime:    in.NonWitnessUtxo.Locktime,
+						Inputs: lo.Map(in.NonWitnessUtxo.Vin, func(in input, _ int) *pb.Input {
+							return &pb.Input{
+								Txid: in.Txid,
+								Vout: in.Vout,
+								ScriptSig: &pb.ScriptSig{
+									Asm: in.ScriptSig.Asm,
+									Hex: in.ScriptSig.Hex,
+								},
+								Sequence: in.Sequence,
+								Witness:  in.TxInWitness,
+							}
+						}),
+						Outputs: lo.Map(in.NonWitnessUtxo.Vout, func(out output, _ int) *pb.Output {
+							return &pb.Output{
+								Amount: out.Value,
+								Vout:   out.N,
+								ScriptPubKey: &pb.ScriptPubKey{
+									Asm:       out.ScriptPubKey.Asm,
+									Hex:       out.ScriptPubKey.Hex,
+									Type:      out.ScriptPubKey.Type,
+									Address:   out.ScriptPubKey.Address,
+									Addresses: out.ScriptPubKey.Addresses,
+									ReqSigs:   out.ScriptPubKey.ReqSigs,
+								},
+							}
+						}),
+					}
+				}
+
+				var witnessUtxo *pb.DecodePsbtResponse_WitnessUtxo
+				if in.WitnessUtxo.Amount != 0 {
+					witnessUtxo = &pb.DecodePsbtResponse_WitnessUtxo{
+						Amount: in.WitnessUtxo.Amount,
+						ScriptPubKey: &pb.ScriptPubKey{
+							Asm:     in.WitnessUtxo.ScriptPubKey.Asm,
+							Hex:     in.WitnessUtxo.ScriptPubKey.Hex,
+							Type:    in.WitnessUtxo.ScriptPubKey.Type,
+							Address: in.WitnessUtxo.ScriptPubKey.Address,
+						},
+					}
+				}
+
+				var redeemScript *pb.DecodePsbtResponse_RedeemScript
+				if in.RedeemScript.Hex != "" {
+					redeemScript = &pb.DecodePsbtResponse_RedeemScript{
+						Asm:  in.RedeemScript.Asm,
+						Hex:  in.RedeemScript.Hex,
+						Type: in.RedeemScript.Type,
+					}
+				}
+
+				var witnessScript *pb.DecodePsbtResponse_RedeemScript
+				if in.WitnessScript.Hex != "" {
+					witnessScript = &pb.DecodePsbtResponse_RedeemScript{
+						Asm:  in.WitnessScript.Asm,
+						Hex:  in.WitnessScript.Hex,
+						Type: in.WitnessScript.Type,
+					}
+				}
+
+				var finalScriptSig *pb.ScriptSig
+				if in.FinalScriptSig.Hex != "" {
+					finalScriptSig = &pb.ScriptSig{
+						Asm: in.FinalScriptSig.Asm,
+						Hex: in.FinalScriptSig.Hex,
+					}
+				}
+
+				inputs[i] = &pb.DecodePsbtResponse_Input{
+					NonWitnessUtxo:    nonWitnessUtxo,
+					WitnessUtxo:       witnessUtxo,
+					PartialSignatures: in.PartialSignatures,
+					Sighash:           in.Sighash,
+					RedeemScript:      redeemScript,
+					WitnessScript:     witnessScript,
+					Bip32Derivs: lo.Map(in.Bip32Derivs, func(deriv rawBip32Deriv, _ int) *pb.DecodePsbtResponse_Bip32Deriv {
+						return &pb.DecodePsbtResponse_Bip32Deriv{
+							MasterFingerprint: deriv.MasterFingerprint,
+							Path:              deriv.Path,
+						}
+					}),
+					FinalScriptsig:     finalScriptSig,
+					FinalScriptwitness: in.FinalScriptWitness,
+					Unknown:            in.Unknown,
+				}
+			}
+
+			outputs := make([]*pb.DecodePsbtResponse_Output, len(r.Outputs))
+			for i, output := range r.Outputs {
+				var redeemScript *pb.DecodePsbtResponse_RedeemScript
+				if output.RedeemScript.Hex != "" {
+					redeemScript = &pb.DecodePsbtResponse_RedeemScript{
+						Asm:  output.RedeemScript.Asm,
+						Hex:  output.RedeemScript.Hex,
+						Type: output.RedeemScript.Type,
+					}
+				}
+
+				var witnessScript *pb.DecodePsbtResponse_RedeemScript
+				if output.WitnessScript.Hex != "" {
+					witnessScript = &pb.DecodePsbtResponse_RedeemScript{
+						Asm:  output.WitnessScript.Asm,
+						Hex:  output.WitnessScript.Hex,
+						Type: output.WitnessScript.Type,
+					}
+				}
+
+				outputs[i] = &pb.DecodePsbtResponse_Output{
+					RedeemScript:  redeemScript,
+					WitnessScript: witnessScript,
+					Bip32Derivs: lo.Map(output.Bip32Derivs, func(deriv rawBip32Deriv, _ int) *pb.DecodePsbtResponse_Bip32Deriv {
+						return &pb.DecodePsbtResponse_Bip32Deriv{
+							Pubkey:            deriv.Pubkey,
+							MasterFingerprint: deriv.MasterFingerprint,
+							Path:              deriv.Path,
+						}
+					}),
+					Unknown: output.Unknown,
+				}
+			}
+
+			return &pb.DecodePsbtResponse{
+				Tx: &pb.DecodeRawTransactionResponse{
+					Txid:        r.Tx.Txid,
+					Hash:        r.Tx.Hash,
+					Size:        r.Tx.Size,
+					VirtualSize: r.Tx.VirtualSize,
+					Weight:      r.Tx.Weight,
+					Version:     r.Tx.Version,
+					Locktime:    r.Tx.Locktime,
+					Inputs: lo.Map(r.Tx.Vin, func(in input, _ int) *pb.Input {
+						return &pb.Input{
+							Txid: in.Txid,
+							Vout: in.Vout,
+							ScriptSig: &pb.ScriptSig{
+								Asm: in.ScriptSig.Asm,
+								Hex: in.ScriptSig.Hex,
+							},
+							Sequence: in.Sequence,
+							Witness:  in.TxInWitness,
+						}
+					}),
+					Outputs: lo.Map(r.Tx.Vout, func(out output, _ int) *pb.Output {
+						return &pb.Output{
+							Amount: out.Value,
+							Vout:   out.N,
+							ScriptPubKey: &pb.ScriptPubKey{
+								Asm:     out.ScriptPubKey.Asm,
+								Hex:     out.ScriptPubKey.Hex,
+								Type:    out.ScriptPubKey.Type,
+								Address: lo.If(len(out.ScriptPubKey.Addresses) > 0, out.ScriptPubKey.Addresses[0]).Else(""),
+							},
+						}
+					}),
+				},
+				Unknown: r.Unknown,
+				Inputs:  inputs,
+				Outputs: outputs,
+				Fee:     r.Fee,
+			}
+		})
+}
+		})
+}
+
 
 // CreateWallet implements bitcoindv1alphaconnect.BitcoinServiceHandler.
 func (b *Bitcoind) CreateWallet(ctx context.Context, c *connect.Request[pb.CreateWalletRequest]) (*connect.Response[pb.CreateWalletResponse], error) {
@@ -1821,4 +2027,101 @@ func categoryFromString(in string) pb.GetTransactionResponse_Category {
 	default:
 		return 0
 	}
+}
+
+type rawDecodeTransactionResponse struct {
+	Txid        string   `json:"txid"`
+	Hash        string   `json:"hash"`
+	Size        uint32   `json:"size"`
+	VirtualSize uint32   `json:"vsize"`
+	Weight      uint32   `json:"weight"`
+	Version     uint32   `json:"version"`
+	Locktime    uint32   `json:"locktime"`
+	Vin         []input  `json:"vin"`
+	Vout        []output `json:"vout"`
+}
+
+type input struct {
+	Txid        string    `json:"txid"`
+	Vout        uint32    `json:"vout"`
+	ScriptSig   scriptSig `json:"scriptSig"`
+	TxInWitness []string  `json:"txinwitness,omitempty"`
+	Sequence    uint32    `json:"sequence"`
+}
+
+type scriptSig struct {
+	Asm string `json:"asm"`
+	Hex string `json:"hex"`
+}
+
+type output struct {
+	Value        float64      `json:"value"`
+	N            uint32       `json:"n"`
+	ScriptPubKey scriptPubKey `json:"scriptPubKey"`
+}
+
+type scriptPubKey struct {
+	Asm       string   `json:"asm"`
+	Hex       string   `json:"hex"`
+	ReqSigs   uint32   `json:"reqSigs,omitempty"`
+	Type      string   `json:"type"`
+	Addresses []string `json:"addresses,omitempty"`
+	Address   string   `json:"address,omitempty"`
+}
+
+type rawDecodePsbtResponse struct {
+	Tx      rawDecodeTransactionResponse `json:"tx"`
+	Unknown map[string]string            `json:"unknown"`
+	Inputs  []struct {
+		NonWitnessUtxo rawDecodeTransactionResponse `json:"non_witness_utxo"`
+		WitnessUtxo    struct {
+			Amount       float64 `json:"amount"`
+			ScriptPubKey struct {
+				Asm     string `json:"asm"`
+				Hex     string `json:"hex"`
+				Type    string `json:"type"`
+				Address string `json:"address"`
+			} `json:"scriptPubKey"`
+		} `json:"witness_utxo"`
+		PartialSignatures map[string]string `json:"partial_signatures"`
+		Sighash           string            `json:"sighash"`
+		RedeemScript      struct {
+			Asm  string `json:"asm"`
+			Hex  string `json:"hex"`
+			Type string `json:"type"`
+		} `json:"redeem_script"`
+		WitnessScript struct {
+			Asm  string `json:"asm"`
+			Hex  string `json:"hex"`
+			Type string `json:"type"`
+		} `json:"witness_script"`
+		Bip32Derivs    []rawBip32Deriv `json:"bip32_derivs"`
+		FinalScriptSig struct {
+			Asm string `json:"asm"`
+			Hex string `json:"hex"`
+		} `json:"final_scriptsig"`
+		FinalScriptWitness []string          `json:"final_scriptwitness"`
+		Unknown            map[string]string `json:"unknown"`
+	} `json:"inputs"`
+	Outputs []struct {
+		RedeemScript struct {
+			Asm  string `json:"asm"`
+			Hex  string `json:"hex"`
+			Type string `json:"type"`
+		} `json:"redeem_script"`
+		WitnessScript struct {
+			Asm  string `json:"asm"`
+			Hex  string `json:"hex"`
+			Type string `json:"type"`
+		} `json:"witness_script"`
+		Bip32Derivs []rawBip32Deriv   `json:"bip32_derivs"`
+		Unknown     map[string]string `json:"unknown"`
+	} `json:"outputs"`
+	Fee float64 `json:"fee"`
+}
+
+type rawBip32Deriv struct {
+	Pubkey            string `json:"pubkey"`
+	MasterFingerprint string `json:"master_fingerprint"`
+	Path              string `json:"path"`
 }
