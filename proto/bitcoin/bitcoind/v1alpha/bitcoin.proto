@@ -69,6 +69,7 @@ service BitcoinService {
   rpc CreateMultisig(CreateMultisigRequest) returns (CreateMultisigResponse);
   // PSBT handling
   rpc AnalyzePsbt(AnalyzePsbtRequest) returns (AnalyzePsbtResponse);
+  rpc CombinePsbt(CombinePsbtRequest) returns (CombinePsbtResponse);
 }
 
 message GetBlockchainInfoRequest {}
@@ -981,3 +982,12 @@ message AnalyzePsbtResponse {
   string next = 5;
   string error = 6;
 }
+
+message CombinePsbtRequest {
+  repeated string psbts = 1; // Array of base64 encoded PSBTs
+}
+
+message CombinePsbtResponse {
+  string psbt = 1; // Combined base64 encoded PSBT
+}
+

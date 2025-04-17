@@ -145,6 +145,9 @@ const (
 	// BitcoinServiceAnalyzePsbtProcedure is the fully-qualified name of the BitcoinService's
 	// AnalyzePsbt RPC.
 	BitcoinServiceAnalyzePsbtProcedure = "/bitcoin.bitcoind.v1alpha.BitcoinService/AnalyzePsbt"
+	// BitcoinServiceCombinePsbtProcedure is the fully-qualified name of the BitcoinService's
+	// CombinePsbt RPC.
+	BitcoinServiceCombinePsbtProcedure = "/bitcoin.bitcoind.v1alpha.BitcoinService/CombinePsbt"
 )
 
 // BitcoinServiceClient is a client for the bitcoin.bitcoind.v1alpha.BitcoinService service.
@@ -198,6 +201,7 @@ type BitcoinServiceClient interface {
 	AddMultisigAddress(context.Context, *connect.Request[v1alpha.AddMultisigAddressRequest]) (*connect.Response[v1alpha.AddMultisigAddressResponse], error)
 	CreateMultisig(context.Context, *connect.Request[v1alpha.CreateMultisigRequest]) (*connect.Response[v1alpha.CreateMultisigResponse], error)
 	AnalyzePsbt(context.Context, *connect.Request[v1alpha.AnalyzePsbtRequest]) (*connect.Response[v1alpha.AnalyzePsbtResponse], error)
+	CombinePsbt(context.Context, *connect.Request[v1alpha.CombinePsbtRequest]) (*connect.Response[v1alpha.CombinePsbtResponse], error)
 }
 
 // NewBitcoinServiceClient constructs a client for the bitcoin.bitcoind.v1alpha.BitcoinService
@@ -439,12 +443,19 @@ func NewBitcoinServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(bitcoinServiceMethods.ByName("AnalyzePsbt")),
 			connect.WithClientOptions(opts...),
 		),
+		combinePsbt: connect.NewClient[v1alpha.CombinePsbtRequest, v1alpha.CombinePsbtResponse](
+			httpClient,
+			baseURL+BitcoinServiceCombinePsbtProcedure,
+			connect.WithSchema(bitcoinServiceMethods.ByName("CombinePsbt")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // bitcoinServiceClient implements BitcoinServiceClient.
 type bitcoinServiceClient struct {
 	analyzePsbt            *connect.Client[v1alpha.AnalyzePsbtRequest, v1alpha.AnalyzePsbtResponse]
+	combinePsbt            *connect.Client[v1alpha.CombinePsbtRequest, v1alpha.CombinePsbtResponse]
 }
 
 // GetBlockchainInfo calls bitcoin.bitcoind.v1alpha.BitcoinService.GetBlockchainInfo.
@@ -636,6 +647,11 @@ func (c *bitcoinServiceClient) AnalyzePsbt(ctx context.Context, req *connect.Req
 	return c.analyzePsbt.CallUnary(ctx, req)
 }
 
+// CombinePsbt calls bitcoin.bitcoind.v1alpha.BitcoinService.CombinePsbt.
+func (c *bitcoinServiceClient) CombinePsbt(ctx context.Context, req *connect.Request[v1alpha.CombinePsbtRequest]) (*connect.Response[v1alpha.CombinePsbtResponse], error) {
+	return c.combinePsbt.CallUnary(ctx, req)
+}
+
 
 // BitcoinServiceHandler is an implementation of the bitcoin.bitcoind.v1alpha.BitcoinService
 // service.
@@ -689,6 +705,7 @@ type BitcoinServiceHandler interface {
 	AddMultisigAddress(context.Context, *connect.Request[v1alpha.AddMultisigAddressRequest]) (*connect.Response[v1alpha.AddMultisigAddressResponse], error)
 	CreateMultisig(context.Context, *connect.Request[v1alpha.CreateMultisigRequest]) (*connect.Response[v1alpha.CreateMultisigResponse], error)
 	AnalyzePsbt(context.Context, *connect.Request[v1alpha.AnalyzePsbtRequest]) (*connect.Response[v1alpha.AnalyzePsbtResponse], error)
+	CombinePsbt(context.Context, *connect.Request[v1alpha.CombinePsbtRequest]) (*connect.Response[v1alpha.CombinePsbtResponse], error)
 }
 
 // NewBitcoinServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -926,6 +943,12 @@ func NewBitcoinServiceHandler(svc BitcoinServiceHandler, opts ...connect.Handler
 		connect.WithSchema(bitcoinServiceMethods.ByName("AnalyzePsbt")),
 		connect.WithHandlerOptions(opts...),
 	)
+	bitcoinServiceCombinePsbtHandler := connect.NewUnaryHandler(
+		BitcoinServiceCombinePsbtProcedure,
+		svc.CombinePsbt,
+		connect.WithSchema(bitcoinServiceMethods.ByName("CombinePsbt")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/bitcoin.bitcoind.v1alpha.BitcoinService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case BitcoinServiceGetBlockchainInfoProcedure:
@@ -1004,6 +1027,8 @@ func NewBitcoinServiceHandler(svc BitcoinServiceHandler, opts ...connect.Handler
 			bitcoinServiceCreateMultisigHandler.ServeHTTP(w, r)
 		case BitcoinServiceAnalyzePsbtProcedure:
 			bitcoinServiceAnalyzePsbtHandler.ServeHTTP(w, r)
+		case BitcoinServiceCombinePsbtProcedure:
+			bitcoinServiceCombinePsbtHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -1162,5 +1187,9 @@ func (UnimplementedBitcoinServiceHandler) CreateMultisig(context.Context, *conne
 }
 func (UnimplementedBitcoinServiceHandler) AnalyzePsbt(context.Context, *connect.Request[v1alpha.AnalyzePsbtRequest]) (*connect.Response[v1alpha.AnalyzePsbtResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("bitcoin.bitcoind.v1alpha.BitcoinService.AnalyzePsbt is not implemented"))
+}
+
+func (UnimplementedBitcoinServiceHandler) CombinePsbt(context.Context, *connect.Request[v1alpha.CombinePsbtRequest]) (*connect.Response[v1alpha.CombinePsbtResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("bitcoin.bitcoind.v1alpha.BitcoinService.CombinePsbt is not implemented"))
 }
 

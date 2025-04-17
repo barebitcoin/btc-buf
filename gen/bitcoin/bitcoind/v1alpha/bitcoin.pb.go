@@ -5818,6 +5818,94 @@ func (x *AnalyzePsbtResponse) GetError() string {
 	return ""
 }
 
+type CombinePsbtRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Psbts         []string               `protobuf:"bytes,1,rep,name=psbts,proto3" json:"psbts,omitempty"` // Array of base64 encoded PSBTs
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CombinePsbtRequest) Reset() {
+	*x = CombinePsbtRequest{}
+	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[93]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CombinePsbtRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CombinePsbtRequest) ProtoMessage() {}
+
+func (x *CombinePsbtRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[93]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CombinePsbtRequest.ProtoReflect.Descriptor instead.
+func (*CombinePsbtRequest) Descriptor() ([]byte, []int) {
+	return file_bitcoin_bitcoind_v1alpha_bitcoin_proto_rawDescGZIP(), []int{93}
+}
+
+func (x *CombinePsbtRequest) GetPsbts() []string {
+	if x != nil {
+		return x.Psbts
+	}
+	return nil
+}
+
+type CombinePsbtResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Psbt          string                 `protobuf:"bytes,1,opt,name=psbt,proto3" json:"psbt,omitempty"` // Combined base64 encoded PSBT
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CombinePsbtResponse) Reset() {
+	*x = CombinePsbtResponse{}
+	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[94]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CombinePsbtResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CombinePsbtResponse) ProtoMessage() {}
+
+func (x *CombinePsbtResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[94]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CombinePsbtResponse.ProtoReflect.Descriptor instead.
+func (*CombinePsbtResponse) Descriptor() ([]byte, []int) {
+	return file_bitcoin_bitcoind_v1alpha_bitcoin_proto_rawDescGZIP(), []int{94}
+}
+
+func (x *CombinePsbtResponse) GetPsbt() string {
+	if x != nil {
+		return x.Psbt
+	}
+	return ""
+}
+
 
 // balances from outputs that the wallet can sign
 type GetBalancesResponse_Mine struct {
@@ -6878,6 +6966,7 @@ const file_bitcoin_bitcoind_v1alpha_bitcoin_proto_rawDesc = "" +
 	"passphrase\x18\x04 \x01(\tR\n" +
 	"passphrase\x12\x1f\n" +
 	"\vavoid_reuse\x18\x05 \x01(\bR\n" +
+	"\x12CombinePsbtRequest\x12\x14\n" +
 	"avoidReuse\"D\n" +
 	"\x14CreateWalletResponse\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x18\n" +
@@ -6966,6 +7055,7 @@ const file_bitcoin_bitcoind_v1alpha_bitcoin_proto_rawDesc = "" +
 	"\x13AnalyzePsbtResponse\x12K\n" +
 	"\amissing\x18\x03 \x01(\v2;.bitcoin.bitcoind.v1alpha.AnalyzePsbtResponse.Input.MissingR\amissing\x12\x12\n" +
 	"\x06inputs\x18\x01 \x03(\v23.bitcoin.bitcoind.v1alpha.AnalyzePsbtResponse.InputR\x06inputs\x12'\n" +
+	"\x13CombinePsbtResponse\x12\x12\n" +
 	"\x0eBitcoinService\x12|\n" +
 	"\x11GetBlockchainInfo\x122.bitcoin.bitcoind.v1alpha.GetBlockchainInfoRequest\x1a3.bitcoin.bitcoind.v1alpha.GetBlockchainInfoResponse\x12j\n" +
 	"\vGetPeerInfo\x12,.bitcoin.bitcoind.v1alpha.GetPeerInfoRequest\x1a-.bitcoin.bitcoind.v1alpha.GetPeerInfoResponse\x12s\n" +
@@ -7007,6 +7097,7 @@ const file_bitcoin_bitcoind_v1alpha_bitcoin_proto_rawDesc = "" +
 	"\fListAccounts\x12-.bitcoin.bitcoind.v1alpha.ListAccountsRequest\x1a..bitcoin.bitcoind.v1alpha.ListAccountsResponse\x12\x7f\n" +
 	"\x12AddMultisigAddress\x123.bitcoin.bitcoind.v1alpha.AddMultisigAddressRequest\x1a4.bitcoin.bitcoind.v1alpha.AddMultisigAddressResponse\x12s\n" +
 	"\vAnalyzePsbt\x12,.bitcoin.bitcoind.v1alpha.AnalyzePsbtRequest\x1a-.bitcoin.bitcoind.v1alpha.AnalyzePsbtResponse\x12|\n" +
+	"\vCombinePsbt\x12,.bitcoin.bitcoind.v1alpha.CombinePsbtRequest\x1a-.bitcoin.bitcoind.v1alpha.CombinePsbtResponse\x12m\n" +
 	"\x1ccom.bitcoin.bitcoind.v1alphaB\fBitcoinProtoP\x01ZKgithub.com/barebitcoin/btc-buf/gen/bitcoin/bitcoind/v1alpha;bitcoindv1alpha\xa2\x02\x03BBX\xaa\x02\x18Bitcoin.Bitcoind.V1alpha\xca\x02\x18Bitcoin\\Bitcoind\\V1alpha\xe2\x02$Bitcoin\\Bitcoind\\V1alpha\\GPBMetadata\xea\x02\x1aBitcoin::Bitcoind::V1alphab\x06proto3"
 
 var (
@@ -7114,6 +7205,8 @@ var file_bitcoin_bitcoind_v1alpha_bitcoin_proto_goTypes = []any{
 	(*CreateMultisigResponse)(nil),             // 87: bitcoin.bitcoind.v1alpha.CreateMultisigResponse
 	(*AnalyzePsbtRequest)(nil),                 // 96: bitcoin.bitcoind.v1alpha.AnalyzePsbtRequest
 	(*AnalyzePsbtResponse)(nil),                // 97: bitcoin.bitcoind.v1alpha.AnalyzePsbtResponse
+	(*CombinePsbtRequest)(nil),                 // 100: bitcoin.bitcoind.v1alpha.CombinePsbtRequest
+	(*CombinePsbtResponse)(nil),                // 101: bitcoin.bitcoind.v1alpha.CombinePsbtResponse
 	(*AnalyzePsbtResponse_Input)(nil),             // 133: bitcoin.bitcoind.v1alpha.AnalyzePsbtResponse.Input
 	(*AnalyzePsbtResponse_Input_Missing)(nil), // 134: bitcoin.bitcoind.v1alpha.AnalyzePsbtResponse.Input.Missing
 }
@@ -7166,7 +7259,9 @@ var file_bitcoin_bitcoind_v1alpha_bitcoin_proto_depIdxs = []int32{
 	133, // 56: bitcoin.bitcoind.v1alpha.AnalyzePsbtResponse.inputs:type_name -> bitcoin.bitcoind.v1alpha.AnalyzePsbtResponse.Input
 	134, // 65: bitcoin.bitcoind.v1alpha.AnalyzePsbtResponse.Input.missing:type_name -> bitcoin.bitcoind.v1alpha.AnalyzePsbtResponse.Input.Missing
 	96,  // 107: bitcoin.bitcoind.v1alpha.BitcoinService.AnalyzePsbt:input_type -> bitcoin.bitcoind.v1alpha.AnalyzePsbtRequest
+	100, // 109: bitcoin.bitcoind.v1alpha.BitcoinService.CombinePsbt:input_type -> bitcoin.bitcoind.v1alpha.CombinePsbtRequest
 	97,  // 155: bitcoin.bitcoind.v1alpha.BitcoinService.AnalyzePsbt:output_type -> bitcoin.bitcoind.v1alpha.AnalyzePsbtResponse
+	101, // 157: bitcoin.bitcoind.v1alpha.BitcoinService.CombinePsbt:output_type -> bitcoin.bitcoind.v1alpha.CombinePsbtResponse
 }
 
 func init() { file_bitcoin_bitcoind_v1alpha_bitcoin_proto_init() }
