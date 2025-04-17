@@ -42,6 +42,7 @@ func init() {
 	btcjson.MustRegisterCmd("createpsbt", new(commands.CreatePsbt), btcjson.UFWalletOnly)
 	btcjson.MustRegisterCmd("decodepsbt", new(commands.DecodePsbt), btcjson.UFWalletOnly)
 	btcjson.MustRegisterCmd("utxoupdatepsbt", new(commands.UtxoUpdatePsbt), btcjson.UFWalletOnly)
+	btcjson.MustRegisterCmd("joinpsbts", new(commands.JoinPsbts), btcjson.UFWalletOnly)
 }
 
 type Bitcoind struct {
@@ -1650,6 +1651,38 @@ func (b *Bitcoind) DecodePsbt(ctx context.Context, c *connect.Request[pb.DecodeP
 				Inputs:  inputs,
 				Outputs: outputs,
 				Fee:     r.Fee,
+			}
+		})
+}
+
+// JoinPsbts implements bitcoindv1alphaconnect.BitcoinServiceHandler.
+func (b *Bitcoind) JoinPsbts(ctx context.Context, c *connect.Request[pb.JoinPsbtsRequest]) (*connect.Response[pb.JoinPsbtsResponse], error) {
+	if len(c.Msg.Psbts) == 0 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("at least one PSBT is required"))
+	}
+
+	return withCancel(ctx,
+		func(ctx context.Context) (string, error) {
+			cmd, err := btcjson.NewCmd("joinpsbts", c.Msg.Psbts)
+			if err != nil {
+				return "", fmt.Errorf("create joinpsbts command: %w", err)
+			}
+
+			res, err := rpcclient.ReceiveFuture(b.rpc.SendCmd(ctx, cmd))
+			if err != nil {
+				return "", fmt.Errorf("send joinpsbts: %w", err)
+			}
+
+			var psbt string
+			if err := json.Unmarshal(res, &psbt); err != nil {
+				return "", fmt.Errorf("unmarshal joinpsbts response: %w", err)
+			}
+
+			return psbt, nil
+		},
+		func(r string) *pb.JoinPsbtsResponse {
+			return &pb.JoinPsbtsResponse{
+				Psbt: r,
 			}
 		})
 }
