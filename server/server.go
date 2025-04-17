@@ -39,6 +39,7 @@ func init() {
 	btcjson.MustRegisterCmd("bumpfee", new(commands.BumpFee), btcjson.UFWalletOnly)
 	btcjson.MustRegisterCmd("analyzepsbt", new(commands.AnalyzePsbt), btcjson.UFWalletOnly)
 	btcjson.MustRegisterCmd("combinepsbt", new(commands.CombinePsbt), btcjson.UFWalletOnly)
+	btcjson.MustRegisterCmd("createpsbt", new(commands.CreatePsbt), btcjson.UFWalletOnly)
 }
 
 type Bitcoind struct {
@@ -1354,6 +1355,51 @@ func (b *Bitcoind) CombinePsbt(ctx context.Context, c *connect.Request[pb.Combin
 		})
 }
 
+// CreatePsbt implements bitcoindv1alphaconnect.BitcoinServiceHandler.
+func (b *Bitcoind) CreatePsbt(ctx context.Context, c *connect.Request[pb.CreatePsbtRequest]) (*connect.Response[pb.CreatePsbtResponse], error) {
+	if len(c.Msg.Inputs) == 0 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("inputs are required"))
+	}
+	if len(c.Msg.Outputs) == 0 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("outputs are required"))
+	}
+
+	// Convert inputs to btcjson.TransactionInput format
+	inputs := make([]btcjson.TransactionInput, len(c.Msg.Inputs))
+	for i, in := range c.Msg.Inputs {
+		inputs[i] = btcjson.TransactionInput{
+			Txid: in.Txid,
+			Vout: in.Vout,
+		}
+	}
+
+	return withCancel(ctx,
+		func(ctx context.Context) (string, error) {
+			cmd, err := btcjson.NewCmd("createpsbt", inputs, c.Msg.Outputs, c.Msg.Locktime, c.Msg.Replaceable)
+			if err != nil {
+				return "", err
+			}
+
+			res, err := rpcclient.ReceiveFuture(b.rpc.SendCmd(ctx, cmd))
+			if err != nil {
+				return "", fmt.Errorf("send createpsbt: %w", err)
+			}
+			zerolog.Ctx(ctx).Err(err).
+				Msgf("createpsbt response: %s", string(res))
+
+			var psbt string
+			if err := json.Unmarshal(res, &psbt); err != nil {
+				return "", fmt.Errorf("unmarshal createpsbt response: %w", err)
+			}
+
+			return psbt, nil
+		},
+		func(r string) *pb.CreatePsbtResponse {
+			return &pb.CreatePsbtResponse{
+				Psbt: r,
+			}
+		})
+}
 
 // CreateWallet implements bitcoindv1alphaconnect.BitcoinServiceHandler.
 func (b *Bitcoind) CreateWallet(ctx context.Context, c *connect.Request[pb.CreateWalletRequest]) (*connect.Response[pb.CreateWalletResponse], error) {

@@ -68,6 +68,7 @@ service BitcoinService {
   rpc AddMultisigAddress(AddMultisigAddressRequest) returns (AddMultisigAddressResponse);
   rpc CreateMultisig(CreateMultisigRequest) returns (CreateMultisigResponse);
   // PSBT handling
+  rpc CreatePsbt(CreatePsbtRequest) returns (CreatePsbtResponse);
   rpc AnalyzePsbt(AnalyzePsbtRequest) returns (AnalyzePsbtResponse);
   rpc CombinePsbt(CombinePsbtRequest) returns (CombinePsbtResponse);
 }
@@ -958,6 +959,22 @@ message CreateMultisigResponse {
   string address = 1;
   string redeem_script = 2;
 }
+message CreatePsbtRequest {
+  message Input {
+    string txid = 1;
+    uint32 vout = 2;
+    uint32 sequence = 3;
+  }
+  repeated Input inputs = 1;
+  map<string, double> outputs = 2; // address -> amount
+  uint32 locktime = 3;
+  bool replaceable = 4;
+}
+
+message CreatePsbtResponse {
+  string psbt = 1; // Base64 encoded PSBT
+}
+
 message AnalyzePsbtRequest {
   string psbt = 1; // Base64 encoded PSBT
 }
