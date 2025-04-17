@@ -40,6 +40,7 @@ service BitcoinService {
   // Raw TX stuff
   rpc GetRawTransaction(GetRawTransactionRequest) returns (GetRawTransactionResponse);
   rpc DecodeRawTransaction(DecodeRawTransactionRequest) returns (DecodeRawTransactionResponse);
+  rpc CreateRawTransaction(CreateRawTransactionRequest) returns (CreateRawTransactionResponse);
 
   rpc GetBlock(GetBlockRequest) returns (GetBlockResponse);
   rpc GetBlockHash(GetBlockHashRequest) returns (GetBlockHashResponse);
@@ -67,6 +68,7 @@ service BitcoinService {
   // Multi-sig operations
   rpc AddMultisigAddress(AddMultisigAddressRequest) returns (AddMultisigAddressResponse);
   rpc CreateMultisig(CreateMultisigRequest) returns (CreateMultisigResponse);
+
   // PSBT handling
   rpc CreatePsbt(CreatePsbtRequest) returns (CreatePsbtResponse);
   rpc AnalyzePsbt(AnalyzePsbtRequest) returns (AnalyzePsbtResponse);
@@ -959,6 +961,23 @@ message CreateMultisigResponse {
   string address = 1;
   string redeem_script = 2;
 }
+
+// Transaction creation messages
+message CreateRawTransactionRequest {
+  message Input {
+    string txid = 1;
+    uint32 vout = 2;
+    uint32 sequence = 3;
+  }
+  repeated Input inputs = 1;
+  map<string, double> outputs = 2; // address -> amount
+  uint32 locktime = 3;
+}
+
+message CreateRawTransactionResponse {
+  RawTransaction tx = 1;
+}
+
 message CreatePsbtRequest {
   message Input {
     string txid = 1;

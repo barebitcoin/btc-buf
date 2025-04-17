@@ -1401,6 +1401,55 @@ func (b *Bitcoind) CreatePsbt(ctx context.Context, c *connect.Request[pb.CreateP
 		})
 }
 
+// CreateRawTransaction implements bitcoindv1alphaconnect.BitcoinServiceHandler.
+func (b *Bitcoind) CreateRawTransaction(ctx context.Context, c *connect.Request[pb.CreateRawTransactionRequest]) (*connect.Response[pb.CreateRawTransactionResponse], error) {
+	if len(c.Msg.Inputs) == 0 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("inputs are required"))
+	}
+	if len(c.Msg.Outputs) == 0 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("outputs are required"))
+	}
+
+	// Convert inputs to btcjson.TransactionInput format
+	inputs := make([]btcjson.TransactionInput, len(c.Msg.Inputs))
+	for i, in := range c.Msg.Inputs {
+		inputs[i] = btcjson.TransactionInput{
+			Txid: in.Txid,
+			Vout: in.Vout,
+		}
+	}
+
+	return withCancel(ctx,
+		func(ctx context.Context) (string, error) {
+			cmd, err := btcjson.NewCmd("createrawtransaction", inputs, c.Msg.Outputs, c.Msg.Locktime)
+			if err != nil {
+				return "", err
+			}
+
+			res, err := rpcclient.ReceiveFuture(b.rpc.SendCmd(ctx, cmd))
+			if err != nil {
+				return "", fmt.Errorf("send createrawtransaction: %w", err)
+			}
+			zerolog.Ctx(ctx).Err(err).
+				Msgf("createrawtransaction response: %s", string(res))
+
+			var hex string
+			if err := json.Unmarshal(res, &hex); err != nil {
+				return "", fmt.Errorf("unmarshal createrawtransaction response: %w", err)
+			}
+
+			return hex, nil
+		},
+		func(r string) *pb.CreateRawTransactionResponse {
+			return &pb.CreateRawTransactionResponse{
+				Tx: &pb.RawTransaction{
+					Hex: r,
+				},
+			}
+		})
+}
+
+
 // CreateWallet implements bitcoindv1alphaconnect.BitcoinServiceHandler.
 func (b *Bitcoind) CreateWallet(ctx context.Context, c *connect.Request[pb.CreateWalletRequest]) (*connect.Response[pb.CreateWalletResponse], error) {
 	if c.Msg.Name == "" {
