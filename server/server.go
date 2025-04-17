@@ -37,6 +37,7 @@ import (
 func init() {
 	btcjson.MustRegisterCmd("importdescriptors", new(btcjson.ImportMultiCmd), btcjson.UFWalletOnly)
 	btcjson.MustRegisterCmd("bumpfee", new(commands.BumpFee), btcjson.UFWalletOnly)
+	btcjson.MustRegisterCmd("analyzepsbt", new(commands.AnalyzePsbt), btcjson.UFWalletOnly)
 }
 
 type Bitcoind struct {
@@ -1244,6 +1245,80 @@ func (b *Bitcoind) CreateMultisig(ctx context.Context, c *connect.Request[pb.Cre
 			}
 		})
 }
+
+// AnalyzePsbt implements bitcoindv1alphaconnect.BitcoinServiceHandler.
+func (b *Bitcoind) AnalyzePsbt(ctx context.Context, c *connect.Request[pb.AnalyzePsbtRequest]) (*connect.Response[pb.AnalyzePsbtResponse], error) {
+	if c.Msg.Psbt == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("psbt is required"))
+	}
+
+	type rawAnalyzePsbtResponse struct {
+		Inputs []struct {
+			HasUtxo bool `json:"has_utxo"`
+			IsFinal bool `json:"is_final"`
+			Missing struct {
+				Pubkeys       []string `json:"pubkeys,omitempty"`
+				Signatures    []string `json:"signatures,omitempty"`
+				RedeemScript  string   `json:"redeemscript,omitempty"`
+				WitnessScript string   `json:"witnessscript,omitempty"`
+			} `json:"missing,omitempty"`
+			Next string `json:"next,omitempty"`
+		} `json:"inputs"`
+		EstimatedVsize   *float64 `json:"estimated_vsize,omitempty"`
+		EstimatedFeerate *float64 `json:"estimated_feerate,omitempty"`
+		Fee              *float64 `json:"fee,omitempty"`
+		Next             string   `json:"next"`
+		Error            string   `json:"error,omitempty"`
+	}
+
+	return withCancel(ctx,
+		func(ctx context.Context) (rawAnalyzePsbtResponse, error) {
+			cmd, err := btcjson.NewCmd("analyzepsbt", c.Msg.Psbt)
+			if err != nil {
+				return rawAnalyzePsbtResponse{}, err
+			}
+
+			res, err := rpcclient.ReceiveFuture(b.rpc.SendCmd(ctx, cmd))
+			if err != nil {
+				return rawAnalyzePsbtResponse{}, fmt.Errorf("send analyzepsbt: %w", err)
+			}
+			zerolog.Ctx(ctx).Err(err).
+				Msgf("analyzepsbt response: %s", string(res))
+
+			var parsed rawAnalyzePsbtResponse
+			if err := json.Unmarshal(res, &parsed); err != nil {
+				return rawAnalyzePsbtResponse{}, fmt.Errorf("unmarshal analyzepsbt response: %w", err)
+			}
+
+			return parsed, nil
+		},
+		func(r rawAnalyzePsbtResponse) *pb.AnalyzePsbtResponse {
+			inputs := make([]*pb.AnalyzePsbtResponse_Input, len(r.Inputs))
+			for i, input := range r.Inputs {
+				inputs[i] = &pb.AnalyzePsbtResponse_Input{
+					HasUtxo: input.HasUtxo,
+					IsFinal: input.IsFinal,
+					Missing: &pb.AnalyzePsbtResponse_Input_Missing{
+						Pubkeys:       input.Missing.Pubkeys,
+						Signatures:    input.Missing.Signatures,
+						RedeemScript:  input.Missing.RedeemScript,
+						WitnessScript: input.Missing.WitnessScript,
+					},
+					Next: input.Next,
+				}
+			}
+
+			return &pb.AnalyzePsbtResponse{
+				Inputs:           inputs,
+				EstimatedVsize:   lo.FromPtr(r.EstimatedVsize),
+				EstimatedFeerate: lo.FromPtr(r.EstimatedFeerate),
+				Fee:              lo.FromPtr(r.Fee),
+				Next:             r.Next,
+				Error:            r.Error,
+			}
+		})
+}
+
 
 // CreateWallet implements bitcoindv1alphaconnect.BitcoinServiceHandler.
 func (b *Bitcoind) CreateWallet(ctx context.Context, c *connect.Request[pb.CreateWalletRequest]) (*connect.Response[pb.CreateWalletResponse], error) {
