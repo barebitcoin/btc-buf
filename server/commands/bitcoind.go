@@ -36,3 +36,11 @@ type CreateRawTransaction struct {
 type DecodePsbt struct {
 	Psbt string `json:"psbt"`
 }
+
+type UtxoUpdatePsbt struct {
+	Psbt        string `json:"psbt"`
+	Descriptors []struct {
+		Desc  string      `json:"desc"`
+		Range interface{} `json:"range,omitempty"` // Can be int or [int,int]
+	} `json:"descriptors,omitempty"`
+}

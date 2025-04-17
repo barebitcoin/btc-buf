@@ -74,6 +74,7 @@ service BitcoinService {
   rpc DecodePsbt(DecodePsbtRequest) returns (DecodePsbtResponse);
   rpc AnalyzePsbt(AnalyzePsbtRequest) returns (AnalyzePsbtResponse);
   rpc CombinePsbt(CombinePsbtRequest) returns (CombinePsbtResponse);
+  rpc UtxoUpdatePsbt(UtxoUpdatePsbtRequest) returns (UtxoUpdatePsbtResponse);
 }
 
 message GetBlockchainInfoRequest {}
@@ -1079,4 +1080,41 @@ message CombinePsbtRequest {
 
 message CombinePsbtResponse {
   string psbt = 1; // Combined base64 encoded PSBT
+}
+
+message UtxoUpdatePsbtRequest {
+  string psbt = 1; // Base64 encoded PSBT
+  repeated Descriptor descriptors = 2; // Array of descriptors
+}
+
+message UtxoUpdatePsbtResponse {
+  string psbt = 1; // Updated base64 encoded PSBT
+}
+
+// Add a new message for descriptor range
+message DescriptorRange {
+  oneof range_type {
+    int32 end = 1; // Single number for end (begin defaults to 0)
+    Range range = 2; // Begin and end range
+  }
+}
+
+// Add a new message for begin/end range
+message Range {
+  int32 begin = 1;
+  int32 end = 2;
+}
+
+// Add a new message for descriptor
+message Descriptor {
+  oneof descriptor {
+    string string_descriptor = 1; // Plain string descriptor
+    DescriptorObject object_descriptor = 2; // Descriptor object with range
+  }
+}
+
+// Add a new message for descriptor objects
+message DescriptorObject {
+  string desc = 1; // The output descriptor
+  DescriptorRange range = 2; // Optional range, defaults to 1000 if not specified
 }

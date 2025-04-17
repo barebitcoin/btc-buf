@@ -41,6 +41,7 @@ func init() {
 	btcjson.MustRegisterCmd("combinepsbt", new(commands.CombinePsbt), btcjson.UFWalletOnly)
 	btcjson.MustRegisterCmd("createpsbt", new(commands.CreatePsbt), btcjson.UFWalletOnly)
 	btcjson.MustRegisterCmd("decodepsbt", new(commands.DecodePsbt), btcjson.UFWalletOnly)
+	btcjson.MustRegisterCmd("utxoupdatepsbt", new(commands.UtxoUpdatePsbt), btcjson.UFWalletOnly)
 }
 
 type Bitcoind struct {
@@ -1652,9 +1653,66 @@ func (b *Bitcoind) DecodePsbt(ctx context.Context, c *connect.Request[pb.DecodeP
 			}
 		})
 }
+
+// UtxoUpdatePsbt implements bitcoindv1alphaconnect.BitcoinServiceHandler.
+func (b *Bitcoind) UtxoUpdatePsbt(ctx context.Context, c *connect.Request[pb.UtxoUpdatePsbtRequest]) (*connect.Response[pb.UtxoUpdatePsbtResponse], error) {
+	if c.Msg.Psbt == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("psbt is required"))
+	}
+
+	// Convert the proto descriptors to the format Bitcoin Core expects
+	var descriptors []interface{}
+	for _, desc := range c.Msg.Descriptors {
+		switch d := desc.Descriptor_.(type) {
+		case *pb.Descriptor_StringDescriptor:
+			// For plain string descriptors, just add the string
+			descriptors = append(descriptors, d.StringDescriptor)
+
+		case *pb.Descriptor_ObjectDescriptor:
+			obj := make(map[string]interface{})
+			obj["desc"] = d.ObjectDescriptor.Desc
+
+			// Handle the range if specified
+			if d.ObjectDescriptor.Range != nil {
+				switch r := d.ObjectDescriptor.Range.RangeType.(type) {
+				case *pb.DescriptorRange_End:
+					// Single number range (implicitly starts at 0)
+					obj["range"] = r.End
+
+				case *pb.DescriptorRange_Range:
+					// Begin/end range
+					obj["range"] = []int32{r.Range.Begin, r.Range.End}
+				}
+			}
+			descriptors = append(descriptors, obj)
+		}
+	}
+
+	return withCancel(ctx,
+		func(ctx context.Context) (string, error) {
+			cmd, err := btcjson.NewCmd("utxoupdatepsbt", c.Msg.Psbt, descriptors)
+			if err != nil {
+				return "", fmt.Errorf("create utxoupdatepsbt command: %w", err)
+			}
+
+			res, err := rpcclient.ReceiveFuture(b.rpc.SendCmd(ctx, cmd))
+			if err != nil {
+				return "", fmt.Errorf("send utxoupdatepsbt: %w", err)
+			}
+
+			var psbt string
+			if err := json.Unmarshal(res, &psbt); err != nil {
+				return "", fmt.Errorf("unmarshal utxoupdatepsbt response: %w", err)
+			}
+
+			return psbt, nil
+		},
+		func(r string) *pb.UtxoUpdatePsbtResponse {
+			return &pb.UtxoUpdatePsbtResponse{
+				Psbt: r,
+			}
 		})
 }
-
 
 // CreateWallet implements bitcoindv1alphaconnect.BitcoinServiceHandler.
 func (b *Bitcoind) CreateWallet(ctx context.Context, c *connect.Request[pb.CreateWalletRequest]) (*connect.Response[pb.CreateWalletResponse], error) {
