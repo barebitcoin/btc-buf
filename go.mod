@@ -6,7 +6,7 @@ require (
 	connectrpc.com/connect v1.18.1
 	connectrpc.com/grpchealth v1.3.0
 	connectrpc.com/grpcreflect v1.3.0
-	github.com/barebitcoin/btcd/rpcclient v0.0.0-20240927061622-c0a9f969fd8d
+	github.com/barebitcoin/btcd/rpcclient v0.0.0-20250502094915-a9085d1da6b6
 	github.com/btcsuite/btcd v0.24.2
 	github.com/btcsuite/btcd/btcutil v1.1.6
 	github.com/btcsuite/btcd/chaincfg/chainhash v1.1.0
