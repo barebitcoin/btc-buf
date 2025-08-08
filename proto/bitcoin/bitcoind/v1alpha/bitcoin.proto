@@ -28,6 +28,7 @@ service BitcoinService {
   // checksum. This can be obtained by running it through GetDescriptorInfo.
   rpc ImportDescriptors(ImportDescriptorsRequest) returns (ImportDescriptorsResponse);
   rpc ListWallets(google.protobuf.Empty) returns (ListWalletsResponse);
+  rpc ListUnspent(ListUnspentRequest) returns (ListUnspentResponse);
 
   rpc ListTransactions(ListTransactionsRequest) returns (ListTransactionsResponse);
 
@@ -792,6 +793,101 @@ message ListTransactionsResponse {
 message ListWalletsResponse {
   repeated string wallets = 1;
 }
+
+message ListUnspentRequest {
+  string wallet = 1;
+
+  // The minimum confirmations to filter
+  optional uint32 minimum_confirmations = 2;
+
+  // The maximum confirmations to filter
+  optional uint32 maximum_confirmations = 3;
+
+  // The bitcoin addresses to filter
+  repeated string addresses = 4;
+
+  // Whether to include unsafe outputs
+  bool include_unsafe = 5;
+
+  // Whether to include watch-only addresses
+  bool include_watch_only = 6;
+
+  // TODO: query_options. WTF bitcoin core, a random
+  // pseudo-implementations of named arguments? Aaaah
+}
+
+message Unspent {
+  // The transaction id
+  string txid = 1;
+
+  // The vout value
+  uint32 vout = 2;
+
+  // The bitcoin address (optional)
+  string address = 3;
+
+  // The associated label, or "" for the default label (optional)
+  // not in rpcclient
+  // string label = 4;
+
+  // The output script
+  string script_pub_key = 5;
+
+  // The transaction output amount in BTC
+  double amount = 6;
+
+  // The number of confirmations
+  uint32 confirmations = 7;
+
+  // The number of in-mempool ancestor transactions, including this one (if transaction is in the mempool) (optional)
+  // not in rpcclient
+  // uint32 ancestor_count = 8;
+
+  // The virtual transaction size of in-mempool ancestors, including this one (if transaction is in the mempool) (optional)
+  // not in rpcclient
+  // uint32 ancestor_size = 9;
+
+  // The total fees of in-mempool ancestors (including this one) with fee deltas used for mining priority in sat (if transaction is in the mempool) (optional)
+  // not in rpcclient
+  // uint64 ancestor_fees = 10;
+
+  // The redeem script if the output script is P2SH (optional)
+  string redeem_script = 11;
+
+  // Witness script if the output script is P2WSH or P2SH-P2WSH (optional)
+  // not in rpcclient
+  // string witness_script = 12;
+
+  // Whether we have the private keys to spend this output
+  bool spendable = 13;
+
+  // Whether we know how to spend this output, ignoring the lack of keys
+  // not in rpcclient
+  // bool solvable = 14;
+
+  //  Whether this output is reused/dirty (sent to an address that was previously spent from) (optional)
+  // not in rpcclient
+  // bool reused = 15;
+
+  // (only when solvable) A descriptor for spending this output (optional)
+  // not in rpcclient
+  // string desc = 16;
+
+  // List of parent descriptors for the output script of this coin
+  // not in rpcclient
+  // repeated string parent_descs = 17;
+
+  // Whether this output is considered safe to spend. Unconfirmed transactions from
+  // outside keys and unconfirmed replacement transactions are considered unsafe and
+  // are not eligible for spending by fundrawtransaction and sendtoaddress.
+  // not in rpcclient
+  // bool safe = 18;
+}
+
+message ListUnspentResponse {
+  repeated Unspent unspents = 1;
+}
+
 message GetAddressInfoRequest {
   string address = 1;
 
