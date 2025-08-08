@@ -816,7 +816,7 @@ message ListUnspentRequest {
   // pseudo-implementations of named arguments? Aaaah
 }
 
-message Unspent {
+message UnspentOutput {
   // The transaction id
   string txid = 1;
 
@@ -885,7 +885,7 @@ message Unspent {
 }
 
 message ListUnspentResponse {
-  repeated Unspent unspents = 1;
+  repeated UnspentOutput unspent = 1;
 }
 
 message GetAddressInfoRequest {

@@ -309,10 +309,10 @@ func (b *Bitcoind) ListUnspent(ctx context.Context, c *connect.Request[pb.ListUn
 	}
 
 	return connect.NewResponse(&pb.ListUnspentResponse{
-		Unspents: lo.Map(parsed, func(
+		Unspent: lo.Map(parsed, func(
 			unspent btcjson.ListUnspentResult, idx int,
-		) *pb.Unspent {
-			return &pb.Unspent{
+		) *pb.UnspentOutput {
+			return &pb.UnspentOutput{
 				Txid:          unspent.TxID,
 				Vout:          unspent.Vout,
 				Address:       unspent.Address,

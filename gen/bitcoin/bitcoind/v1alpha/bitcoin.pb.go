@@ -4047,7 +4047,7 @@ func (x *ListUnspentRequest) GetIncludeWatchOnly() bool {
 	return false
 }
 
-type Unspent struct {
+type UnspentOutput struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The transaction id
 	Txid string `protobuf:"bytes,1,opt,name=txid,proto3" json:"txid,omitempty"`
@@ -4069,20 +4069,20 @@ type Unspent struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *Unspent) Reset() {
-	*x = Unspent{}
+func (x *UnspentOutput) Reset() {
+	*x = UnspentOutput{}
 	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[48]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *Unspent) String() string {
+func (x *UnspentOutput) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*Unspent) ProtoMessage() {}
+func (*UnspentOutput) ProtoMessage() {}
 
-func (x *Unspent) ProtoReflect() protoreflect.Message {
+func (x *UnspentOutput) ProtoReflect() protoreflect.Message {
 	mi := &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes[48]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -4094,61 +4094,61 @@ func (x *Unspent) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use Unspent.ProtoReflect.Descriptor instead.
-func (*Unspent) Descriptor() ([]byte, []int) {
+// Deprecated: Use UnspentOutput.ProtoReflect.Descriptor instead.
+func (*UnspentOutput) Descriptor() ([]byte, []int) {
 	return file_bitcoin_bitcoind_v1alpha_bitcoin_proto_rawDescGZIP(), []int{48}
 }
 
-func (x *Unspent) GetTxid() string {
+func (x *UnspentOutput) GetTxid() string {
 	if x != nil {
 		return x.Txid
 	}
 	return ""
 }
 
-func (x *Unspent) GetVout() uint32 {
+func (x *UnspentOutput) GetVout() uint32 {
 	if x != nil {
 		return x.Vout
 	}
 	return 0
 }
 
-func (x *Unspent) GetAddress() string {
+func (x *UnspentOutput) GetAddress() string {
 	if x != nil {
 		return x.Address
 	}
 	return ""
 }
 
-func (x *Unspent) GetScriptPubKey() string {
+func (x *UnspentOutput) GetScriptPubKey() string {
 	if x != nil {
 		return x.ScriptPubKey
 	}
 	return ""
 }
 
-func (x *Unspent) GetAmount() float64 {
+func (x *UnspentOutput) GetAmount() float64 {
 	if x != nil {
 		return x.Amount
 	}
 	return 0
 }
 
-func (x *Unspent) GetConfirmations() uint32 {
+func (x *UnspentOutput) GetConfirmations() uint32 {
 	if x != nil {
 		return x.Confirmations
 	}
 	return 0
 }
 
-func (x *Unspent) GetRedeemScript() string {
+func (x *UnspentOutput) GetRedeemScript() string {
 	if x != nil {
 		return x.RedeemScript
 	}
 	return ""
 }
 
-func (x *Unspent) GetSpendable() bool {
+func (x *UnspentOutput) GetSpendable() bool {
 	if x != nil {
 		return x.Spendable
 	}
@@ -4157,7 +4157,7 @@ func (x *Unspent) GetSpendable() bool {
 
 type ListUnspentResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Unspents      []*Unspent             `protobuf:"bytes,1,rep,name=unspents,proto3" json:"unspents,omitempty"`
+	Unspent       []*UnspentOutput       `protobuf:"bytes,1,rep,name=unspent,proto3" json:"unspent,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4192,9 +4192,9 @@ func (*ListUnspentResponse) Descriptor() ([]byte, []int) {
 	return file_bitcoin_bitcoind_v1alpha_bitcoin_proto_rawDescGZIP(), []int{49}
 }
 
-func (x *ListUnspentResponse) GetUnspents() []*Unspent {
+func (x *ListUnspentResponse) GetUnspent() []*UnspentOutput {
 	if x != nil {
-		return x.Unspents
+		return x.Unspent
 	}
 	return nil
 }
@@ -8665,8 +8665,8 @@ const file_bitcoin_bitcoind_v1alpha_bitcoin_proto_rawDesc = "" +
 	"\x0einclude_unsafe\x18\x05 \x01(\bR\rincludeUnsafe\x12,\n" +
 	"\x12include_watch_only\x18\x06 \x01(\bR\x10includeWatchOnlyB\x18\n" +
 	"\x16_minimum_confirmationsB\x18\n" +
-	"\x16_maximum_confirmations\"\xf2\x01\n" +
-	"\aUnspent\x12\x12\n" +
+	"\x16_maximum_confirmations\"\xf8\x01\n" +
+	"\rUnspentOutput\x12\x12\n" +
 	"\x04txid\x18\x01 \x01(\tR\x04txid\x12\x12\n" +
 	"\x04vout\x18\x02 \x01(\rR\x04vout\x12\x18\n" +
 	"\aaddress\x18\x03 \x01(\tR\aaddress\x12$\n" +
@@ -8674,9 +8674,9 @@ const file_bitcoin_bitcoind_v1alpha_bitcoin_proto_rawDesc = "" +
 	"\x06amount\x18\x06 \x01(\x01R\x06amount\x12$\n" +
 	"\rconfirmations\x18\a \x01(\rR\rconfirmations\x12#\n" +
 	"\rredeem_script\x18\v \x01(\tR\fredeemScript\x12\x1c\n" +
-	"\tspendable\x18\r \x01(\bR\tspendable\"T\n" +
-	"\x13ListUnspentResponse\x12=\n" +
-	"\bunspents\x18\x01 \x03(\v2!.bitcoin.bitcoind.v1alpha.UnspentR\bunspents\"I\n" +
+	"\tspendable\x18\r \x01(\bR\tspendable\"X\n" +
+	"\x13ListUnspentResponse\x12A\n" +
+	"\aunspent\x18\x01 \x03(\v2'.bitcoin.bitcoind.v1alpha.UnspentOutputR\aunspent\"I\n" +
 	"\x15GetAddressInfoRequest\x12\x18\n" +
 	"\aaddress\x18\x01 \x01(\tR\aaddress\x12\x16\n" +
 	"\x06wallet\x18\x02 \x01(\tR\x06wallet\"\xa2\x03\n" +
@@ -9053,7 +9053,7 @@ var file_bitcoin_bitcoind_v1alpha_bitcoin_proto_goTypes = []any{
 	(*ListTransactionsResponse)(nil),           // 52: bitcoin.bitcoind.v1alpha.ListTransactionsResponse
 	(*ListWalletsResponse)(nil),                // 53: bitcoin.bitcoind.v1alpha.ListWalletsResponse
 	(*ListUnspentRequest)(nil),                 // 54: bitcoin.bitcoind.v1alpha.ListUnspentRequest
-	(*Unspent)(nil),                            // 55: bitcoin.bitcoind.v1alpha.Unspent
+	(*UnspentOutput)(nil),                      // 55: bitcoin.bitcoind.v1alpha.UnspentOutput
 	(*ListUnspentResponse)(nil),                // 56: bitcoin.bitcoind.v1alpha.ListUnspentResponse
 	(*GetAddressInfoRequest)(nil),              // 57: bitcoin.bitcoind.v1alpha.GetAddressInfoRequest
 	(*GetAddressInfoResponse)(nil),             // 58: bitcoin.bitcoind.v1alpha.GetAddressInfoResponse
@@ -9188,7 +9188,7 @@ var file_bitcoin_bitcoind_v1alpha_bitcoin_proto_depIdxs = []int32{
 	120, // 42: bitcoin.bitcoind.v1alpha.MempoolEntry.fees:type_name -> bitcoin.bitcoind.v1alpha.MempoolEntry.Fees
 	121, // 43: bitcoin.bitcoind.v1alpha.GetRawMempoolResponse.transactions:type_name -> bitcoin.bitcoind.v1alpha.GetRawMempoolResponse.TransactionsEntry
 	20,  // 44: bitcoin.bitcoind.v1alpha.ListTransactionsResponse.transactions:type_name -> bitcoin.bitcoind.v1alpha.GetTransactionResponse
-	55,  // 45: bitcoin.bitcoind.v1alpha.ListUnspentResponse.unspents:type_name -> bitcoin.bitcoind.v1alpha.Unspent
+	55,  // 45: bitcoin.bitcoind.v1alpha.ListUnspentResponse.unspent:type_name -> bitcoin.bitcoind.v1alpha.UnspentOutput
 	122, // 46: bitcoin.bitcoind.v1alpha.ListAccountsResponse.accounts:type_name -> bitcoin.bitcoind.v1alpha.ListAccountsResponse.AccountsEntry
 	123, // 47: bitcoin.bitcoind.v1alpha.CreateRawTransactionRequest.inputs:type_name -> bitcoin.bitcoind.v1alpha.CreateRawTransactionRequest.Input
 	124, // 48: bitcoin.bitcoind.v1alpha.CreateRawTransactionRequest.outputs:type_name -> bitcoin.bitcoind.v1alpha.CreateRawTransactionRequest.OutputsEntry
