@@ -71,6 +71,9 @@ const (
 	// BitcoinServiceListWalletsProcedure is the fully-qualified name of the BitcoinService's
 	// ListWallets RPC.
 	BitcoinServiceListWalletsProcedure = "/bitcoin.bitcoind.v1alpha.BitcoinService/ListWallets"
+	// BitcoinServiceListUnspentProcedure is the fully-qualified name of the BitcoinService's
+	// ListUnspent RPC.
+	BitcoinServiceListUnspentProcedure = "/bitcoin.bitcoind.v1alpha.BitcoinService/ListUnspent"
 	// BitcoinServiceListTransactionsProcedure is the fully-qualified name of the BitcoinService's
 	// ListTransactions RPC.
 	BitcoinServiceListTransactionsProcedure = "/bitcoin.bitcoind.v1alpha.BitcoinService/ListTransactions"
@@ -188,6 +191,7 @@ type BitcoinServiceClient interface {
 	// checksum. This can be obtained by running it through GetDescriptorInfo.
 	ImportDescriptors(context.Context, *connect.Request[v1alpha.ImportDescriptorsRequest]) (*connect.Response[v1alpha.ImportDescriptorsResponse], error)
 	ListWallets(context.Context, *connect.Request[emptypb.Empty]) (*connect.Response[v1alpha.ListWalletsResponse], error)
+	ListUnspent(context.Context, *connect.Request[v1alpha.ListUnspentRequest]) (*connect.Response[v1alpha.ListUnspentResponse], error)
 	ListTransactions(context.Context, *connect.Request[v1alpha.ListTransactionsRequest]) (*connect.Response[v1alpha.ListTransactionsResponse], error)
 	GetDescriptorInfo(context.Context, *connect.Request[v1alpha.GetDescriptorInfoRequest]) (*connect.Response[v1alpha.GetDescriptorInfoResponse], error)
 	GetAddressInfo(context.Context, *connect.Request[v1alpha.GetAddressInfoRequest]) (*connect.Response[v1alpha.GetAddressInfoResponse], error)
@@ -317,6 +321,12 @@ func NewBitcoinServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			httpClient,
 			baseURL+BitcoinServiceListWalletsProcedure,
 			connect.WithSchema(bitcoinServiceMethods.ByName("ListWallets")),
+			connect.WithClientOptions(opts...),
+		),
+		listUnspent: connect.NewClient[v1alpha.ListUnspentRequest, v1alpha.ListUnspentResponse](
+			httpClient,
+			baseURL+BitcoinServiceListUnspentProcedure,
+			connect.WithSchema(bitcoinServiceMethods.ByName("ListUnspent")),
 			connect.WithClientOptions(opts...),
 		),
 		listTransactions: connect.NewClient[v1alpha.ListTransactionsRequest, v1alpha.ListTransactionsResponse](
@@ -529,6 +539,7 @@ type bitcoinServiceClient struct {
 	estimateSmartFee      *connect.Client[v1alpha.EstimateSmartFeeRequest, v1alpha.EstimateSmartFeeResponse]
 	importDescriptors     *connect.Client[v1alpha.ImportDescriptorsRequest, v1alpha.ImportDescriptorsResponse]
 	listWallets           *connect.Client[emptypb.Empty, v1alpha.ListWalletsResponse]
+	listUnspent           *connect.Client[v1alpha.ListUnspentRequest, v1alpha.ListUnspentResponse]
 	listTransactions      *connect.Client[v1alpha.ListTransactionsRequest, v1alpha.ListTransactionsResponse]
 	getDescriptorInfo     *connect.Client[v1alpha.GetDescriptorInfoRequest, v1alpha.GetDescriptorInfoResponse]
 	getAddressInfo        *connect.Client[v1alpha.GetAddressInfoRequest, v1alpha.GetAddressInfoResponse]
@@ -626,6 +637,11 @@ func (c *bitcoinServiceClient) ImportDescriptors(ctx context.Context, req *conne
 // ListWallets calls bitcoin.bitcoind.v1alpha.BitcoinService.ListWallets.
 func (c *bitcoinServiceClient) ListWallets(ctx context.Context, req *connect.Request[emptypb.Empty]) (*connect.Response[v1alpha.ListWalletsResponse], error) {
 	return c.listWallets.CallUnary(ctx, req)
+}
+
+// ListUnspent calls bitcoin.bitcoind.v1alpha.BitcoinService.ListUnspent.
+func (c *bitcoinServiceClient) ListUnspent(ctx context.Context, req *connect.Request[v1alpha.ListUnspentRequest]) (*connect.Response[v1alpha.ListUnspentResponse], error) {
+	return c.listUnspent.CallUnary(ctx, req)
 }
 
 // ListTransactions calls bitcoin.bitcoind.v1alpha.BitcoinService.ListTransactions.
@@ -809,6 +825,7 @@ type BitcoinServiceHandler interface {
 	// checksum. This can be obtained by running it through GetDescriptorInfo.
 	ImportDescriptors(context.Context, *connect.Request[v1alpha.ImportDescriptorsRequest]) (*connect.Response[v1alpha.ImportDescriptorsResponse], error)
 	ListWallets(context.Context, *connect.Request[emptypb.Empty]) (*connect.Response[v1alpha.ListWalletsResponse], error)
+	ListUnspent(context.Context, *connect.Request[v1alpha.ListUnspentRequest]) (*connect.Response[v1alpha.ListUnspentResponse], error)
 	ListTransactions(context.Context, *connect.Request[v1alpha.ListTransactionsRequest]) (*connect.Response[v1alpha.ListTransactionsResponse], error)
 	GetDescriptorInfo(context.Context, *connect.Request[v1alpha.GetDescriptorInfoRequest]) (*connect.Response[v1alpha.GetDescriptorInfoResponse], error)
 	GetAddressInfo(context.Context, *connect.Request[v1alpha.GetAddressInfoRequest]) (*connect.Response[v1alpha.GetAddressInfoResponse], error)
@@ -934,6 +951,12 @@ func NewBitcoinServiceHandler(svc BitcoinServiceHandler, opts ...connect.Handler
 		BitcoinServiceListWalletsProcedure,
 		svc.ListWallets,
 		connect.WithSchema(bitcoinServiceMethods.ByName("ListWallets")),
+		connect.WithHandlerOptions(opts...),
+	)
+	bitcoinServiceListUnspentHandler := connect.NewUnaryHandler(
+		BitcoinServiceListUnspentProcedure,
+		svc.ListUnspent,
+		connect.WithSchema(bitcoinServiceMethods.ByName("ListUnspent")),
 		connect.WithHandlerOptions(opts...),
 	)
 	bitcoinServiceListTransactionsHandler := connect.NewUnaryHandler(
@@ -1156,6 +1179,8 @@ func NewBitcoinServiceHandler(svc BitcoinServiceHandler, opts ...connect.Handler
 			bitcoinServiceImportDescriptorsHandler.ServeHTTP(w, r)
 		case BitcoinServiceListWalletsProcedure:
 			bitcoinServiceListWalletsHandler.ServeHTTP(w, r)
+		case BitcoinServiceListUnspentProcedure:
+			bitcoinServiceListUnspentHandler.ServeHTTP(w, r)
 		case BitcoinServiceListTransactionsProcedure:
 			bitcoinServiceListTransactionsHandler.ServeHTTP(w, r)
 		case BitcoinServiceGetDescriptorInfoProcedure:
@@ -1279,6 +1304,10 @@ func (UnimplementedBitcoinServiceHandler) ImportDescriptors(context.Context, *co
 
 func (UnimplementedBitcoinServiceHandler) ListWallets(context.Context, *connect.Request[emptypb.Empty]) (*connect.Response[v1alpha.ListWalletsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("bitcoin.bitcoind.v1alpha.BitcoinService.ListWallets is not implemented"))
+}
+
+func (UnimplementedBitcoinServiceHandler) ListUnspent(context.Context, *connect.Request[v1alpha.ListUnspentRequest]) (*connect.Response[v1alpha.ListUnspentResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("bitcoin.bitcoind.v1alpha.BitcoinService.ListUnspent is not implemented"))
 }
 
 func (UnimplementedBitcoinServiceHandler) ListTransactions(context.Context, *connect.Request[v1alpha.ListTransactionsRequest]) (*connect.Response[v1alpha.ListTransactionsResponse], error) {

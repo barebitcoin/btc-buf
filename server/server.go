@@ -281,6 +281,51 @@ func (b *Bitcoind) ListTransactions(ctx context.Context, c *connect.Request[pb.L
 	)
 }
 
+func (b *Bitcoind) ListUnspent(ctx context.Context, c *connect.Request[pb.ListUnspentRequest]) (*connect.Response[pb.ListUnspentResponse], error) {
+	rpc, err := b.rpcForWallet(ctx, c.Msg)
+	if err != nil {
+		return nil, err
+	}
+
+	cmd := btcjson.ListUnspentCmd{
+		Addresses: lo.EmptyableToPtr(c.Msg.Addresses),
+	}
+
+	if c.Msg.MinimumConfirmations != nil {
+		cmd.MinConf = lo.ToPtr(int(*c.Msg.MinimumConfirmations))
+	}
+	if c.Msg.MaximumConfirmations != nil {
+		cmd.MaxConf = lo.ToPtr(int(*c.Msg.MaximumConfirmations))
+	}
+
+	res, err := rpcclient.ReceiveFuture(rpc.SendCmd(ctx, &cmd))
+	if err != nil {
+		return nil, err
+	}
+
+	var parsed []btcjson.ListUnspentResult
+	if err := json.Unmarshal(res, &parsed); err != nil {
+		return nil, fmt.Errorf("unmarshal listunspent response: %w", err)
+	}
+
+	return connect.NewResponse(&pb.ListUnspentResponse{
+		Unspents: lo.Map(parsed, func(
+			unspent btcjson.ListUnspentResult, idx int,
+		) *pb.Unspent {
+			return &pb.Unspent{
+				Txid:          unspent.TxID,
+				Vout:          unspent.Vout,
+				Address:       unspent.Address,
+				ScriptPubKey:  unspent.ScriptPubKey,
+				Spendable:     unspent.Spendable,
+				Amount:        unspent.Amount,
+				Confirmations: uint32(unspent.Confirmations),
+				RedeemScript:  unspent.RedeemScript,
+			}
+		}),
+	}), nil
+}
+
 // ListWallets implements bitcoindv1alphaconnect.BitcoinServiceHandler.
 func (b *Bitcoind) ListWallets(ctx context.Context, _ *connect.Request[emptypb.Empty]) (*connect.Response[pb.ListWalletsResponse], error) {
 	wallets, err := b.rpc.ListWallets(ctx)
