@@ -169,6 +169,9 @@ const (
 	// BitcoinServiceTestMempoolAcceptProcedure is the fully-qualified name of the BitcoinService's
 	// TestMempoolAccept RPC.
 	BitcoinServiceTestMempoolAcceptProcedure = "/bitcoin.bitcoind.v1alpha.BitcoinService/TestMempoolAccept"
+	// BitcoinServiceGetZmqNotificationsProcedure is the fully-qualified name of the BitcoinService's
+	// GetZmqNotifications RPC.
+	BitcoinServiceGetZmqNotificationsProcedure = "/bitcoin.bitcoind.v1alpha.BitcoinService/GetZmqNotifications"
 )
 
 // BitcoinServiceClient is a client for the bitcoin.bitcoind.v1alpha.BitcoinService service.
@@ -232,6 +235,8 @@ type BitcoinServiceClient interface {
 	JoinPsbts(context.Context, *connect.Request[v1alpha.JoinPsbtsRequest]) (*connect.Response[v1alpha.JoinPsbtsResponse], error)
 	// Transaction misc
 	TestMempoolAccept(context.Context, *connect.Request[v1alpha.TestMempoolAcceptRequest]) (*connect.Response[v1alpha.TestMempoolAcceptResponse], error)
+	// Returns information about the active ZeroMQ notifications.
+	GetZmqNotifications(context.Context, *connect.Request[emptypb.Empty]) (*connect.Response[v1alpha.GetZmqNotificationsResponse], error)
 }
 
 // NewBitcoinServiceClient constructs a client for the bitcoin.bitcoind.v1alpha.BitcoinService
@@ -521,6 +526,12 @@ func NewBitcoinServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(bitcoinServiceMethods.ByName("TestMempoolAccept")),
 			connect.WithClientOptions(opts...),
 		),
+		getZmqNotifications: connect.NewClient[emptypb.Empty, v1alpha.GetZmqNotificationsResponse](
+			httpClient,
+			baseURL+BitcoinServiceGetZmqNotificationsProcedure,
+			connect.WithSchema(bitcoinServiceMethods.ByName("GetZmqNotifications")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -572,6 +583,7 @@ type bitcoinServiceClient struct {
 	utxoUpdatePsbt        *connect.Client[v1alpha.UtxoUpdatePsbtRequest, v1alpha.UtxoUpdatePsbtResponse]
 	joinPsbts             *connect.Client[v1alpha.JoinPsbtsRequest, v1alpha.JoinPsbtsResponse]
 	testMempoolAccept     *connect.Client[v1alpha.TestMempoolAcceptRequest, v1alpha.TestMempoolAcceptResponse]
+	getZmqNotifications   *connect.Client[emptypb.Empty, v1alpha.GetZmqNotificationsResponse]
 }
 
 // GetBlockchainInfo calls bitcoin.bitcoind.v1alpha.BitcoinService.GetBlockchainInfo.
@@ -804,6 +816,11 @@ func (c *bitcoinServiceClient) TestMempoolAccept(ctx context.Context, req *conne
 	return c.testMempoolAccept.CallUnary(ctx, req)
 }
 
+// GetZmqNotifications calls bitcoin.bitcoind.v1alpha.BitcoinService.GetZmqNotifications.
+func (c *bitcoinServiceClient) GetZmqNotifications(ctx context.Context, req *connect.Request[emptypb.Empty]) (*connect.Response[v1alpha.GetZmqNotificationsResponse], error) {
+	return c.getZmqNotifications.CallUnary(ctx, req)
+}
+
 // BitcoinServiceHandler is an implementation of the bitcoin.bitcoind.v1alpha.BitcoinService
 // service.
 type BitcoinServiceHandler interface {
@@ -866,6 +883,8 @@ type BitcoinServiceHandler interface {
 	JoinPsbts(context.Context, *connect.Request[v1alpha.JoinPsbtsRequest]) (*connect.Response[v1alpha.JoinPsbtsResponse], error)
 	// Transaction misc
 	TestMempoolAccept(context.Context, *connect.Request[v1alpha.TestMempoolAcceptRequest]) (*connect.Response[v1alpha.TestMempoolAcceptResponse], error)
+	// Returns information about the active ZeroMQ notifications.
+	GetZmqNotifications(context.Context, *connect.Request[emptypb.Empty]) (*connect.Response[v1alpha.GetZmqNotificationsResponse], error)
 }
 
 // NewBitcoinServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -1151,6 +1170,12 @@ func NewBitcoinServiceHandler(svc BitcoinServiceHandler, opts ...connect.Handler
 		connect.WithSchema(bitcoinServiceMethods.ByName("TestMempoolAccept")),
 		connect.WithHandlerOptions(opts...),
 	)
+	bitcoinServiceGetZmqNotificationsHandler := connect.NewUnaryHandler(
+		BitcoinServiceGetZmqNotificationsProcedure,
+		svc.GetZmqNotifications,
+		connect.WithSchema(bitcoinServiceMethods.ByName("GetZmqNotifications")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/bitcoin.bitcoind.v1alpha.BitcoinService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case BitcoinServiceGetBlockchainInfoProcedure:
@@ -1245,6 +1270,8 @@ func NewBitcoinServiceHandler(svc BitcoinServiceHandler, opts ...connect.Handler
 			bitcoinServiceJoinPsbtsHandler.ServeHTTP(w, r)
 		case BitcoinServiceTestMempoolAcceptProcedure:
 			bitcoinServiceTestMempoolAcceptHandler.ServeHTTP(w, r)
+		case BitcoinServiceGetZmqNotificationsProcedure:
+			bitcoinServiceGetZmqNotificationsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -1436,4 +1463,8 @@ func (UnimplementedBitcoinServiceHandler) JoinPsbts(context.Context, *connect.Re
 
 func (UnimplementedBitcoinServiceHandler) TestMempoolAccept(context.Context, *connect.Request[v1alpha.TestMempoolAcceptRequest]) (*connect.Response[v1alpha.TestMempoolAcceptResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("bitcoin.bitcoind.v1alpha.BitcoinService.TestMempoolAccept is not implemented"))
+}
+
+func (UnimplementedBitcoinServiceHandler) GetZmqNotifications(context.Context, *connect.Request[emptypb.Empty]) (*connect.Response[v1alpha.GetZmqNotificationsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("bitcoin.bitcoind.v1alpha.BitcoinService.GetZmqNotifications is not implemented"))
 }

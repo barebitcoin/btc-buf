@@ -80,6 +80,11 @@ service BitcoinService {
 
   // Transaction misc
   rpc TestMempoolAccept(TestMempoolAcceptRequest) returns (TestMempoolAcceptResponse);
+
+  // ZMQ
+
+  // Returns information about the active ZeroMQ notifications.
+  rpc GetZmqNotifications(google.protobuf.Empty) returns (GetZmqNotificationsResponse);
 }
 
 message GetBlockchainInfoRequest {}
@@ -1241,4 +1246,13 @@ message Descriptor {
 message DescriptorObject {
   string desc = 1; // The output descriptor
   DescriptorRange range = 2; // Optional range, defaults to 1000 if not specified
+}
+
+message GetZmqNotificationsResponse {
+  message Notification {
+    string type = 1; // Type of notification
+    string address = 2; // Address of the publisher
+    int64 high_water_mark = 3; // Outbound message high water mark
+  }
+  repeated Notification notifications = 1;
 }
