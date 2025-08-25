@@ -8,6 +8,9 @@ gen:
 build: 
 	go build -v -o ./{{ bin }} .
 
+run *args:
+	go run -v . {{ args }}
+
 lint: 
 	golangci-lint run
 
