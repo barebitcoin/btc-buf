@@ -2126,6 +2126,25 @@ func (b *Bitcoind) UnloadWallet(ctx context.Context, c *connect.Request[pb.Unloa
 		})
 }
 
+func (b *Bitcoind) GetZmqNotifications(ctx context.Context, c *connect.Request[emptypb.Empty]) (*connect.Response[pb.GetZmqNotificationsResponse], error) {
+	return withCancel(ctx, b.conf,
+		func(ctx context.Context) (btcjson.GetZmqNotificationResult, error) {
+			return b.rpc.GetZmqNotifications(ctx)
+		},
+		func(res btcjson.GetZmqNotificationResult) *pb.GetZmqNotificationsResponse {
+			var notifications []*pb.GetZmqNotificationsResponse_Notification
+
+			for _, notification := range res {
+				notifications = append(notifications, &pb.GetZmqNotificationsResponse_Notification{
+					Type:          notification.Type,
+					Address:       notification.Address.String(),
+					HighWaterMark: int64(notification.HighWaterMark),
+				})
+			}
+			return &pb.GetZmqNotificationsResponse{Notifications: notifications}
+		})
+}
+
 func (b *Bitcoind) Shutdown(ctx context.Context) {
 	log := zerolog.Ctx(ctx)
 
