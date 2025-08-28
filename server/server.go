@@ -54,8 +54,9 @@ type Bitcoind struct {
 }
 
 type config struct {
-	enableTLS bool
-	logging   func(ctx context.Context) *zerolog.Logger
+	enableTLS                     bool
+	logging                       func(ctx context.Context) *zerolog.Logger
+	withoutInitialConnectionCheck bool
 }
 
 func newConfig(opts []Option) config {
@@ -76,6 +77,15 @@ type Option func(*config)
 func WithTLS() Option {
 	return func(c *config) {
 		c.enableTLS = true
+	}
+}
+
+// WithoutInitialConnectionCheck disables the initial connection check to
+// Bitcoin Core. This allows you to succeed in starting up the server, even
+// if the underlying Core node is not reachable.
+func WithoutInitialConnectionCheck() Option {
+	return func(c *config) {
+		c.withoutInitialConnectionCheck = true
 	}
 }
 
@@ -128,49 +138,54 @@ func NewBitcoind(
 		rpc:     client,
 	}
 
-	// Do a request, to verify we can reach Bitcoin Core
-	info, err := server.GetBlockchainInfo(
-		ctx, connect.NewRequest(&pb.GetBlockchainInfoRequest{}),
-	)
-	switch {
-	case connect.CodeOf(err) == connect.CodePermissionDenied:
-		return nil, errors.New("invalid RPC client credentials")
-
-	case err != nil:
-		return nil, fmt.Errorf("get initial blockchain info: %w", err)
-	}
-
-	log.Debug().
-		Stringer("info", info.Msg).
-		Msg("got bitcoind info")
-
-	// Means a specific wallet was specified in the config. Verify
-	// that it exists and is loaded.
-	if strings.Contains(host, "/wallet") {
-		_, wallet, _ := strings.Cut(host, "/wallet/")
-		log.Debug().
-			Str("host", host).
-			Str("wallet", wallet).
-			Msg("bitcoind host contains wallet, verifying wallet exists")
-
-		_, err := server.GetWalletInfo(ctx, connect.NewRequest(&pb.GetWalletInfoRequest{}))
+	if conf.withoutInitialConnectionCheck {
+		log.Info().Msg("initial connection check disabled")
+	} else {
+		// Do a request, to verify we can reach Bitcoin Core
+		info, err := server.GetBlockchainInfo(
+			ctx, connect.NewRequest(&pb.GetBlockchainInfoRequest{}),
+		)
 		switch {
-		// Great stuff, wallet exists
-		case err == nil:
+		case connect.CodeOf(err) == connect.CodePermissionDenied:
+			return nil, errors.New("invalid RPC client credentials")
 
-		case bitcoindErrorCode(err) == btcjson.ErrRPCWalletNotFound:
-			log.Debug().Err(err).Msg("could not get wallet, trying loading")
-
-			if _, err := server.rpc.LoadWallet(ctx, wallet); err == nil {
-				log.Info().Msgf("loaded wallet: %s", wallet)
-				break
-			}
-
-			return nil, fmt.Errorf("wallet %q does not exist or is not loaded", wallet)
-
-		default:
-			return nil, fmt.Errorf("get wallet info: %w", err)
+		case err != nil:
+			return nil, fmt.Errorf("get initial blockchain info: %w", err)
 		}
+
+		log.Debug().
+			Stringer("info", info.Msg).
+			Msg("got bitcoind info")
+
+		// Means a specific wallet was specified in the config. Verify
+		// that it exists and is loaded.
+		if strings.Contains(host, "/wallet") {
+			_, wallet, _ := strings.Cut(host, "/wallet/")
+			log.Debug().
+				Str("host", host).
+				Str("wallet", wallet).
+				Msg("bitcoind host contains wallet, verifying wallet exists")
+
+			_, err := server.GetWalletInfo(ctx, connect.NewRequest(&pb.GetWalletInfoRequest{}))
+			switch {
+			// Great stuff, wallet exists
+			case err == nil:
+
+			case bitcoindErrorCode(err) == btcjson.ErrRPCWalletNotFound:
+				log.Debug().Err(err).Msg("could not get wallet, trying loading")
+
+				if _, err := server.rpc.LoadWallet(ctx, wallet); err == nil {
+					log.Info().Msgf("loaded wallet: %s", wallet)
+					break
+				}
+
+				return nil, fmt.Errorf("wallet %q does not exist or is not loaded", wallet)
+
+			default:
+				return nil, fmt.Errorf("get wallet info: %w", err)
+			}
+		}
+
 	}
 
 	return server, nil
