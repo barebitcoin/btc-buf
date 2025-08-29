@@ -664,12 +664,14 @@ func (b *Bitcoind) GetWalletInfo(
 
 // GetBlockHash implements bitcoindv1alphaconnect.BitcoinServiceHandler.
 func (b *Bitcoind) GetBlockHash(ctx context.Context, c *connect.Request[pb.GetBlockHashRequest]) (*connect.Response[pb.GetBlockHashResponse], error) {
-	res, err := b.rpc.GetBlockHash(ctx, int64(c.Msg.Height))
-	if err != nil {
-		return nil, err
-	}
-
-	return connect.NewResponse(&pb.GetBlockHashResponse{Hash: res.String()}), nil
+	return withCancel(ctx, b.conf,
+		func(ctx context.Context) (*chainhash.Hash, error) {
+			return b.rpc.GetBlockHash(ctx, int64(c.Msg.Height))
+		},
+		func(hash *chainhash.Hash) *pb.GetBlockHashResponse {
+			return &pb.GetBlockHashResponse{Hash: hash.String()}
+		},
+	)
 }
 
 // GetBlock implements bitcoindv1alphaconnect.BitcoinServiceHandler.
@@ -692,45 +694,48 @@ func (b *Bitcoind) GetBlock(ctx context.Context, c *connect.Request[pb.GetBlockR
 
 	switch c.Msg.Verbosity {
 	case pb.GetBlockRequest_VERBOSITY_RAW_DATA:
-		block, err := b.rpc.GetBlock(ctx, hash)
-		if err != nil {
-			return nil, err
-		}
+		return withCancel(ctx, b.conf,
+			func(ctx context.Context) (*wire.MsgBlock, error) {
+				return b.rpc.GetBlock(ctx, hash)
+			},
+			func(block *wire.MsgBlock) *pb.GetBlockResponse {
+				var out bytes.Buffer
+				if err := block.Serialize(&out); err != nil {
+					panic(fmt.Sprintf("serialize block: %s", err))
+				}
 
-		var out bytes.Buffer
-		if err := block.Serialize(&out); err != nil {
-			return nil, fmt.Errorf("serialize block: %w", err)
-		}
-
-		return connect.NewResponse(&pb.GetBlockResponse{
-			Hex: hex.EncodeToString(out.Bytes()),
-		}), nil
+				return &pb.GetBlockResponse{
+					Hex: hex.EncodeToString(out.Bytes()),
+				}
+			},
+		)
 
 	case pb.GetBlockRequest_VERBOSITY_BLOCK_INFO, pb.GetBlockRequest_VERBOSITY_BLOCK_TX_INFO, pb.GetBlockRequest_VERBOSITY_BLOCK_TX_PREVOUT_INFO:
-		block, err := b.rpc.GetBlockVerbose(ctx, hash)
-		if err != nil {
-			return nil, err
-		}
-
-		return connect.NewResponse(&pb.GetBlockResponse{
-			Hex:               "",
-			Hash:              block.Hash,
-			Confirmations:     int32(block.Confirmations),
-			Height:            uint32(block.Height),
-			Version:           block.Version,
-			VersionHex:        block.VersionHex,
-			Bits:              block.Bits,
-			MerkleRoot:        block.MerkleRoot,
-			Time:              &timestamppb.Timestamp{Seconds: block.Time},
-			Nonce:             block.Nonce,
-			Difficulty:        block.Difficulty,
-			PreviousBlockHash: block.PreviousHash,
-			NextBlockHash:     block.NextHash,
-			StrippedSize:      block.StrippedSize,
-			Size:              block.Size,
-			Weight:            block.Weight,
-			Txids:             block.Tx,
-		}), nil
+		return withCancel(ctx, b.conf,
+			func(ctx context.Context) (*btcjson.GetBlockVerboseResult, error) {
+				return b.rpc.GetBlockVerbose(ctx, hash)
+			},
+			func(block *btcjson.GetBlockVerboseResult) *pb.GetBlockResponse {
+				return &pb.GetBlockResponse{
+					Hash:              block.Hash,
+					Confirmations:     int32(block.Confirmations),
+					Height:            uint32(block.Height),
+					Version:           block.Version,
+					VersionHex:        block.VersionHex,
+					Bits:              block.Bits,
+					MerkleRoot:        block.MerkleRoot,
+					Time:              &timestamppb.Timestamp{Seconds: block.Time},
+					Nonce:             block.Nonce,
+					Difficulty:        block.Difficulty,
+					PreviousBlockHash: block.PreviousHash,
+					NextBlockHash:     block.NextHash,
+					StrippedSize:      block.StrippedSize,
+					Size:              block.Size,
+					Weight:            block.Weight,
+					Txids:             block.Tx,
+				}
+			},
+		)
 
 	default:
 		return nil, connect.NewError(connect.CodeUnimplemented, fmt.Errorf("bad verbosity: %s", c.Msg.Verbosity))
