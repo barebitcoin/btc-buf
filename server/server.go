@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"strings"
 	"sync"
 	"time"
@@ -26,6 +27,7 @@ import (
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	"github.com/barebitcoin/btc-buf/connectserver"
 	"github.com/barebitcoin/btc-buf/connectserver/logging"
@@ -270,8 +272,10 @@ func withCancel[R any, M any](
 	select {
 	case <-ctx.Done():
 		return nil, ctx.Err()
+
 	case err := <-errs:
-		return nil, err
+		return nil, transformError(ctx, err)
+
 	case fetchResult := <-ch:
 		start := time.Now()
 		transformed := transform(fetchResult)
@@ -281,6 +285,34 @@ func withCancel[R any, M any](
 
 		return connect.NewResponse[M](transformed), nil
 	}
+}
+
+func transformError(ctx context.Context, err error) error {
+	if err == nil {
+		panic("PROGRAMMER ERROR: transformError called with nil")
+	}
+
+	if netErr, ok := lo.ErrorsAs[*net.OpError](err); ok &&
+		strings.Contains(netErr.Error(), "connection refused") {
+
+		zerolog.Ctx(ctx).Debug().Err(err).
+			Msgf("transform error: returning connect.CodeUnavailable")
+
+		cErr := connect.NewError(
+			connect.CodeUnavailable,
+			errors.New("unable to connect to Bitcoin Core"),
+		)
+
+		if detail, detaiLErr := connect.NewErrorDetail(
+			wrapperspb.String(err.Error()),
+		); detaiLErr == nil {
+			cErr.AddDetail(detail)
+		}
+
+		return cErr
+	}
+
+	return err
 }
 
 // Common interface implemented for all wallet RPCs
