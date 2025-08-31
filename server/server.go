@@ -14,13 +14,10 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	"github.com/barebitcoin/btcd/rpcclient"
-	"github.com/barebitcoin/btcd/rpcclient/btcjson"
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/wire"
-	"github.com/btcsuite/btclog"
 	"github.com/rs/zerolog"
 	"github.com/samber/lo"
 	"golang.org/x/exp/slices"
@@ -33,8 +30,9 @@ import (
 	"github.com/barebitcoin/btc-buf/connectserver/logging"
 	pb "github.com/barebitcoin/btc-buf/gen/bitcoin/bitcoind/v1alpha"
 	rpc "github.com/barebitcoin/btc-buf/gen/bitcoin/bitcoind/v1alpha/bitcoindv1alphaconnect"
+	"github.com/barebitcoin/btc-buf/rpcclient"
+	"github.com/barebitcoin/btc-buf/rpcclient/btcjson"
 	"github.com/barebitcoin/btc-buf/server/commands"
-	"github.com/barebitcoin/btc-buf/server/rpclog"
 )
 
 func init() {
@@ -115,19 +113,14 @@ func NewBitcoind(
 		Str("user", user).
 		Msg("connecting to bitcoind")
 
-	rpcclient.UseLogger(func(ctx context.Context) btclog.Logger {
-		return &rpclog.Logger{Logger: conf.logging(ctx)}
-	})
-
 	rpcConf := rpcclient.ConnConfig{
-		User:         user,
-		Pass:         pass,
-		DisableTLS:   !conf.enableTLS,
-		HTTPPostMode: true, // Core only handles POST requests
-		Host:         host,
+		User:       user,
+		Pass:       pass,
+		DisableTLS: !conf.enableTLS,
+		Host:       host,
 	}
 
-	client, err := rpcclient.New(ctx, &rpcConf, nil)
+	client, err := rpcclient.New(ctx, &rpcConf)
 	if err != nil {
 		return nil, fmt.Errorf("new RPC client: %w", err)
 	}
@@ -333,7 +326,7 @@ func (b *Bitcoind) rpcForWallet(ctx context.Context, req walletRequest) (*rpccli
 		Str("wallet", req.GetWallet()).
 		Msg("making wallet-specific call")
 
-	rpc, err := rpcclient.New(ctx, &b.rpcConf, nil)
+	rpc, err := rpcclient.New(ctx, &b.rpcConf)
 	if err != nil {
 		return nil, err
 	}
