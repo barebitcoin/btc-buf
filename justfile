@@ -34,5 +34,20 @@ image-push: image
 
 [positional-arguments]
 curl *args='':
-	#!/usr/bin/env bash
-	buf curl --schema . --timeout=30m --emit-defaults ${@:+ "$@"}
+  #!/usr/bin/env bash
+  set -euo pipefail
+
+  url=""
+  rest=()
+
+  for a in "$@"; do
+    if [[ -z "$url" && "$a" == /* ]]; then
+      url="http://localhost:5080$a"
+    else
+      rest+=("$a")
+    fi
+  done
+
+  [[ -n "$url" ]] || { echo "Error: No service URL found" >&2; exit 1; }
+
+  buf curl --schema . --timeout=30m --emit-defaults "$url" "${rest[@]}"
