@@ -324,9 +324,9 @@ func (b *Bitcoind) rpcForWallet(ctx context.Context, req walletRequest) (*rpccli
 
 	zerolog.Ctx(ctx).Debug().
 		Str("wallet", req.GetWallet()).
-		Msg("making wallet-specific call")
+		Msgf("making wallet-specific call: %q", rpcConf.Host)
 
-	rpc, err := rpcclient.New(ctx, &b.rpcConf)
+	rpc, err := rpcclient.New(ctx, &rpcConf)
 	if err != nil {
 		return nil, err
 	}
