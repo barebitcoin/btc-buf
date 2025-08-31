@@ -306,6 +306,61 @@ func (GetTransactionResponse_Category) EnumDescriptor() ([]byte, []int) {
 	return file_bitcoin_bitcoind_v1alpha_bitcoin_proto_rawDescGZIP(), []int{13, 1}
 }
 
+type GetRawTransactionRequest_Verbosity int32
+
+const (
+	GetRawTransactionRequest_VERBOSITY_UNSPECIFIED GetRawTransactionRequest_Verbosity = 0
+	// Returns the raw TX data, completely unprocessed. Response only sets hex.
+	GetRawTransactionRequest_VERBOSITY_RAW_DATA GetRawTransactionRequest_Verbosity = 1
+	// Returns information about the TX
+	GetRawTransactionRequest_VERBOSITY_TX_INFO GetRawTransactionRequest_Verbosity = 2
+	// Returns information about the TX, including fee and prevout information.
+	GetRawTransactionRequest_VERBOSITY_TX_PREVOUT_INFO GetRawTransactionRequest_Verbosity = 3
+)
+
+// Enum value maps for GetRawTransactionRequest_Verbosity.
+var (
+	GetRawTransactionRequest_Verbosity_name = map[int32]string{
+		0: "VERBOSITY_UNSPECIFIED",
+		1: "VERBOSITY_RAW_DATA",
+		2: "VERBOSITY_TX_INFO",
+		3: "VERBOSITY_TX_PREVOUT_INFO",
+	}
+	GetRawTransactionRequest_Verbosity_value = map[string]int32{
+		"VERBOSITY_UNSPECIFIED":     0,
+		"VERBOSITY_RAW_DATA":        1,
+		"VERBOSITY_TX_INFO":         2,
+		"VERBOSITY_TX_PREVOUT_INFO": 3,
+	}
+)
+
+func (x GetRawTransactionRequest_Verbosity) Enum() *GetRawTransactionRequest_Verbosity {
+	p := new(GetRawTransactionRequest_Verbosity)
+	*p = x
+	return p
+}
+
+func (x GetRawTransactionRequest_Verbosity) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (GetRawTransactionRequest_Verbosity) Descriptor() protoreflect.EnumDescriptor {
+	return file_bitcoin_bitcoind_v1alpha_bitcoin_proto_enumTypes[5].Descriptor()
+}
+
+func (GetRawTransactionRequest_Verbosity) Type() protoreflect.EnumType {
+	return &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_enumTypes[5]
+}
+
+func (x GetRawTransactionRequest_Verbosity) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use GetRawTransactionRequest_Verbosity.Descriptor instead.
+func (GetRawTransactionRequest_Verbosity) EnumDescriptor() ([]byte, []int) {
+	return file_bitcoin_bitcoind_v1alpha_bitcoin_proto_rawDescGZIP(), []int{14, 0}
+}
+
 type EstimateSmartFeeRequest_EstimateMode int32
 
 const (
@@ -339,11 +394,11 @@ func (x EstimateSmartFeeRequest_EstimateMode) String() string {
 }
 
 func (EstimateSmartFeeRequest_EstimateMode) Descriptor() protoreflect.EnumDescriptor {
-	return file_bitcoin_bitcoind_v1alpha_bitcoin_proto_enumTypes[5].Descriptor()
+	return file_bitcoin_bitcoind_v1alpha_bitcoin_proto_enumTypes[6].Descriptor()
 }
 
 func (EstimateSmartFeeRequest_EstimateMode) Type() protoreflect.EnumType {
-	return &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_enumTypes[5]
+	return &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_enumTypes[6]
 }
 
 func (x EstimateSmartFeeRequest_EstimateMode) Number() protoreflect.EnumNumber {
@@ -400,11 +455,11 @@ func (x GetBlockRequest_Verbosity) String() string {
 }
 
 func (GetBlockRequest_Verbosity) Descriptor() protoreflect.EnumDescriptor {
-	return file_bitcoin_bitcoind_v1alpha_bitcoin_proto_enumTypes[6].Descriptor()
+	return file_bitcoin_bitcoind_v1alpha_bitcoin_proto_enumTypes[7].Descriptor()
 }
 
 func (GetBlockRequest_Verbosity) Type() protoreflect.EnumType {
-	return &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_enumTypes[6]
+	return &file_bitcoin_bitcoind_v1alpha_bitcoin_proto_enumTypes[7]
 }
 
 func (x GetBlockRequest_Verbosity) Number() protoreflect.EnumNumber {
@@ -1697,9 +1752,10 @@ func (x *GetTransactionResponse) GetHex() string {
 type GetRawTransactionRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The transaction ID. Required.
-	Txid string `protobuf:"bytes,1,opt,name=txid,proto3" json:"txid,omitempty"`
-	// If false, returns just the hex string. Otherwise, returns the complete object.
-	Verbose       bool `protobuf:"varint,2,opt,name=verbose,proto3" json:"verbose,omitempty"`
+	Txid      string                             `protobuf:"bytes,1,opt,name=txid,proto3" json:"txid,omitempty"`
+	Verbosity GetRawTransactionRequest_Verbosity `protobuf:"varint,2,opt,name=verbosity,proto3,enum=bitcoin.bitcoind.v1alpha.GetRawTransactionRequest_Verbosity" json:"verbosity,omitempty"`
+	// The block in which to look for the transaction
+	Blockhash     string `protobuf:"bytes,3,opt,name=blockhash,proto3" json:"blockhash,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1741,11 +1797,18 @@ func (x *GetRawTransactionRequest) GetTxid() string {
 	return ""
 }
 
-func (x *GetRawTransactionRequest) GetVerbose() bool {
+func (x *GetRawTransactionRequest) GetVerbosity() GetRawTransactionRequest_Verbosity {
 	if x != nil {
-		return x.Verbose
+		return x.Verbosity
 	}
-	return false
+	return GetRawTransactionRequest_VERBOSITY_UNSPECIFIED
+}
+
+func (x *GetRawTransactionRequest) GetBlockhash() string {
+	if x != nil {
+		return x.Blockhash
+	}
+	return ""
 }
 
 type ScriptSig struct {
@@ -2050,8 +2113,9 @@ type GetRawTransactionResponse struct {
 	Outputs       []*Output              `protobuf:"bytes,3,rep,name=outputs,proto3" json:"outputs,omitempty"`
 	Blockhash     string                 `protobuf:"bytes,4,opt,name=blockhash,proto3" json:"blockhash,omitempty"`
 	Confirmations uint32                 `protobuf:"varint,5,opt,name=confirmations,proto3" json:"confirmations,omitempty"`
-	Time          int64                  `protobuf:"varint,6,opt,name=time,proto3" json:"time,omitempty"`
-	Blocktime     int64                  `protobuf:"varint,7,opt,name=blocktime,proto3" json:"blocktime,omitempty"`
+	BlockTime     *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=block_time,json=blockTime,proto3" json:"block_time,omitempty"`
+	// Transaction fee in BTC. Only set for for TX info verbosity.
+	Fee           float64 `protobuf:"fixed64,15,opt,name=fee,proto3" json:"fee,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2170,16 +2234,16 @@ func (x *GetRawTransactionResponse) GetConfirmations() uint32 {
 	return 0
 }
 
-func (x *GetRawTransactionResponse) GetTime() int64 {
+func (x *GetRawTransactionResponse) GetBlockTime() *timestamppb.Timestamp {
 	if x != nil {
-		return x.Time
+		return x.BlockTime
 	}
-	return 0
+	return nil
 }
 
-func (x *GetRawTransactionResponse) GetBlocktime() int64 {
+func (x *GetRawTransactionResponse) GetFee() float64 {
 	if x != nil {
-		return x.Blocktime
+		return x.Fee
 	}
 	return 0
 }
@@ -8540,10 +8604,16 @@ const file_bitcoin_bitcoind_v1alpha_bitcoin_proto_rawDesc = "" +
 	"\x10CATEGORY_RECEIVE\x10\x02\x12\x15\n" +
 	"\x11CATEGORY_GENERATE\x10\x03\x12\x15\n" +
 	"\x11CATEGORY_IMMATURE\x10\x04\x12\x13\n" +
-	"\x0fCATEGORY_ORPHAN\x10\x05\"H\n" +
+	"\x0fCATEGORY_ORPHAN\x10\x05\"\x9e\x02\n" +
 	"\x18GetRawTransactionRequest\x12\x12\n" +
-	"\x04txid\x18\x01 \x01(\tR\x04txid\x12\x18\n" +
-	"\averbose\x18\x02 \x01(\bR\averbose\"/\n" +
+	"\x04txid\x18\x01 \x01(\tR\x04txid\x12Z\n" +
+	"\tverbosity\x18\x02 \x01(\x0e2<.bitcoin.bitcoind.v1alpha.GetRawTransactionRequest.VerbosityR\tverbosity\x12\x1c\n" +
+	"\tblockhash\x18\x03 \x01(\tR\tblockhash\"t\n" +
+	"\tVerbosity\x12\x19\n" +
+	"\x15VERBOSITY_UNSPECIFIED\x10\x00\x12\x16\n" +
+	"\x12VERBOSITY_RAW_DATA\x10\x01\x12\x15\n" +
+	"\x11VERBOSITY_TX_INFO\x10\x02\x12\x1d\n" +
+	"\x19VERBOSITY_TX_PREVOUT_INFO\x10\x03\"/\n" +
 	"\tScriptSig\x12\x10\n" +
 	"\x03asm\x18\x01 \x01(\tR\x03asm\x12\x10\n" +
 	"\x03hex\x18\x02 \x01(\tR\x03hex\"\xc5\x01\n" +
@@ -8567,7 +8637,7 @@ const file_bitcoin_bitcoind_v1alpha_bitcoin_proto_rawDesc = "" +
 	"\x04vout\x18\x02 \x01(\rR\x04vout\x12L\n" +
 	"\x0escript_pub_key\x18\x03 \x01(\v2&.bitcoin.bitcoind.v1alpha.ScriptPubKeyR\fscriptPubKey\x12B\n" +
 	"\n" +
-	"script_sig\x18\x04 \x01(\v2#.bitcoin.bitcoind.v1alpha.ScriptSigR\tscriptSig\"\xe0\x03\n" +
+	"script_sig\x18\x04 \x01(\v2#.bitcoin.bitcoind.v1alpha.ScriptSigR\tscriptSig\"\x87\x04\n" +
 	"\x19GetRawTransactionResponse\x128\n" +
 	"\x02tx\x18\x01 \x01(\v2(.bitcoin.bitcoind.v1alpha.RawTransactionR\x02tx\x12\x12\n" +
 	"\x04txid\x18\b \x01(\tR\x04txid\x12\x12\n" +
@@ -8581,9 +8651,10 @@ const file_bitcoin_bitcoind_v1alpha_bitcoin_proto_rawDesc = "" +
 	"\x06inputs\x18\x02 \x03(\v2\x1f.bitcoin.bitcoind.v1alpha.InputR\x06inputs\x12:\n" +
 	"\aoutputs\x18\x03 \x03(\v2 .bitcoin.bitcoind.v1alpha.OutputR\aoutputs\x12\x1c\n" +
 	"\tblockhash\x18\x04 \x01(\tR\tblockhash\x12$\n" +
-	"\rconfirmations\x18\x05 \x01(\rR\rconfirmations\x12\x12\n" +
-	"\x04time\x18\x06 \x01(\x03R\x04time\x12\x1c\n" +
-	"\tblocktime\x18\a \x01(\x03R\tblocktime\"\xa1\x03\n" +
+	"\rconfirmations\x18\x05 \x01(\rR\rconfirmations\x129\n" +
+	"\n" +
+	"block_time\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tblockTime\x12\x10\n" +
+	"\x03fee\x18\x0f \x01(\x01R\x03feeJ\x04\b\x06\x10\aR\x04time\"\xa1\x03\n" +
 	"\vSendRequest\x12[\n" +
 	"\fdestinations\x18\x01 \x03(\v27.bitcoin.bitcoind.v1alpha.SendRequest.DestinationsEntryR\fdestinations\x12\x1f\n" +
 	"\vconf_target\x18\x02 \x01(\rR\n" +
@@ -9106,7 +9177,7 @@ func file_bitcoin_bitcoind_v1alpha_bitcoin_proto_rawDescGZIP() []byte {
 	return file_bitcoin_bitcoind_v1alpha_bitcoin_proto_rawDescData
 }
 
-var file_bitcoin_bitcoind_v1alpha_bitcoin_proto_enumTypes = make([]protoimpl.EnumInfo, 7)
+var file_bitcoin_bitcoind_v1alpha_bitcoin_proto_enumTypes = make([]protoimpl.EnumInfo, 8)
 var file_bitcoin_bitcoind_v1alpha_bitcoin_proto_msgTypes = make([]protoimpl.MessageInfo, 134)
 var file_bitcoin_bitcoind_v1alpha_bitcoin_proto_goTypes = []any{
 	(Peer_Network)(0),                          // 0: bitcoin.bitcoind.v1alpha.Peer.Network
@@ -9114,328 +9185,331 @@ var file_bitcoin_bitcoind_v1alpha_bitcoin_proto_goTypes = []any{
 	(Peer_TransportProtocol)(0),                // 2: bitcoin.bitcoind.v1alpha.Peer.TransportProtocol
 	(GetTransactionResponse_Replaceable)(0),    // 3: bitcoin.bitcoind.v1alpha.GetTransactionResponse.Replaceable
 	(GetTransactionResponse_Category)(0),       // 4: bitcoin.bitcoind.v1alpha.GetTransactionResponse.Category
-	(EstimateSmartFeeRequest_EstimateMode)(0),  // 5: bitcoin.bitcoind.v1alpha.EstimateSmartFeeRequest.EstimateMode
-	(GetBlockRequest_Verbosity)(0),             // 6: bitcoin.bitcoind.v1alpha.GetBlockRequest.Verbosity
-	(*GetBlockchainInfoRequest)(nil),           // 7: bitcoin.bitcoind.v1alpha.GetBlockchainInfoRequest
-	(*GetBlockchainInfoResponse)(nil),          // 8: bitcoin.bitcoind.v1alpha.GetBlockchainInfoResponse
-	(*GetPeerInfoRequest)(nil),                 // 9: bitcoin.bitcoind.v1alpha.GetPeerInfoRequest
-	(*Peer)(nil),                               // 10: bitcoin.bitcoind.v1alpha.Peer
-	(*GetPeerInfoResponse)(nil),                // 11: bitcoin.bitcoind.v1alpha.GetPeerInfoResponse
-	(*GetNewAddressRequest)(nil),               // 12: bitcoin.bitcoind.v1alpha.GetNewAddressRequest
-	(*GetNewAddressResponse)(nil),              // 13: bitcoin.bitcoind.v1alpha.GetNewAddressResponse
-	(*GetWalletInfoRequest)(nil),               // 14: bitcoin.bitcoind.v1alpha.GetWalletInfoRequest
-	(*GetWalletInfoResponse)(nil),              // 15: bitcoin.bitcoind.v1alpha.GetWalletInfoResponse
-	(*GetBalancesRequest)(nil),                 // 16: bitcoin.bitcoind.v1alpha.GetBalancesRequest
-	(*GetBalancesResponse)(nil),                // 17: bitcoin.bitcoind.v1alpha.GetBalancesResponse
-	(*WalletScan)(nil),                         // 18: bitcoin.bitcoind.v1alpha.WalletScan
-	(*GetTransactionRequest)(nil),              // 19: bitcoin.bitcoind.v1alpha.GetTransactionRequest
-	(*GetTransactionResponse)(nil),             // 20: bitcoin.bitcoind.v1alpha.GetTransactionResponse
-	(*GetRawTransactionRequest)(nil),           // 21: bitcoin.bitcoind.v1alpha.GetRawTransactionRequest
-	(*ScriptSig)(nil),                          // 22: bitcoin.bitcoind.v1alpha.ScriptSig
-	(*Input)(nil),                              // 23: bitcoin.bitcoind.v1alpha.Input
-	(*ScriptPubKey)(nil),                       // 24: bitcoin.bitcoind.v1alpha.ScriptPubKey
-	(*Output)(nil),                             // 25: bitcoin.bitcoind.v1alpha.Output
-	(*GetRawTransactionResponse)(nil),          // 26: bitcoin.bitcoind.v1alpha.GetRawTransactionResponse
-	(*SendRequest)(nil),                        // 27: bitcoin.bitcoind.v1alpha.SendRequest
-	(*SendResponse)(nil),                       // 28: bitcoin.bitcoind.v1alpha.SendResponse
-	(*SendToAddressRequest)(nil),               // 29: bitcoin.bitcoind.v1alpha.SendToAddressRequest
-	(*SendToAddressResponse)(nil),              // 30: bitcoin.bitcoind.v1alpha.SendToAddressResponse
-	(*EstimateSmartFeeRequest)(nil),            // 31: bitcoin.bitcoind.v1alpha.EstimateSmartFeeRequest
-	(*EstimateSmartFeeResponse)(nil),           // 32: bitcoin.bitcoind.v1alpha.EstimateSmartFeeResponse
-	(*DecodeRawTransactionRequest)(nil),        // 33: bitcoin.bitcoind.v1alpha.DecodeRawTransactionRequest
-	(*RawTransaction)(nil),                     // 34: bitcoin.bitcoind.v1alpha.RawTransaction
-	(*DecodeRawTransactionResponse)(nil),       // 35: bitcoin.bitcoind.v1alpha.DecodeRawTransactionResponse
-	(*ImportDescriptorsRequest)(nil),           // 36: bitcoin.bitcoind.v1alpha.ImportDescriptorsRequest
-	(*ImportDescriptorsResponse)(nil),          // 37: bitcoin.bitcoind.v1alpha.ImportDescriptorsResponse
-	(*GetDescriptorInfoRequest)(nil),           // 38: bitcoin.bitcoind.v1alpha.GetDescriptorInfoRequest
-	(*GetDescriptorInfoResponse)(nil),          // 39: bitcoin.bitcoind.v1alpha.GetDescriptorInfoResponse
-	(*GetBlockRequest)(nil),                    // 40: bitcoin.bitcoind.v1alpha.GetBlockRequest
-	(*GetBlockResponse)(nil),                   // 41: bitcoin.bitcoind.v1alpha.GetBlockResponse
-	(*BumpFeeRequest)(nil),                     // 42: bitcoin.bitcoind.v1alpha.BumpFeeRequest
-	(*BumpFeeResponse)(nil),                    // 43: bitcoin.bitcoind.v1alpha.BumpFeeResponse
-	(*ListSinceBlockRequest)(nil),              // 44: bitcoin.bitcoind.v1alpha.ListSinceBlockRequest
-	(*ListSinceBlockResponse)(nil),             // 45: bitcoin.bitcoind.v1alpha.ListSinceBlockResponse
-	(*GetRawMempoolRequest)(nil),               // 46: bitcoin.bitcoind.v1alpha.GetRawMempoolRequest
-	(*MempoolEntry)(nil),                       // 47: bitcoin.bitcoind.v1alpha.MempoolEntry
-	(*GetRawMempoolResponse)(nil),              // 48: bitcoin.bitcoind.v1alpha.GetRawMempoolResponse
-	(*GetBlockHashRequest)(nil),                // 49: bitcoin.bitcoind.v1alpha.GetBlockHashRequest
-	(*GetBlockHashResponse)(nil),               // 50: bitcoin.bitcoind.v1alpha.GetBlockHashResponse
-	(*ListTransactionsRequest)(nil),            // 51: bitcoin.bitcoind.v1alpha.ListTransactionsRequest
-	(*ListTransactionsResponse)(nil),           // 52: bitcoin.bitcoind.v1alpha.ListTransactionsResponse
-	(*ListWalletsResponse)(nil),                // 53: bitcoin.bitcoind.v1alpha.ListWalletsResponse
-	(*ListUnspentRequest)(nil),                 // 54: bitcoin.bitcoind.v1alpha.ListUnspentRequest
-	(*UnspentOutput)(nil),                      // 55: bitcoin.bitcoind.v1alpha.UnspentOutput
-	(*ListUnspentResponse)(nil),                // 56: bitcoin.bitcoind.v1alpha.ListUnspentResponse
-	(*GetAddressInfoRequest)(nil),              // 57: bitcoin.bitcoind.v1alpha.GetAddressInfoRequest
-	(*GetAddressInfoResponse)(nil),             // 58: bitcoin.bitcoind.v1alpha.GetAddressInfoResponse
-	(*CreateWalletRequest)(nil),                // 59: bitcoin.bitcoind.v1alpha.CreateWalletRequest
-	(*CreateWalletResponse)(nil),               // 60: bitcoin.bitcoind.v1alpha.CreateWalletResponse
-	(*BackupWalletRequest)(nil),                // 61: bitcoin.bitcoind.v1alpha.BackupWalletRequest
-	(*BackupWalletResponse)(nil),               // 62: bitcoin.bitcoind.v1alpha.BackupWalletResponse
-	(*DumpWalletRequest)(nil),                  // 63: bitcoin.bitcoind.v1alpha.DumpWalletRequest
-	(*DumpWalletResponse)(nil),                 // 64: bitcoin.bitcoind.v1alpha.DumpWalletResponse
-	(*ImportWalletRequest)(nil),                // 65: bitcoin.bitcoind.v1alpha.ImportWalletRequest
-	(*ImportWalletResponse)(nil),               // 66: bitcoin.bitcoind.v1alpha.ImportWalletResponse
-	(*UnloadWalletRequest)(nil),                // 67: bitcoin.bitcoind.v1alpha.UnloadWalletRequest
-	(*UnloadWalletResponse)(nil),               // 68: bitcoin.bitcoind.v1alpha.UnloadWalletResponse
-	(*DumpPrivKeyRequest)(nil),                 // 69: bitcoin.bitcoind.v1alpha.DumpPrivKeyRequest
-	(*DumpPrivKeyResponse)(nil),                // 70: bitcoin.bitcoind.v1alpha.DumpPrivKeyResponse
-	(*ImportPrivKeyRequest)(nil),               // 71: bitcoin.bitcoind.v1alpha.ImportPrivKeyRequest
-	(*ImportPrivKeyResponse)(nil),              // 72: bitcoin.bitcoind.v1alpha.ImportPrivKeyResponse
-	(*ImportAddressRequest)(nil),               // 73: bitcoin.bitcoind.v1alpha.ImportAddressRequest
-	(*ImportAddressResponse)(nil),              // 74: bitcoin.bitcoind.v1alpha.ImportAddressResponse
-	(*ImportPubKeyRequest)(nil),                // 75: bitcoin.bitcoind.v1alpha.ImportPubKeyRequest
-	(*ImportPubKeyResponse)(nil),               // 76: bitcoin.bitcoind.v1alpha.ImportPubKeyResponse
-	(*KeyPoolRefillRequest)(nil),               // 77: bitcoin.bitcoind.v1alpha.KeyPoolRefillRequest
-	(*KeyPoolRefillResponse)(nil),              // 78: bitcoin.bitcoind.v1alpha.KeyPoolRefillResponse
-	(*GetAccountRequest)(nil),                  // 79: bitcoin.bitcoind.v1alpha.GetAccountRequest
-	(*GetAccountResponse)(nil),                 // 80: bitcoin.bitcoind.v1alpha.GetAccountResponse
-	(*SetAccountRequest)(nil),                  // 81: bitcoin.bitcoind.v1alpha.SetAccountRequest
-	(*SetAccountResponse)(nil),                 // 82: bitcoin.bitcoind.v1alpha.SetAccountResponse
-	(*GetAddressesByAccountRequest)(nil),       // 83: bitcoin.bitcoind.v1alpha.GetAddressesByAccountRequest
-	(*GetAddressesByAccountResponse)(nil),      // 84: bitcoin.bitcoind.v1alpha.GetAddressesByAccountResponse
-	(*ListAccountsRequest)(nil),                // 85: bitcoin.bitcoind.v1alpha.ListAccountsRequest
-	(*ListAccountsResponse)(nil),               // 86: bitcoin.bitcoind.v1alpha.ListAccountsResponse
-	(*AddMultisigAddressRequest)(nil),          // 87: bitcoin.bitcoind.v1alpha.AddMultisigAddressRequest
-	(*AddMultisigAddressResponse)(nil),         // 88: bitcoin.bitcoind.v1alpha.AddMultisigAddressResponse
-	(*CreateMultisigRequest)(nil),              // 89: bitcoin.bitcoind.v1alpha.CreateMultisigRequest
-	(*CreateMultisigResponse)(nil),             // 90: bitcoin.bitcoind.v1alpha.CreateMultisigResponse
-	(*CreateRawTransactionRequest)(nil),        // 91: bitcoin.bitcoind.v1alpha.CreateRawTransactionRequest
-	(*CreateRawTransactionResponse)(nil),       // 92: bitcoin.bitcoind.v1alpha.CreateRawTransactionResponse
-	(*CreatePsbtRequest)(nil),                  // 93: bitcoin.bitcoind.v1alpha.CreatePsbtRequest
-	(*CreatePsbtResponse)(nil),                 // 94: bitcoin.bitcoind.v1alpha.CreatePsbtResponse
-	(*DecodePsbtRequest)(nil),                  // 95: bitcoin.bitcoind.v1alpha.DecodePsbtRequest
-	(*DecodePsbtResponse)(nil),                 // 96: bitcoin.bitcoind.v1alpha.DecodePsbtResponse
-	(*AnalyzePsbtRequest)(nil),                 // 97: bitcoin.bitcoind.v1alpha.AnalyzePsbtRequest
-	(*AnalyzePsbtResponse)(nil),                // 98: bitcoin.bitcoind.v1alpha.AnalyzePsbtResponse
-	(*CombinePsbtRequest)(nil),                 // 99: bitcoin.bitcoind.v1alpha.CombinePsbtRequest
-	(*CombinePsbtResponse)(nil),                // 100: bitcoin.bitcoind.v1alpha.CombinePsbtResponse
-	(*UtxoUpdatePsbtRequest)(nil),              // 101: bitcoin.bitcoind.v1alpha.UtxoUpdatePsbtRequest
-	(*UtxoUpdatePsbtResponse)(nil),             // 102: bitcoin.bitcoind.v1alpha.UtxoUpdatePsbtResponse
-	(*JoinPsbtsRequest)(nil),                   // 103: bitcoin.bitcoind.v1alpha.JoinPsbtsRequest
-	(*JoinPsbtsResponse)(nil),                  // 104: bitcoin.bitcoind.v1alpha.JoinPsbtsResponse
-	(*TestMempoolAcceptRequest)(nil),           // 105: bitcoin.bitcoind.v1alpha.TestMempoolAcceptRequest
-	(*TestMempoolAcceptResponse)(nil),          // 106: bitcoin.bitcoind.v1alpha.TestMempoolAcceptResponse
-	(*DescriptorRange)(nil),                    // 107: bitcoin.bitcoind.v1alpha.DescriptorRange
-	(*Range)(nil),                              // 108: bitcoin.bitcoind.v1alpha.Range
-	(*Descriptor)(nil),                         // 109: bitcoin.bitcoind.v1alpha.Descriptor
-	(*DescriptorObject)(nil),                   // 110: bitcoin.bitcoind.v1alpha.DescriptorObject
-	(*GetZmqNotificationsResponse)(nil),        // 111: bitcoin.bitcoind.v1alpha.GetZmqNotificationsResponse
-	nil,                                        // 112: bitcoin.bitcoind.v1alpha.Peer.BytesSentPerMsgEntry
-	nil,                                        // 113: bitcoin.bitcoind.v1alpha.Peer.BytesReceivedPerMsgEntry
-	(*GetBalancesResponse_Mine)(nil),           // 114: bitcoin.bitcoind.v1alpha.GetBalancesResponse.Mine
-	(*GetBalancesResponse_Watchonly)(nil),      // 115: bitcoin.bitcoind.v1alpha.GetBalancesResponse.Watchonly
-	(*GetTransactionResponse_Details)(nil),     // 116: bitcoin.bitcoind.v1alpha.GetTransactionResponse.Details
-	nil,                                        // 117: bitcoin.bitcoind.v1alpha.SendRequest.DestinationsEntry
-	(*ImportDescriptorsRequest_Request)(nil),   // 118: bitcoin.bitcoind.v1alpha.ImportDescriptorsRequest.Request
-	(*ImportDescriptorsResponse_Error)(nil),    // 119: bitcoin.bitcoind.v1alpha.ImportDescriptorsResponse.Error
-	(*ImportDescriptorsResponse_Response)(nil), // 120: bitcoin.bitcoind.v1alpha.ImportDescriptorsResponse.Response
-	(*MempoolEntry_Fees)(nil),                  // 121: bitcoin.bitcoind.v1alpha.MempoolEntry.Fees
-	nil,                                        // 122: bitcoin.bitcoind.v1alpha.GetRawMempoolResponse.TransactionsEntry
-	nil,                                        // 123: bitcoin.bitcoind.v1alpha.ListAccountsResponse.AccountsEntry
-	(*CreateRawTransactionRequest_Input)(nil),  // 124: bitcoin.bitcoind.v1alpha.CreateRawTransactionRequest.Input
-	nil,                                     // 125: bitcoin.bitcoind.v1alpha.CreateRawTransactionRequest.OutputsEntry
-	(*CreatePsbtRequest_Input)(nil),         // 126: bitcoin.bitcoind.v1alpha.CreatePsbtRequest.Input
-	nil,                                     // 127: bitcoin.bitcoind.v1alpha.CreatePsbtRequest.OutputsEntry
-	(*DecodePsbtResponse_WitnessUtxo)(nil),  // 128: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.WitnessUtxo
-	(*DecodePsbtResponse_RedeemScript)(nil), // 129: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.RedeemScript
-	(*DecodePsbtResponse_Bip32Deriv)(nil),   // 130: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Bip32Deriv
-	(*DecodePsbtResponse_Input)(nil),        // 131: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Input
-	(*DecodePsbtResponse_Output)(nil),       // 132: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Output
-	nil,                                     // 133: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.UnknownEntry
-	nil,                                     // 134: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Input.PartialSignaturesEntry
-	nil,                                     // 135: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Input.UnknownEntry
-	nil,                                     // 136: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Output.UnknownEntry
-	(*AnalyzePsbtResponse_Input)(nil),       // 137: bitcoin.bitcoind.v1alpha.AnalyzePsbtResponse.Input
-	(*AnalyzePsbtResponse_Input_Missing)(nil),        // 138: bitcoin.bitcoind.v1alpha.AnalyzePsbtResponse.Input.Missing
-	(*TestMempoolAcceptResponse_Result)(nil),         // 139: bitcoin.bitcoind.v1alpha.TestMempoolAcceptResponse.Result
-	(*GetZmqNotificationsResponse_Notification)(nil), // 140: bitcoin.bitcoind.v1alpha.GetZmqNotificationsResponse.Notification
-	(*timestamppb.Timestamp)(nil),                    // 141: google.protobuf.Timestamp
-	(*durationpb.Duration)(nil),                      // 142: google.protobuf.Duration
-	(*wrapperspb.BoolValue)(nil),                     // 143: google.protobuf.BoolValue
-	(*emptypb.Empty)(nil),                            // 144: google.protobuf.Empty
+	(GetRawTransactionRequest_Verbosity)(0),    // 5: bitcoin.bitcoind.v1alpha.GetRawTransactionRequest.Verbosity
+	(EstimateSmartFeeRequest_EstimateMode)(0),  // 6: bitcoin.bitcoind.v1alpha.EstimateSmartFeeRequest.EstimateMode
+	(GetBlockRequest_Verbosity)(0),             // 7: bitcoin.bitcoind.v1alpha.GetBlockRequest.Verbosity
+	(*GetBlockchainInfoRequest)(nil),           // 8: bitcoin.bitcoind.v1alpha.GetBlockchainInfoRequest
+	(*GetBlockchainInfoResponse)(nil),          // 9: bitcoin.bitcoind.v1alpha.GetBlockchainInfoResponse
+	(*GetPeerInfoRequest)(nil),                 // 10: bitcoin.bitcoind.v1alpha.GetPeerInfoRequest
+	(*Peer)(nil),                               // 11: bitcoin.bitcoind.v1alpha.Peer
+	(*GetPeerInfoResponse)(nil),                // 12: bitcoin.bitcoind.v1alpha.GetPeerInfoResponse
+	(*GetNewAddressRequest)(nil),               // 13: bitcoin.bitcoind.v1alpha.GetNewAddressRequest
+	(*GetNewAddressResponse)(nil),              // 14: bitcoin.bitcoind.v1alpha.GetNewAddressResponse
+	(*GetWalletInfoRequest)(nil),               // 15: bitcoin.bitcoind.v1alpha.GetWalletInfoRequest
+	(*GetWalletInfoResponse)(nil),              // 16: bitcoin.bitcoind.v1alpha.GetWalletInfoResponse
+	(*GetBalancesRequest)(nil),                 // 17: bitcoin.bitcoind.v1alpha.GetBalancesRequest
+	(*GetBalancesResponse)(nil),                // 18: bitcoin.bitcoind.v1alpha.GetBalancesResponse
+	(*WalletScan)(nil),                         // 19: bitcoin.bitcoind.v1alpha.WalletScan
+	(*GetTransactionRequest)(nil),              // 20: bitcoin.bitcoind.v1alpha.GetTransactionRequest
+	(*GetTransactionResponse)(nil),             // 21: bitcoin.bitcoind.v1alpha.GetTransactionResponse
+	(*GetRawTransactionRequest)(nil),           // 22: bitcoin.bitcoind.v1alpha.GetRawTransactionRequest
+	(*ScriptSig)(nil),                          // 23: bitcoin.bitcoind.v1alpha.ScriptSig
+	(*Input)(nil),                              // 24: bitcoin.bitcoind.v1alpha.Input
+	(*ScriptPubKey)(nil),                       // 25: bitcoin.bitcoind.v1alpha.ScriptPubKey
+	(*Output)(nil),                             // 26: bitcoin.bitcoind.v1alpha.Output
+	(*GetRawTransactionResponse)(nil),          // 27: bitcoin.bitcoind.v1alpha.GetRawTransactionResponse
+	(*SendRequest)(nil),                        // 28: bitcoin.bitcoind.v1alpha.SendRequest
+	(*SendResponse)(nil),                       // 29: bitcoin.bitcoind.v1alpha.SendResponse
+	(*SendToAddressRequest)(nil),               // 30: bitcoin.bitcoind.v1alpha.SendToAddressRequest
+	(*SendToAddressResponse)(nil),              // 31: bitcoin.bitcoind.v1alpha.SendToAddressResponse
+	(*EstimateSmartFeeRequest)(nil),            // 32: bitcoin.bitcoind.v1alpha.EstimateSmartFeeRequest
+	(*EstimateSmartFeeResponse)(nil),           // 33: bitcoin.bitcoind.v1alpha.EstimateSmartFeeResponse
+	(*DecodeRawTransactionRequest)(nil),        // 34: bitcoin.bitcoind.v1alpha.DecodeRawTransactionRequest
+	(*RawTransaction)(nil),                     // 35: bitcoin.bitcoind.v1alpha.RawTransaction
+	(*DecodeRawTransactionResponse)(nil),       // 36: bitcoin.bitcoind.v1alpha.DecodeRawTransactionResponse
+	(*ImportDescriptorsRequest)(nil),           // 37: bitcoin.bitcoind.v1alpha.ImportDescriptorsRequest
+	(*ImportDescriptorsResponse)(nil),          // 38: bitcoin.bitcoind.v1alpha.ImportDescriptorsResponse
+	(*GetDescriptorInfoRequest)(nil),           // 39: bitcoin.bitcoind.v1alpha.GetDescriptorInfoRequest
+	(*GetDescriptorInfoResponse)(nil),          // 40: bitcoin.bitcoind.v1alpha.GetDescriptorInfoResponse
+	(*GetBlockRequest)(nil),                    // 41: bitcoin.bitcoind.v1alpha.GetBlockRequest
+	(*GetBlockResponse)(nil),                   // 42: bitcoin.bitcoind.v1alpha.GetBlockResponse
+	(*BumpFeeRequest)(nil),                     // 43: bitcoin.bitcoind.v1alpha.BumpFeeRequest
+	(*BumpFeeResponse)(nil),                    // 44: bitcoin.bitcoind.v1alpha.BumpFeeResponse
+	(*ListSinceBlockRequest)(nil),              // 45: bitcoin.bitcoind.v1alpha.ListSinceBlockRequest
+	(*ListSinceBlockResponse)(nil),             // 46: bitcoin.bitcoind.v1alpha.ListSinceBlockResponse
+	(*GetRawMempoolRequest)(nil),               // 47: bitcoin.bitcoind.v1alpha.GetRawMempoolRequest
+	(*MempoolEntry)(nil),                       // 48: bitcoin.bitcoind.v1alpha.MempoolEntry
+	(*GetRawMempoolResponse)(nil),              // 49: bitcoin.bitcoind.v1alpha.GetRawMempoolResponse
+	(*GetBlockHashRequest)(nil),                // 50: bitcoin.bitcoind.v1alpha.GetBlockHashRequest
+	(*GetBlockHashResponse)(nil),               // 51: bitcoin.bitcoind.v1alpha.GetBlockHashResponse
+	(*ListTransactionsRequest)(nil),            // 52: bitcoin.bitcoind.v1alpha.ListTransactionsRequest
+	(*ListTransactionsResponse)(nil),           // 53: bitcoin.bitcoind.v1alpha.ListTransactionsResponse
+	(*ListWalletsResponse)(nil),                // 54: bitcoin.bitcoind.v1alpha.ListWalletsResponse
+	(*ListUnspentRequest)(nil),                 // 55: bitcoin.bitcoind.v1alpha.ListUnspentRequest
+	(*UnspentOutput)(nil),                      // 56: bitcoin.bitcoind.v1alpha.UnspentOutput
+	(*ListUnspentResponse)(nil),                // 57: bitcoin.bitcoind.v1alpha.ListUnspentResponse
+	(*GetAddressInfoRequest)(nil),              // 58: bitcoin.bitcoind.v1alpha.GetAddressInfoRequest
+	(*GetAddressInfoResponse)(nil),             // 59: bitcoin.bitcoind.v1alpha.GetAddressInfoResponse
+	(*CreateWalletRequest)(nil),                // 60: bitcoin.bitcoind.v1alpha.CreateWalletRequest
+	(*CreateWalletResponse)(nil),               // 61: bitcoin.bitcoind.v1alpha.CreateWalletResponse
+	(*BackupWalletRequest)(nil),                // 62: bitcoin.bitcoind.v1alpha.BackupWalletRequest
+	(*BackupWalletResponse)(nil),               // 63: bitcoin.bitcoind.v1alpha.BackupWalletResponse
+	(*DumpWalletRequest)(nil),                  // 64: bitcoin.bitcoind.v1alpha.DumpWalletRequest
+	(*DumpWalletResponse)(nil),                 // 65: bitcoin.bitcoind.v1alpha.DumpWalletResponse
+	(*ImportWalletRequest)(nil),                // 66: bitcoin.bitcoind.v1alpha.ImportWalletRequest
+	(*ImportWalletResponse)(nil),               // 67: bitcoin.bitcoind.v1alpha.ImportWalletResponse
+	(*UnloadWalletRequest)(nil),                // 68: bitcoin.bitcoind.v1alpha.UnloadWalletRequest
+	(*UnloadWalletResponse)(nil),               // 69: bitcoin.bitcoind.v1alpha.UnloadWalletResponse
+	(*DumpPrivKeyRequest)(nil),                 // 70: bitcoin.bitcoind.v1alpha.DumpPrivKeyRequest
+	(*DumpPrivKeyResponse)(nil),                // 71: bitcoin.bitcoind.v1alpha.DumpPrivKeyResponse
+	(*ImportPrivKeyRequest)(nil),               // 72: bitcoin.bitcoind.v1alpha.ImportPrivKeyRequest
+	(*ImportPrivKeyResponse)(nil),              // 73: bitcoin.bitcoind.v1alpha.ImportPrivKeyResponse
+	(*ImportAddressRequest)(nil),               // 74: bitcoin.bitcoind.v1alpha.ImportAddressRequest
+	(*ImportAddressResponse)(nil),              // 75: bitcoin.bitcoind.v1alpha.ImportAddressResponse
+	(*ImportPubKeyRequest)(nil),                // 76: bitcoin.bitcoind.v1alpha.ImportPubKeyRequest
+	(*ImportPubKeyResponse)(nil),               // 77: bitcoin.bitcoind.v1alpha.ImportPubKeyResponse
+	(*KeyPoolRefillRequest)(nil),               // 78: bitcoin.bitcoind.v1alpha.KeyPoolRefillRequest
+	(*KeyPoolRefillResponse)(nil),              // 79: bitcoin.bitcoind.v1alpha.KeyPoolRefillResponse
+	(*GetAccountRequest)(nil),                  // 80: bitcoin.bitcoind.v1alpha.GetAccountRequest
+	(*GetAccountResponse)(nil),                 // 81: bitcoin.bitcoind.v1alpha.GetAccountResponse
+	(*SetAccountRequest)(nil),                  // 82: bitcoin.bitcoind.v1alpha.SetAccountRequest
+	(*SetAccountResponse)(nil),                 // 83: bitcoin.bitcoind.v1alpha.SetAccountResponse
+	(*GetAddressesByAccountRequest)(nil),       // 84: bitcoin.bitcoind.v1alpha.GetAddressesByAccountRequest
+	(*GetAddressesByAccountResponse)(nil),      // 85: bitcoin.bitcoind.v1alpha.GetAddressesByAccountResponse
+	(*ListAccountsRequest)(nil),                // 86: bitcoin.bitcoind.v1alpha.ListAccountsRequest
+	(*ListAccountsResponse)(nil),               // 87: bitcoin.bitcoind.v1alpha.ListAccountsResponse
+	(*AddMultisigAddressRequest)(nil),          // 88: bitcoin.bitcoind.v1alpha.AddMultisigAddressRequest
+	(*AddMultisigAddressResponse)(nil),         // 89: bitcoin.bitcoind.v1alpha.AddMultisigAddressResponse
+	(*CreateMultisigRequest)(nil),              // 90: bitcoin.bitcoind.v1alpha.CreateMultisigRequest
+	(*CreateMultisigResponse)(nil),             // 91: bitcoin.bitcoind.v1alpha.CreateMultisigResponse
+	(*CreateRawTransactionRequest)(nil),        // 92: bitcoin.bitcoind.v1alpha.CreateRawTransactionRequest
+	(*CreateRawTransactionResponse)(nil),       // 93: bitcoin.bitcoind.v1alpha.CreateRawTransactionResponse
+	(*CreatePsbtRequest)(nil),                  // 94: bitcoin.bitcoind.v1alpha.CreatePsbtRequest
+	(*CreatePsbtResponse)(nil),                 // 95: bitcoin.bitcoind.v1alpha.CreatePsbtResponse
+	(*DecodePsbtRequest)(nil),                  // 96: bitcoin.bitcoind.v1alpha.DecodePsbtRequest
+	(*DecodePsbtResponse)(nil),                 // 97: bitcoin.bitcoind.v1alpha.DecodePsbtResponse
+	(*AnalyzePsbtRequest)(nil),                 // 98: bitcoin.bitcoind.v1alpha.AnalyzePsbtRequest
+	(*AnalyzePsbtResponse)(nil),                // 99: bitcoin.bitcoind.v1alpha.AnalyzePsbtResponse
+	(*CombinePsbtRequest)(nil),                 // 100: bitcoin.bitcoind.v1alpha.CombinePsbtRequest
+	(*CombinePsbtResponse)(nil),                // 101: bitcoin.bitcoind.v1alpha.CombinePsbtResponse
+	(*UtxoUpdatePsbtRequest)(nil),              // 102: bitcoin.bitcoind.v1alpha.UtxoUpdatePsbtRequest
+	(*UtxoUpdatePsbtResponse)(nil),             // 103: bitcoin.bitcoind.v1alpha.UtxoUpdatePsbtResponse
+	(*JoinPsbtsRequest)(nil),                   // 104: bitcoin.bitcoind.v1alpha.JoinPsbtsRequest
+	(*JoinPsbtsResponse)(nil),                  // 105: bitcoin.bitcoind.v1alpha.JoinPsbtsResponse
+	(*TestMempoolAcceptRequest)(nil),           // 106: bitcoin.bitcoind.v1alpha.TestMempoolAcceptRequest
+	(*TestMempoolAcceptResponse)(nil),          // 107: bitcoin.bitcoind.v1alpha.TestMempoolAcceptResponse
+	(*DescriptorRange)(nil),                    // 108: bitcoin.bitcoind.v1alpha.DescriptorRange
+	(*Range)(nil),                              // 109: bitcoin.bitcoind.v1alpha.Range
+	(*Descriptor)(nil),                         // 110: bitcoin.bitcoind.v1alpha.Descriptor
+	(*DescriptorObject)(nil),                   // 111: bitcoin.bitcoind.v1alpha.DescriptorObject
+	(*GetZmqNotificationsResponse)(nil),        // 112: bitcoin.bitcoind.v1alpha.GetZmqNotificationsResponse
+	nil,                                        // 113: bitcoin.bitcoind.v1alpha.Peer.BytesSentPerMsgEntry
+	nil,                                        // 114: bitcoin.bitcoind.v1alpha.Peer.BytesReceivedPerMsgEntry
+	(*GetBalancesResponse_Mine)(nil),           // 115: bitcoin.bitcoind.v1alpha.GetBalancesResponse.Mine
+	(*GetBalancesResponse_Watchonly)(nil),      // 116: bitcoin.bitcoind.v1alpha.GetBalancesResponse.Watchonly
+	(*GetTransactionResponse_Details)(nil),     // 117: bitcoin.bitcoind.v1alpha.GetTransactionResponse.Details
+	nil,                                        // 118: bitcoin.bitcoind.v1alpha.SendRequest.DestinationsEntry
+	(*ImportDescriptorsRequest_Request)(nil),   // 119: bitcoin.bitcoind.v1alpha.ImportDescriptorsRequest.Request
+	(*ImportDescriptorsResponse_Error)(nil),    // 120: bitcoin.bitcoind.v1alpha.ImportDescriptorsResponse.Error
+	(*ImportDescriptorsResponse_Response)(nil), // 121: bitcoin.bitcoind.v1alpha.ImportDescriptorsResponse.Response
+	(*MempoolEntry_Fees)(nil),                  // 122: bitcoin.bitcoind.v1alpha.MempoolEntry.Fees
+	nil,                                        // 123: bitcoin.bitcoind.v1alpha.GetRawMempoolResponse.TransactionsEntry
+	nil,                                        // 124: bitcoin.bitcoind.v1alpha.ListAccountsResponse.AccountsEntry
+	(*CreateRawTransactionRequest_Input)(nil),  // 125: bitcoin.bitcoind.v1alpha.CreateRawTransactionRequest.Input
+	nil,                                     // 126: bitcoin.bitcoind.v1alpha.CreateRawTransactionRequest.OutputsEntry
+	(*CreatePsbtRequest_Input)(nil),         // 127: bitcoin.bitcoind.v1alpha.CreatePsbtRequest.Input
+	nil,                                     // 128: bitcoin.bitcoind.v1alpha.CreatePsbtRequest.OutputsEntry
+	(*DecodePsbtResponse_WitnessUtxo)(nil),  // 129: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.WitnessUtxo
+	(*DecodePsbtResponse_RedeemScript)(nil), // 130: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.RedeemScript
+	(*DecodePsbtResponse_Bip32Deriv)(nil),   // 131: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Bip32Deriv
+	(*DecodePsbtResponse_Input)(nil),        // 132: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Input
+	(*DecodePsbtResponse_Output)(nil),       // 133: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Output
+	nil,                                     // 134: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.UnknownEntry
+	nil,                                     // 135: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Input.PartialSignaturesEntry
+	nil,                                     // 136: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Input.UnknownEntry
+	nil,                                     // 137: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Output.UnknownEntry
+	(*AnalyzePsbtResponse_Input)(nil),       // 138: bitcoin.bitcoind.v1alpha.AnalyzePsbtResponse.Input
+	(*AnalyzePsbtResponse_Input_Missing)(nil),        // 139: bitcoin.bitcoind.v1alpha.AnalyzePsbtResponse.Input.Missing
+	(*TestMempoolAcceptResponse_Result)(nil),         // 140: bitcoin.bitcoind.v1alpha.TestMempoolAcceptResponse.Result
+	(*GetZmqNotificationsResponse_Notification)(nil), // 141: bitcoin.bitcoind.v1alpha.GetZmqNotificationsResponse.Notification
+	(*timestamppb.Timestamp)(nil),                    // 142: google.protobuf.Timestamp
+	(*durationpb.Duration)(nil),                      // 143: google.protobuf.Duration
+	(*wrapperspb.BoolValue)(nil),                     // 144: google.protobuf.BoolValue
+	(*emptypb.Empty)(nil),                            // 145: google.protobuf.Empty
 }
 var file_bitcoin_bitcoind_v1alpha_bitcoin_proto_depIdxs = []int32{
 	0,   // 0: bitcoin.bitcoind.v1alpha.Peer.network:type_name -> bitcoin.bitcoind.v1alpha.Peer.Network
-	141, // 1: bitcoin.bitcoind.v1alpha.Peer.last_send_at:type_name -> google.protobuf.Timestamp
-	141, // 2: bitcoin.bitcoind.v1alpha.Peer.last_recv_at:type_name -> google.protobuf.Timestamp
-	141, // 3: bitcoin.bitcoind.v1alpha.Peer.last_transaction_at:type_name -> google.protobuf.Timestamp
-	141, // 4: bitcoin.bitcoind.v1alpha.Peer.last_block_at:type_name -> google.protobuf.Timestamp
-	141, // 5: bitcoin.bitcoind.v1alpha.Peer.connected_at:type_name -> google.protobuf.Timestamp
-	142, // 6: bitcoin.bitcoind.v1alpha.Peer.time_offset:type_name -> google.protobuf.Duration
-	142, // 7: bitcoin.bitcoind.v1alpha.Peer.ping_time:type_name -> google.protobuf.Duration
-	142, // 8: bitcoin.bitcoind.v1alpha.Peer.min_ping:type_name -> google.protobuf.Duration
-	142, // 9: bitcoin.bitcoind.v1alpha.Peer.ping_wait:type_name -> google.protobuf.Duration
-	112, // 10: bitcoin.bitcoind.v1alpha.Peer.bytes_sent_per_msg:type_name -> bitcoin.bitcoind.v1alpha.Peer.BytesSentPerMsgEntry
-	113, // 11: bitcoin.bitcoind.v1alpha.Peer.bytes_received_per_msg:type_name -> bitcoin.bitcoind.v1alpha.Peer.BytesReceivedPerMsgEntry
+	142, // 1: bitcoin.bitcoind.v1alpha.Peer.last_send_at:type_name -> google.protobuf.Timestamp
+	142, // 2: bitcoin.bitcoind.v1alpha.Peer.last_recv_at:type_name -> google.protobuf.Timestamp
+	142, // 3: bitcoin.bitcoind.v1alpha.Peer.last_transaction_at:type_name -> google.protobuf.Timestamp
+	142, // 4: bitcoin.bitcoind.v1alpha.Peer.last_block_at:type_name -> google.protobuf.Timestamp
+	142, // 5: bitcoin.bitcoind.v1alpha.Peer.connected_at:type_name -> google.protobuf.Timestamp
+	143, // 6: bitcoin.bitcoind.v1alpha.Peer.time_offset:type_name -> google.protobuf.Duration
+	143, // 7: bitcoin.bitcoind.v1alpha.Peer.ping_time:type_name -> google.protobuf.Duration
+	143, // 8: bitcoin.bitcoind.v1alpha.Peer.min_ping:type_name -> google.protobuf.Duration
+	143, // 9: bitcoin.bitcoind.v1alpha.Peer.ping_wait:type_name -> google.protobuf.Duration
+	113, // 10: bitcoin.bitcoind.v1alpha.Peer.bytes_sent_per_msg:type_name -> bitcoin.bitcoind.v1alpha.Peer.BytesSentPerMsgEntry
+	114, // 11: bitcoin.bitcoind.v1alpha.Peer.bytes_received_per_msg:type_name -> bitcoin.bitcoind.v1alpha.Peer.BytesReceivedPerMsgEntry
 	1,   // 12: bitcoin.bitcoind.v1alpha.Peer.connection_type:type_name -> bitcoin.bitcoind.v1alpha.Peer.ConnectionType
 	2,   // 13: bitcoin.bitcoind.v1alpha.Peer.transport_protocol:type_name -> bitcoin.bitcoind.v1alpha.Peer.TransportProtocol
-	10,  // 14: bitcoin.bitcoind.v1alpha.GetPeerInfoResponse.peers:type_name -> bitcoin.bitcoind.v1alpha.Peer
-	18,  // 15: bitcoin.bitcoind.v1alpha.GetWalletInfoResponse.scanning:type_name -> bitcoin.bitcoind.v1alpha.WalletScan
-	114, // 16: bitcoin.bitcoind.v1alpha.GetBalancesResponse.mine:type_name -> bitcoin.bitcoind.v1alpha.GetBalancesResponse.Mine
-	115, // 17: bitcoin.bitcoind.v1alpha.GetBalancesResponse.watchonly:type_name -> bitcoin.bitcoind.v1alpha.GetBalancesResponse.Watchonly
-	141, // 18: bitcoin.bitcoind.v1alpha.GetTransactionResponse.block_time:type_name -> google.protobuf.Timestamp
-	141, // 19: bitcoin.bitcoind.v1alpha.GetTransactionResponse.time:type_name -> google.protobuf.Timestamp
-	141, // 20: bitcoin.bitcoind.v1alpha.GetTransactionResponse.time_received:type_name -> google.protobuf.Timestamp
+	11,  // 14: bitcoin.bitcoind.v1alpha.GetPeerInfoResponse.peers:type_name -> bitcoin.bitcoind.v1alpha.Peer
+	19,  // 15: bitcoin.bitcoind.v1alpha.GetWalletInfoResponse.scanning:type_name -> bitcoin.bitcoind.v1alpha.WalletScan
+	115, // 16: bitcoin.bitcoind.v1alpha.GetBalancesResponse.mine:type_name -> bitcoin.bitcoind.v1alpha.GetBalancesResponse.Mine
+	116, // 17: bitcoin.bitcoind.v1alpha.GetBalancesResponse.watchonly:type_name -> bitcoin.bitcoind.v1alpha.GetBalancesResponse.Watchonly
+	142, // 18: bitcoin.bitcoind.v1alpha.GetTransactionResponse.block_time:type_name -> google.protobuf.Timestamp
+	142, // 19: bitcoin.bitcoind.v1alpha.GetTransactionResponse.time:type_name -> google.protobuf.Timestamp
+	142, // 20: bitcoin.bitcoind.v1alpha.GetTransactionResponse.time_received:type_name -> google.protobuf.Timestamp
 	3,   // 21: bitcoin.bitcoind.v1alpha.GetTransactionResponse.bip125_replaceable:type_name -> bitcoin.bitcoind.v1alpha.GetTransactionResponse.Replaceable
-	116, // 22: bitcoin.bitcoind.v1alpha.GetTransactionResponse.details:type_name -> bitcoin.bitcoind.v1alpha.GetTransactionResponse.Details
-	22,  // 23: bitcoin.bitcoind.v1alpha.Input.script_sig:type_name -> bitcoin.bitcoind.v1alpha.ScriptSig
-	24,  // 24: bitcoin.bitcoind.v1alpha.Output.script_pub_key:type_name -> bitcoin.bitcoind.v1alpha.ScriptPubKey
-	22,  // 25: bitcoin.bitcoind.v1alpha.Output.script_sig:type_name -> bitcoin.bitcoind.v1alpha.ScriptSig
-	34,  // 26: bitcoin.bitcoind.v1alpha.GetRawTransactionResponse.tx:type_name -> bitcoin.bitcoind.v1alpha.RawTransaction
-	23,  // 27: bitcoin.bitcoind.v1alpha.GetRawTransactionResponse.inputs:type_name -> bitcoin.bitcoind.v1alpha.Input
-	25,  // 28: bitcoin.bitcoind.v1alpha.GetRawTransactionResponse.outputs:type_name -> bitcoin.bitcoind.v1alpha.Output
-	117, // 29: bitcoin.bitcoind.v1alpha.SendRequest.destinations:type_name -> bitcoin.bitcoind.v1alpha.SendRequest.DestinationsEntry
-	143, // 30: bitcoin.bitcoind.v1alpha.SendRequest.add_to_wallet:type_name -> google.protobuf.BoolValue
-	34,  // 31: bitcoin.bitcoind.v1alpha.SendResponse.tx:type_name -> bitcoin.bitcoind.v1alpha.RawTransaction
-	5,   // 32: bitcoin.bitcoind.v1alpha.EstimateSmartFeeRequest.estimate_mode:type_name -> bitcoin.bitcoind.v1alpha.EstimateSmartFeeRequest.EstimateMode
-	34,  // 33: bitcoin.bitcoind.v1alpha.DecodeRawTransactionRequest.tx:type_name -> bitcoin.bitcoind.v1alpha.RawTransaction
-	23,  // 34: bitcoin.bitcoind.v1alpha.DecodeRawTransactionResponse.inputs:type_name -> bitcoin.bitcoind.v1alpha.Input
-	25,  // 35: bitcoin.bitcoind.v1alpha.DecodeRawTransactionResponse.outputs:type_name -> bitcoin.bitcoind.v1alpha.Output
-	118, // 36: bitcoin.bitcoind.v1alpha.ImportDescriptorsRequest.requests:type_name -> bitcoin.bitcoind.v1alpha.ImportDescriptorsRequest.Request
-	120, // 37: bitcoin.bitcoind.v1alpha.ImportDescriptorsResponse.responses:type_name -> bitcoin.bitcoind.v1alpha.ImportDescriptorsResponse.Response
-	6,   // 38: bitcoin.bitcoind.v1alpha.GetBlockRequest.verbosity:type_name -> bitcoin.bitcoind.v1alpha.GetBlockRequest.Verbosity
-	141, // 39: bitcoin.bitcoind.v1alpha.GetBlockResponse.time:type_name -> google.protobuf.Timestamp
-	20,  // 40: bitcoin.bitcoind.v1alpha.ListSinceBlockResponse.transactions:type_name -> bitcoin.bitcoind.v1alpha.GetTransactionResponse
-	141, // 41: bitcoin.bitcoind.v1alpha.MempoolEntry.time:type_name -> google.protobuf.Timestamp
-	121, // 42: bitcoin.bitcoind.v1alpha.MempoolEntry.fees:type_name -> bitcoin.bitcoind.v1alpha.MempoolEntry.Fees
-	122, // 43: bitcoin.bitcoind.v1alpha.GetRawMempoolResponse.transactions:type_name -> bitcoin.bitcoind.v1alpha.GetRawMempoolResponse.TransactionsEntry
-	20,  // 44: bitcoin.bitcoind.v1alpha.ListTransactionsResponse.transactions:type_name -> bitcoin.bitcoind.v1alpha.GetTransactionResponse
-	55,  // 45: bitcoin.bitcoind.v1alpha.ListUnspentResponse.unspent:type_name -> bitcoin.bitcoind.v1alpha.UnspentOutput
-	123, // 46: bitcoin.bitcoind.v1alpha.ListAccountsResponse.accounts:type_name -> bitcoin.bitcoind.v1alpha.ListAccountsResponse.AccountsEntry
-	124, // 47: bitcoin.bitcoind.v1alpha.CreateRawTransactionRequest.inputs:type_name -> bitcoin.bitcoind.v1alpha.CreateRawTransactionRequest.Input
-	125, // 48: bitcoin.bitcoind.v1alpha.CreateRawTransactionRequest.outputs:type_name -> bitcoin.bitcoind.v1alpha.CreateRawTransactionRequest.OutputsEntry
-	34,  // 49: bitcoin.bitcoind.v1alpha.CreateRawTransactionResponse.tx:type_name -> bitcoin.bitcoind.v1alpha.RawTransaction
-	126, // 50: bitcoin.bitcoind.v1alpha.CreatePsbtRequest.inputs:type_name -> bitcoin.bitcoind.v1alpha.CreatePsbtRequest.Input
-	127, // 51: bitcoin.bitcoind.v1alpha.CreatePsbtRequest.outputs:type_name -> bitcoin.bitcoind.v1alpha.CreatePsbtRequest.OutputsEntry
-	35,  // 52: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.tx:type_name -> bitcoin.bitcoind.v1alpha.DecodeRawTransactionResponse
-	133, // 53: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.unknown:type_name -> bitcoin.bitcoind.v1alpha.DecodePsbtResponse.UnknownEntry
-	131, // 54: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.inputs:type_name -> bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Input
-	132, // 55: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.outputs:type_name -> bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Output
-	137, // 56: bitcoin.bitcoind.v1alpha.AnalyzePsbtResponse.inputs:type_name -> bitcoin.bitcoind.v1alpha.AnalyzePsbtResponse.Input
-	109, // 57: bitcoin.bitcoind.v1alpha.UtxoUpdatePsbtRequest.descriptors:type_name -> bitcoin.bitcoind.v1alpha.Descriptor
-	139, // 58: bitcoin.bitcoind.v1alpha.TestMempoolAcceptResponse.results:type_name -> bitcoin.bitcoind.v1alpha.TestMempoolAcceptResponse.Result
-	108, // 59: bitcoin.bitcoind.v1alpha.DescriptorRange.range:type_name -> bitcoin.bitcoind.v1alpha.Range
-	110, // 60: bitcoin.bitcoind.v1alpha.Descriptor.object_descriptor:type_name -> bitcoin.bitcoind.v1alpha.DescriptorObject
-	107, // 61: bitcoin.bitcoind.v1alpha.DescriptorObject.range:type_name -> bitcoin.bitcoind.v1alpha.DescriptorRange
-	140, // 62: bitcoin.bitcoind.v1alpha.GetZmqNotificationsResponse.notifications:type_name -> bitcoin.bitcoind.v1alpha.GetZmqNotificationsResponse.Notification
-	4,   // 63: bitcoin.bitcoind.v1alpha.GetTransactionResponse.Details.category:type_name -> bitcoin.bitcoind.v1alpha.GetTransactionResponse.Category
-	141, // 64: bitcoin.bitcoind.v1alpha.ImportDescriptorsRequest.Request.timestamp:type_name -> google.protobuf.Timestamp
-	119, // 65: bitcoin.bitcoind.v1alpha.ImportDescriptorsResponse.Response.error:type_name -> bitcoin.bitcoind.v1alpha.ImportDescriptorsResponse.Error
-	47,  // 66: bitcoin.bitcoind.v1alpha.GetRawMempoolResponse.TransactionsEntry.value:type_name -> bitcoin.bitcoind.v1alpha.MempoolEntry
-	24,  // 67: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.WitnessUtxo.script_pub_key:type_name -> bitcoin.bitcoind.v1alpha.ScriptPubKey
-	35,  // 68: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Input.non_witness_utxo:type_name -> bitcoin.bitcoind.v1alpha.DecodeRawTransactionResponse
-	128, // 69: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Input.witness_utxo:type_name -> bitcoin.bitcoind.v1alpha.DecodePsbtResponse.WitnessUtxo
-	134, // 70: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Input.partial_signatures:type_name -> bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Input.PartialSignaturesEntry
-	129, // 71: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Input.redeem_script:type_name -> bitcoin.bitcoind.v1alpha.DecodePsbtResponse.RedeemScript
-	129, // 72: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Input.witness_script:type_name -> bitcoin.bitcoind.v1alpha.DecodePsbtResponse.RedeemScript
-	130, // 73: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Input.bip32_derivs:type_name -> bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Bip32Deriv
-	22,  // 74: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Input.final_scriptsig:type_name -> bitcoin.bitcoind.v1alpha.ScriptSig
-	135, // 75: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Input.unknown:type_name -> bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Input.UnknownEntry
-	129, // 76: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Output.redeem_script:type_name -> bitcoin.bitcoind.v1alpha.DecodePsbtResponse.RedeemScript
-	129, // 77: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Output.witness_script:type_name -> bitcoin.bitcoind.v1alpha.DecodePsbtResponse.RedeemScript
-	130, // 78: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Output.bip32_derivs:type_name -> bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Bip32Deriv
-	136, // 79: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Output.unknown:type_name -> bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Output.UnknownEntry
-	138, // 80: bitcoin.bitcoind.v1alpha.AnalyzePsbtResponse.Input.missing:type_name -> bitcoin.bitcoind.v1alpha.AnalyzePsbtResponse.Input.Missing
-	7,   // 81: bitcoin.bitcoind.v1alpha.BitcoinService.GetBlockchainInfo:input_type -> bitcoin.bitcoind.v1alpha.GetBlockchainInfoRequest
-	9,   // 82: bitcoin.bitcoind.v1alpha.BitcoinService.GetPeerInfo:input_type -> bitcoin.bitcoind.v1alpha.GetPeerInfoRequest
-	19,  // 83: bitcoin.bitcoind.v1alpha.BitcoinService.GetTransaction:input_type -> bitcoin.bitcoind.v1alpha.GetTransactionRequest
-	44,  // 84: bitcoin.bitcoind.v1alpha.BitcoinService.ListSinceBlock:input_type -> bitcoin.bitcoind.v1alpha.ListSinceBlockRequest
-	12,  // 85: bitcoin.bitcoind.v1alpha.BitcoinService.GetNewAddress:input_type -> bitcoin.bitcoind.v1alpha.GetNewAddressRequest
-	14,  // 86: bitcoin.bitcoind.v1alpha.BitcoinService.GetWalletInfo:input_type -> bitcoin.bitcoind.v1alpha.GetWalletInfoRequest
-	16,  // 87: bitcoin.bitcoind.v1alpha.BitcoinService.GetBalances:input_type -> bitcoin.bitcoind.v1alpha.GetBalancesRequest
-	27,  // 88: bitcoin.bitcoind.v1alpha.BitcoinService.Send:input_type -> bitcoin.bitcoind.v1alpha.SendRequest
-	29,  // 89: bitcoin.bitcoind.v1alpha.BitcoinService.SendToAddress:input_type -> bitcoin.bitcoind.v1alpha.SendToAddressRequest
-	42,  // 90: bitcoin.bitcoind.v1alpha.BitcoinService.BumpFee:input_type -> bitcoin.bitcoind.v1alpha.BumpFeeRequest
-	31,  // 91: bitcoin.bitcoind.v1alpha.BitcoinService.EstimateSmartFee:input_type -> bitcoin.bitcoind.v1alpha.EstimateSmartFeeRequest
-	36,  // 92: bitcoin.bitcoind.v1alpha.BitcoinService.ImportDescriptors:input_type -> bitcoin.bitcoind.v1alpha.ImportDescriptorsRequest
-	144, // 93: bitcoin.bitcoind.v1alpha.BitcoinService.ListWallets:input_type -> google.protobuf.Empty
-	54,  // 94: bitcoin.bitcoind.v1alpha.BitcoinService.ListUnspent:input_type -> bitcoin.bitcoind.v1alpha.ListUnspentRequest
-	51,  // 95: bitcoin.bitcoind.v1alpha.BitcoinService.ListTransactions:input_type -> bitcoin.bitcoind.v1alpha.ListTransactionsRequest
-	38,  // 96: bitcoin.bitcoind.v1alpha.BitcoinService.GetDescriptorInfo:input_type -> bitcoin.bitcoind.v1alpha.GetDescriptorInfoRequest
-	57,  // 97: bitcoin.bitcoind.v1alpha.BitcoinService.GetAddressInfo:input_type -> bitcoin.bitcoind.v1alpha.GetAddressInfoRequest
-	46,  // 98: bitcoin.bitcoind.v1alpha.BitcoinService.GetRawMempool:input_type -> bitcoin.bitcoind.v1alpha.GetRawMempoolRequest
-	21,  // 99: bitcoin.bitcoind.v1alpha.BitcoinService.GetRawTransaction:input_type -> bitcoin.bitcoind.v1alpha.GetRawTransactionRequest
-	33,  // 100: bitcoin.bitcoind.v1alpha.BitcoinService.DecodeRawTransaction:input_type -> bitcoin.bitcoind.v1alpha.DecodeRawTransactionRequest
-	91,  // 101: bitcoin.bitcoind.v1alpha.BitcoinService.CreateRawTransaction:input_type -> bitcoin.bitcoind.v1alpha.CreateRawTransactionRequest
-	40,  // 102: bitcoin.bitcoind.v1alpha.BitcoinService.GetBlock:input_type -> bitcoin.bitcoind.v1alpha.GetBlockRequest
-	49,  // 103: bitcoin.bitcoind.v1alpha.BitcoinService.GetBlockHash:input_type -> bitcoin.bitcoind.v1alpha.GetBlockHashRequest
-	59,  // 104: bitcoin.bitcoind.v1alpha.BitcoinService.CreateWallet:input_type -> bitcoin.bitcoind.v1alpha.CreateWalletRequest
-	61,  // 105: bitcoin.bitcoind.v1alpha.BitcoinService.BackupWallet:input_type -> bitcoin.bitcoind.v1alpha.BackupWalletRequest
-	63,  // 106: bitcoin.bitcoind.v1alpha.BitcoinService.DumpWallet:input_type -> bitcoin.bitcoind.v1alpha.DumpWalletRequest
-	65,  // 107: bitcoin.bitcoind.v1alpha.BitcoinService.ImportWallet:input_type -> bitcoin.bitcoind.v1alpha.ImportWalletRequest
-	67,  // 108: bitcoin.bitcoind.v1alpha.BitcoinService.UnloadWallet:input_type -> bitcoin.bitcoind.v1alpha.UnloadWalletRequest
-	69,  // 109: bitcoin.bitcoind.v1alpha.BitcoinService.DumpPrivKey:input_type -> bitcoin.bitcoind.v1alpha.DumpPrivKeyRequest
-	71,  // 110: bitcoin.bitcoind.v1alpha.BitcoinService.ImportPrivKey:input_type -> bitcoin.bitcoind.v1alpha.ImportPrivKeyRequest
-	73,  // 111: bitcoin.bitcoind.v1alpha.BitcoinService.ImportAddress:input_type -> bitcoin.bitcoind.v1alpha.ImportAddressRequest
-	75,  // 112: bitcoin.bitcoind.v1alpha.BitcoinService.ImportPubKey:input_type -> bitcoin.bitcoind.v1alpha.ImportPubKeyRequest
-	77,  // 113: bitcoin.bitcoind.v1alpha.BitcoinService.KeyPoolRefill:input_type -> bitcoin.bitcoind.v1alpha.KeyPoolRefillRequest
-	79,  // 114: bitcoin.bitcoind.v1alpha.BitcoinService.GetAccount:input_type -> bitcoin.bitcoind.v1alpha.GetAccountRequest
-	81,  // 115: bitcoin.bitcoind.v1alpha.BitcoinService.SetAccount:input_type -> bitcoin.bitcoind.v1alpha.SetAccountRequest
-	83,  // 116: bitcoin.bitcoind.v1alpha.BitcoinService.GetAddressesByAccount:input_type -> bitcoin.bitcoind.v1alpha.GetAddressesByAccountRequest
-	85,  // 117: bitcoin.bitcoind.v1alpha.BitcoinService.ListAccounts:input_type -> bitcoin.bitcoind.v1alpha.ListAccountsRequest
-	87,  // 118: bitcoin.bitcoind.v1alpha.BitcoinService.AddMultisigAddress:input_type -> bitcoin.bitcoind.v1alpha.AddMultisigAddressRequest
-	89,  // 119: bitcoin.bitcoind.v1alpha.BitcoinService.CreateMultisig:input_type -> bitcoin.bitcoind.v1alpha.CreateMultisigRequest
-	93,  // 120: bitcoin.bitcoind.v1alpha.BitcoinService.CreatePsbt:input_type -> bitcoin.bitcoind.v1alpha.CreatePsbtRequest
-	95,  // 121: bitcoin.bitcoind.v1alpha.BitcoinService.DecodePsbt:input_type -> bitcoin.bitcoind.v1alpha.DecodePsbtRequest
-	97,  // 122: bitcoin.bitcoind.v1alpha.BitcoinService.AnalyzePsbt:input_type -> bitcoin.bitcoind.v1alpha.AnalyzePsbtRequest
-	99,  // 123: bitcoin.bitcoind.v1alpha.BitcoinService.CombinePsbt:input_type -> bitcoin.bitcoind.v1alpha.CombinePsbtRequest
-	101, // 124: bitcoin.bitcoind.v1alpha.BitcoinService.UtxoUpdatePsbt:input_type -> bitcoin.bitcoind.v1alpha.UtxoUpdatePsbtRequest
-	103, // 125: bitcoin.bitcoind.v1alpha.BitcoinService.JoinPsbts:input_type -> bitcoin.bitcoind.v1alpha.JoinPsbtsRequest
-	105, // 126: bitcoin.bitcoind.v1alpha.BitcoinService.TestMempoolAccept:input_type -> bitcoin.bitcoind.v1alpha.TestMempoolAcceptRequest
-	144, // 127: bitcoin.bitcoind.v1alpha.BitcoinService.GetZmqNotifications:input_type -> google.protobuf.Empty
-	8,   // 128: bitcoin.bitcoind.v1alpha.BitcoinService.GetBlockchainInfo:output_type -> bitcoin.bitcoind.v1alpha.GetBlockchainInfoResponse
-	11,  // 129: bitcoin.bitcoind.v1alpha.BitcoinService.GetPeerInfo:output_type -> bitcoin.bitcoind.v1alpha.GetPeerInfoResponse
-	20,  // 130: bitcoin.bitcoind.v1alpha.BitcoinService.GetTransaction:output_type -> bitcoin.bitcoind.v1alpha.GetTransactionResponse
-	45,  // 131: bitcoin.bitcoind.v1alpha.BitcoinService.ListSinceBlock:output_type -> bitcoin.bitcoind.v1alpha.ListSinceBlockResponse
-	13,  // 132: bitcoin.bitcoind.v1alpha.BitcoinService.GetNewAddress:output_type -> bitcoin.bitcoind.v1alpha.GetNewAddressResponse
-	15,  // 133: bitcoin.bitcoind.v1alpha.BitcoinService.GetWalletInfo:output_type -> bitcoin.bitcoind.v1alpha.GetWalletInfoResponse
-	17,  // 134: bitcoin.bitcoind.v1alpha.BitcoinService.GetBalances:output_type -> bitcoin.bitcoind.v1alpha.GetBalancesResponse
-	28,  // 135: bitcoin.bitcoind.v1alpha.BitcoinService.Send:output_type -> bitcoin.bitcoind.v1alpha.SendResponse
-	30,  // 136: bitcoin.bitcoind.v1alpha.BitcoinService.SendToAddress:output_type -> bitcoin.bitcoind.v1alpha.SendToAddressResponse
-	43,  // 137: bitcoin.bitcoind.v1alpha.BitcoinService.BumpFee:output_type -> bitcoin.bitcoind.v1alpha.BumpFeeResponse
-	32,  // 138: bitcoin.bitcoind.v1alpha.BitcoinService.EstimateSmartFee:output_type -> bitcoin.bitcoind.v1alpha.EstimateSmartFeeResponse
-	37,  // 139: bitcoin.bitcoind.v1alpha.BitcoinService.ImportDescriptors:output_type -> bitcoin.bitcoind.v1alpha.ImportDescriptorsResponse
-	53,  // 140: bitcoin.bitcoind.v1alpha.BitcoinService.ListWallets:output_type -> bitcoin.bitcoind.v1alpha.ListWalletsResponse
-	56,  // 141: bitcoin.bitcoind.v1alpha.BitcoinService.ListUnspent:output_type -> bitcoin.bitcoind.v1alpha.ListUnspentResponse
-	52,  // 142: bitcoin.bitcoind.v1alpha.BitcoinService.ListTransactions:output_type -> bitcoin.bitcoind.v1alpha.ListTransactionsResponse
-	39,  // 143: bitcoin.bitcoind.v1alpha.BitcoinService.GetDescriptorInfo:output_type -> bitcoin.bitcoind.v1alpha.GetDescriptorInfoResponse
-	58,  // 144: bitcoin.bitcoind.v1alpha.BitcoinService.GetAddressInfo:output_type -> bitcoin.bitcoind.v1alpha.GetAddressInfoResponse
-	48,  // 145: bitcoin.bitcoind.v1alpha.BitcoinService.GetRawMempool:output_type -> bitcoin.bitcoind.v1alpha.GetRawMempoolResponse
-	26,  // 146: bitcoin.bitcoind.v1alpha.BitcoinService.GetRawTransaction:output_type -> bitcoin.bitcoind.v1alpha.GetRawTransactionResponse
-	35,  // 147: bitcoin.bitcoind.v1alpha.BitcoinService.DecodeRawTransaction:output_type -> bitcoin.bitcoind.v1alpha.DecodeRawTransactionResponse
-	92,  // 148: bitcoin.bitcoind.v1alpha.BitcoinService.CreateRawTransaction:output_type -> bitcoin.bitcoind.v1alpha.CreateRawTransactionResponse
-	41,  // 149: bitcoin.bitcoind.v1alpha.BitcoinService.GetBlock:output_type -> bitcoin.bitcoind.v1alpha.GetBlockResponse
-	50,  // 150: bitcoin.bitcoind.v1alpha.BitcoinService.GetBlockHash:output_type -> bitcoin.bitcoind.v1alpha.GetBlockHashResponse
-	60,  // 151: bitcoin.bitcoind.v1alpha.BitcoinService.CreateWallet:output_type -> bitcoin.bitcoind.v1alpha.CreateWalletResponse
-	62,  // 152: bitcoin.bitcoind.v1alpha.BitcoinService.BackupWallet:output_type -> bitcoin.bitcoind.v1alpha.BackupWalletResponse
-	64,  // 153: bitcoin.bitcoind.v1alpha.BitcoinService.DumpWallet:output_type -> bitcoin.bitcoind.v1alpha.DumpWalletResponse
-	66,  // 154: bitcoin.bitcoind.v1alpha.BitcoinService.ImportWallet:output_type -> bitcoin.bitcoind.v1alpha.ImportWalletResponse
-	68,  // 155: bitcoin.bitcoind.v1alpha.BitcoinService.UnloadWallet:output_type -> bitcoin.bitcoind.v1alpha.UnloadWalletResponse
-	70,  // 156: bitcoin.bitcoind.v1alpha.BitcoinService.DumpPrivKey:output_type -> bitcoin.bitcoind.v1alpha.DumpPrivKeyResponse
-	72,  // 157: bitcoin.bitcoind.v1alpha.BitcoinService.ImportPrivKey:output_type -> bitcoin.bitcoind.v1alpha.ImportPrivKeyResponse
-	74,  // 158: bitcoin.bitcoind.v1alpha.BitcoinService.ImportAddress:output_type -> bitcoin.bitcoind.v1alpha.ImportAddressResponse
-	76,  // 159: bitcoin.bitcoind.v1alpha.BitcoinService.ImportPubKey:output_type -> bitcoin.bitcoind.v1alpha.ImportPubKeyResponse
-	78,  // 160: bitcoin.bitcoind.v1alpha.BitcoinService.KeyPoolRefill:output_type -> bitcoin.bitcoind.v1alpha.KeyPoolRefillResponse
-	80,  // 161: bitcoin.bitcoind.v1alpha.BitcoinService.GetAccount:output_type -> bitcoin.bitcoind.v1alpha.GetAccountResponse
-	82,  // 162: bitcoin.bitcoind.v1alpha.BitcoinService.SetAccount:output_type -> bitcoin.bitcoind.v1alpha.SetAccountResponse
-	84,  // 163: bitcoin.bitcoind.v1alpha.BitcoinService.GetAddressesByAccount:output_type -> bitcoin.bitcoind.v1alpha.GetAddressesByAccountResponse
-	86,  // 164: bitcoin.bitcoind.v1alpha.BitcoinService.ListAccounts:output_type -> bitcoin.bitcoind.v1alpha.ListAccountsResponse
-	88,  // 165: bitcoin.bitcoind.v1alpha.BitcoinService.AddMultisigAddress:output_type -> bitcoin.bitcoind.v1alpha.AddMultisigAddressResponse
-	90,  // 166: bitcoin.bitcoind.v1alpha.BitcoinService.CreateMultisig:output_type -> bitcoin.bitcoind.v1alpha.CreateMultisigResponse
-	94,  // 167: bitcoin.bitcoind.v1alpha.BitcoinService.CreatePsbt:output_type -> bitcoin.bitcoind.v1alpha.CreatePsbtResponse
-	96,  // 168: bitcoin.bitcoind.v1alpha.BitcoinService.DecodePsbt:output_type -> bitcoin.bitcoind.v1alpha.DecodePsbtResponse
-	98,  // 169: bitcoin.bitcoind.v1alpha.BitcoinService.AnalyzePsbt:output_type -> bitcoin.bitcoind.v1alpha.AnalyzePsbtResponse
-	100, // 170: bitcoin.bitcoind.v1alpha.BitcoinService.CombinePsbt:output_type -> bitcoin.bitcoind.v1alpha.CombinePsbtResponse
-	102, // 171: bitcoin.bitcoind.v1alpha.BitcoinService.UtxoUpdatePsbt:output_type -> bitcoin.bitcoind.v1alpha.UtxoUpdatePsbtResponse
-	104, // 172: bitcoin.bitcoind.v1alpha.BitcoinService.JoinPsbts:output_type -> bitcoin.bitcoind.v1alpha.JoinPsbtsResponse
-	106, // 173: bitcoin.bitcoind.v1alpha.BitcoinService.TestMempoolAccept:output_type -> bitcoin.bitcoind.v1alpha.TestMempoolAcceptResponse
-	111, // 174: bitcoin.bitcoind.v1alpha.BitcoinService.GetZmqNotifications:output_type -> bitcoin.bitcoind.v1alpha.GetZmqNotificationsResponse
-	128, // [128:175] is the sub-list for method output_type
-	81,  // [81:128] is the sub-list for method input_type
-	81,  // [81:81] is the sub-list for extension type_name
-	81,  // [81:81] is the sub-list for extension extendee
-	0,   // [0:81] is the sub-list for field type_name
+	117, // 22: bitcoin.bitcoind.v1alpha.GetTransactionResponse.details:type_name -> bitcoin.bitcoind.v1alpha.GetTransactionResponse.Details
+	5,   // 23: bitcoin.bitcoind.v1alpha.GetRawTransactionRequest.verbosity:type_name -> bitcoin.bitcoind.v1alpha.GetRawTransactionRequest.Verbosity
+	23,  // 24: bitcoin.bitcoind.v1alpha.Input.script_sig:type_name -> bitcoin.bitcoind.v1alpha.ScriptSig
+	25,  // 25: bitcoin.bitcoind.v1alpha.Output.script_pub_key:type_name -> bitcoin.bitcoind.v1alpha.ScriptPubKey
+	23,  // 26: bitcoin.bitcoind.v1alpha.Output.script_sig:type_name -> bitcoin.bitcoind.v1alpha.ScriptSig
+	35,  // 27: bitcoin.bitcoind.v1alpha.GetRawTransactionResponse.tx:type_name -> bitcoin.bitcoind.v1alpha.RawTransaction
+	24,  // 28: bitcoin.bitcoind.v1alpha.GetRawTransactionResponse.inputs:type_name -> bitcoin.bitcoind.v1alpha.Input
+	26,  // 29: bitcoin.bitcoind.v1alpha.GetRawTransactionResponse.outputs:type_name -> bitcoin.bitcoind.v1alpha.Output
+	142, // 30: bitcoin.bitcoind.v1alpha.GetRawTransactionResponse.block_time:type_name -> google.protobuf.Timestamp
+	118, // 31: bitcoin.bitcoind.v1alpha.SendRequest.destinations:type_name -> bitcoin.bitcoind.v1alpha.SendRequest.DestinationsEntry
+	144, // 32: bitcoin.bitcoind.v1alpha.SendRequest.add_to_wallet:type_name -> google.protobuf.BoolValue
+	35,  // 33: bitcoin.bitcoind.v1alpha.SendResponse.tx:type_name -> bitcoin.bitcoind.v1alpha.RawTransaction
+	6,   // 34: bitcoin.bitcoind.v1alpha.EstimateSmartFeeRequest.estimate_mode:type_name -> bitcoin.bitcoind.v1alpha.EstimateSmartFeeRequest.EstimateMode
+	35,  // 35: bitcoin.bitcoind.v1alpha.DecodeRawTransactionRequest.tx:type_name -> bitcoin.bitcoind.v1alpha.RawTransaction
+	24,  // 36: bitcoin.bitcoind.v1alpha.DecodeRawTransactionResponse.inputs:type_name -> bitcoin.bitcoind.v1alpha.Input
+	26,  // 37: bitcoin.bitcoind.v1alpha.DecodeRawTransactionResponse.outputs:type_name -> bitcoin.bitcoind.v1alpha.Output
+	119, // 38: bitcoin.bitcoind.v1alpha.ImportDescriptorsRequest.requests:type_name -> bitcoin.bitcoind.v1alpha.ImportDescriptorsRequest.Request
+	121, // 39: bitcoin.bitcoind.v1alpha.ImportDescriptorsResponse.responses:type_name -> bitcoin.bitcoind.v1alpha.ImportDescriptorsResponse.Response
+	7,   // 40: bitcoin.bitcoind.v1alpha.GetBlockRequest.verbosity:type_name -> bitcoin.bitcoind.v1alpha.GetBlockRequest.Verbosity
+	142, // 41: bitcoin.bitcoind.v1alpha.GetBlockResponse.time:type_name -> google.protobuf.Timestamp
+	21,  // 42: bitcoin.bitcoind.v1alpha.ListSinceBlockResponse.transactions:type_name -> bitcoin.bitcoind.v1alpha.GetTransactionResponse
+	142, // 43: bitcoin.bitcoind.v1alpha.MempoolEntry.time:type_name -> google.protobuf.Timestamp
+	122, // 44: bitcoin.bitcoind.v1alpha.MempoolEntry.fees:type_name -> bitcoin.bitcoind.v1alpha.MempoolEntry.Fees
+	123, // 45: bitcoin.bitcoind.v1alpha.GetRawMempoolResponse.transactions:type_name -> bitcoin.bitcoind.v1alpha.GetRawMempoolResponse.TransactionsEntry
+	21,  // 46: bitcoin.bitcoind.v1alpha.ListTransactionsResponse.transactions:type_name -> bitcoin.bitcoind.v1alpha.GetTransactionResponse
+	56,  // 47: bitcoin.bitcoind.v1alpha.ListUnspentResponse.unspent:type_name -> bitcoin.bitcoind.v1alpha.UnspentOutput
+	124, // 48: bitcoin.bitcoind.v1alpha.ListAccountsResponse.accounts:type_name -> bitcoin.bitcoind.v1alpha.ListAccountsResponse.AccountsEntry
+	125, // 49: bitcoin.bitcoind.v1alpha.CreateRawTransactionRequest.inputs:type_name -> bitcoin.bitcoind.v1alpha.CreateRawTransactionRequest.Input
+	126, // 50: bitcoin.bitcoind.v1alpha.CreateRawTransactionRequest.outputs:type_name -> bitcoin.bitcoind.v1alpha.CreateRawTransactionRequest.OutputsEntry
+	35,  // 51: bitcoin.bitcoind.v1alpha.CreateRawTransactionResponse.tx:type_name -> bitcoin.bitcoind.v1alpha.RawTransaction
+	127, // 52: bitcoin.bitcoind.v1alpha.CreatePsbtRequest.inputs:type_name -> bitcoin.bitcoind.v1alpha.CreatePsbtRequest.Input
+	128, // 53: bitcoin.bitcoind.v1alpha.CreatePsbtRequest.outputs:type_name -> bitcoin.bitcoind.v1alpha.CreatePsbtRequest.OutputsEntry
+	36,  // 54: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.tx:type_name -> bitcoin.bitcoind.v1alpha.DecodeRawTransactionResponse
+	134, // 55: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.unknown:type_name -> bitcoin.bitcoind.v1alpha.DecodePsbtResponse.UnknownEntry
+	132, // 56: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.inputs:type_name -> bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Input
+	133, // 57: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.outputs:type_name -> bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Output
+	138, // 58: bitcoin.bitcoind.v1alpha.AnalyzePsbtResponse.inputs:type_name -> bitcoin.bitcoind.v1alpha.AnalyzePsbtResponse.Input
+	110, // 59: bitcoin.bitcoind.v1alpha.UtxoUpdatePsbtRequest.descriptors:type_name -> bitcoin.bitcoind.v1alpha.Descriptor
+	140, // 60: bitcoin.bitcoind.v1alpha.TestMempoolAcceptResponse.results:type_name -> bitcoin.bitcoind.v1alpha.TestMempoolAcceptResponse.Result
+	109, // 61: bitcoin.bitcoind.v1alpha.DescriptorRange.range:type_name -> bitcoin.bitcoind.v1alpha.Range
+	111, // 62: bitcoin.bitcoind.v1alpha.Descriptor.object_descriptor:type_name -> bitcoin.bitcoind.v1alpha.DescriptorObject
+	108, // 63: bitcoin.bitcoind.v1alpha.DescriptorObject.range:type_name -> bitcoin.bitcoind.v1alpha.DescriptorRange
+	141, // 64: bitcoin.bitcoind.v1alpha.GetZmqNotificationsResponse.notifications:type_name -> bitcoin.bitcoind.v1alpha.GetZmqNotificationsResponse.Notification
+	4,   // 65: bitcoin.bitcoind.v1alpha.GetTransactionResponse.Details.category:type_name -> bitcoin.bitcoind.v1alpha.GetTransactionResponse.Category
+	142, // 66: bitcoin.bitcoind.v1alpha.ImportDescriptorsRequest.Request.timestamp:type_name -> google.protobuf.Timestamp
+	120, // 67: bitcoin.bitcoind.v1alpha.ImportDescriptorsResponse.Response.error:type_name -> bitcoin.bitcoind.v1alpha.ImportDescriptorsResponse.Error
+	48,  // 68: bitcoin.bitcoind.v1alpha.GetRawMempoolResponse.TransactionsEntry.value:type_name -> bitcoin.bitcoind.v1alpha.MempoolEntry
+	25,  // 69: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.WitnessUtxo.script_pub_key:type_name -> bitcoin.bitcoind.v1alpha.ScriptPubKey
+	36,  // 70: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Input.non_witness_utxo:type_name -> bitcoin.bitcoind.v1alpha.DecodeRawTransactionResponse
+	129, // 71: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Input.witness_utxo:type_name -> bitcoin.bitcoind.v1alpha.DecodePsbtResponse.WitnessUtxo
+	135, // 72: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Input.partial_signatures:type_name -> bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Input.PartialSignaturesEntry
+	130, // 73: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Input.redeem_script:type_name -> bitcoin.bitcoind.v1alpha.DecodePsbtResponse.RedeemScript
+	130, // 74: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Input.witness_script:type_name -> bitcoin.bitcoind.v1alpha.DecodePsbtResponse.RedeemScript
+	131, // 75: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Input.bip32_derivs:type_name -> bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Bip32Deriv
+	23,  // 76: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Input.final_scriptsig:type_name -> bitcoin.bitcoind.v1alpha.ScriptSig
+	136, // 77: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Input.unknown:type_name -> bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Input.UnknownEntry
+	130, // 78: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Output.redeem_script:type_name -> bitcoin.bitcoind.v1alpha.DecodePsbtResponse.RedeemScript
+	130, // 79: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Output.witness_script:type_name -> bitcoin.bitcoind.v1alpha.DecodePsbtResponse.RedeemScript
+	131, // 80: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Output.bip32_derivs:type_name -> bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Bip32Deriv
+	137, // 81: bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Output.unknown:type_name -> bitcoin.bitcoind.v1alpha.DecodePsbtResponse.Output.UnknownEntry
+	139, // 82: bitcoin.bitcoind.v1alpha.AnalyzePsbtResponse.Input.missing:type_name -> bitcoin.bitcoind.v1alpha.AnalyzePsbtResponse.Input.Missing
+	8,   // 83: bitcoin.bitcoind.v1alpha.BitcoinService.GetBlockchainInfo:input_type -> bitcoin.bitcoind.v1alpha.GetBlockchainInfoRequest
+	10,  // 84: bitcoin.bitcoind.v1alpha.BitcoinService.GetPeerInfo:input_type -> bitcoin.bitcoind.v1alpha.GetPeerInfoRequest
+	20,  // 85: bitcoin.bitcoind.v1alpha.BitcoinService.GetTransaction:input_type -> bitcoin.bitcoind.v1alpha.GetTransactionRequest
+	45,  // 86: bitcoin.bitcoind.v1alpha.BitcoinService.ListSinceBlock:input_type -> bitcoin.bitcoind.v1alpha.ListSinceBlockRequest
+	13,  // 87: bitcoin.bitcoind.v1alpha.BitcoinService.GetNewAddress:input_type -> bitcoin.bitcoind.v1alpha.GetNewAddressRequest
+	15,  // 88: bitcoin.bitcoind.v1alpha.BitcoinService.GetWalletInfo:input_type -> bitcoin.bitcoind.v1alpha.GetWalletInfoRequest
+	17,  // 89: bitcoin.bitcoind.v1alpha.BitcoinService.GetBalances:input_type -> bitcoin.bitcoind.v1alpha.GetBalancesRequest
+	28,  // 90: bitcoin.bitcoind.v1alpha.BitcoinService.Send:input_type -> bitcoin.bitcoind.v1alpha.SendRequest
+	30,  // 91: bitcoin.bitcoind.v1alpha.BitcoinService.SendToAddress:input_type -> bitcoin.bitcoind.v1alpha.SendToAddressRequest
+	43,  // 92: bitcoin.bitcoind.v1alpha.BitcoinService.BumpFee:input_type -> bitcoin.bitcoind.v1alpha.BumpFeeRequest
+	32,  // 93: bitcoin.bitcoind.v1alpha.BitcoinService.EstimateSmartFee:input_type -> bitcoin.bitcoind.v1alpha.EstimateSmartFeeRequest
+	37,  // 94: bitcoin.bitcoind.v1alpha.BitcoinService.ImportDescriptors:input_type -> bitcoin.bitcoind.v1alpha.ImportDescriptorsRequest
+	145, // 95: bitcoin.bitcoind.v1alpha.BitcoinService.ListWallets:input_type -> google.protobuf.Empty
+	55,  // 96: bitcoin.bitcoind.v1alpha.BitcoinService.ListUnspent:input_type -> bitcoin.bitcoind.v1alpha.ListUnspentRequest
+	52,  // 97: bitcoin.bitcoind.v1alpha.BitcoinService.ListTransactions:input_type -> bitcoin.bitcoind.v1alpha.ListTransactionsRequest
+	39,  // 98: bitcoin.bitcoind.v1alpha.BitcoinService.GetDescriptorInfo:input_type -> bitcoin.bitcoind.v1alpha.GetDescriptorInfoRequest
+	58,  // 99: bitcoin.bitcoind.v1alpha.BitcoinService.GetAddressInfo:input_type -> bitcoin.bitcoind.v1alpha.GetAddressInfoRequest
+	47,  // 100: bitcoin.bitcoind.v1alpha.BitcoinService.GetRawMempool:input_type -> bitcoin.bitcoind.v1alpha.GetRawMempoolRequest
+	22,  // 101: bitcoin.bitcoind.v1alpha.BitcoinService.GetRawTransaction:input_type -> bitcoin.bitcoind.v1alpha.GetRawTransactionRequest
+	34,  // 102: bitcoin.bitcoind.v1alpha.BitcoinService.DecodeRawTransaction:input_type -> bitcoin.bitcoind.v1alpha.DecodeRawTransactionRequest
+	92,  // 103: bitcoin.bitcoind.v1alpha.BitcoinService.CreateRawTransaction:input_type -> bitcoin.bitcoind.v1alpha.CreateRawTransactionRequest
+	41,  // 104: bitcoin.bitcoind.v1alpha.BitcoinService.GetBlock:input_type -> bitcoin.bitcoind.v1alpha.GetBlockRequest
+	50,  // 105: bitcoin.bitcoind.v1alpha.BitcoinService.GetBlockHash:input_type -> bitcoin.bitcoind.v1alpha.GetBlockHashRequest
+	60,  // 106: bitcoin.bitcoind.v1alpha.BitcoinService.CreateWallet:input_type -> bitcoin.bitcoind.v1alpha.CreateWalletRequest
+	62,  // 107: bitcoin.bitcoind.v1alpha.BitcoinService.BackupWallet:input_type -> bitcoin.bitcoind.v1alpha.BackupWalletRequest
+	64,  // 108: bitcoin.bitcoind.v1alpha.BitcoinService.DumpWallet:input_type -> bitcoin.bitcoind.v1alpha.DumpWalletRequest
+	66,  // 109: bitcoin.bitcoind.v1alpha.BitcoinService.ImportWallet:input_type -> bitcoin.bitcoind.v1alpha.ImportWalletRequest
+	68,  // 110: bitcoin.bitcoind.v1alpha.BitcoinService.UnloadWallet:input_type -> bitcoin.bitcoind.v1alpha.UnloadWalletRequest
+	70,  // 111: bitcoin.bitcoind.v1alpha.BitcoinService.DumpPrivKey:input_type -> bitcoin.bitcoind.v1alpha.DumpPrivKeyRequest
+	72,  // 112: bitcoin.bitcoind.v1alpha.BitcoinService.ImportPrivKey:input_type -> bitcoin.bitcoind.v1alpha.ImportPrivKeyRequest
+	74,  // 113: bitcoin.bitcoind.v1alpha.BitcoinService.ImportAddress:input_type -> bitcoin.bitcoind.v1alpha.ImportAddressRequest
+	76,  // 114: bitcoin.bitcoind.v1alpha.BitcoinService.ImportPubKey:input_type -> bitcoin.bitcoind.v1alpha.ImportPubKeyRequest
+	78,  // 115: bitcoin.bitcoind.v1alpha.BitcoinService.KeyPoolRefill:input_type -> bitcoin.bitcoind.v1alpha.KeyPoolRefillRequest
+	80,  // 116: bitcoin.bitcoind.v1alpha.BitcoinService.GetAccount:input_type -> bitcoin.bitcoind.v1alpha.GetAccountRequest
+	82,  // 117: bitcoin.bitcoind.v1alpha.BitcoinService.SetAccount:input_type -> bitcoin.bitcoind.v1alpha.SetAccountRequest
+	84,  // 118: bitcoin.bitcoind.v1alpha.BitcoinService.GetAddressesByAccount:input_type -> bitcoin.bitcoind.v1alpha.GetAddressesByAccountRequest
+	86,  // 119: bitcoin.bitcoind.v1alpha.BitcoinService.ListAccounts:input_type -> bitcoin.bitcoind.v1alpha.ListAccountsRequest
+	88,  // 120: bitcoin.bitcoind.v1alpha.BitcoinService.AddMultisigAddress:input_type -> bitcoin.bitcoind.v1alpha.AddMultisigAddressRequest
+	90,  // 121: bitcoin.bitcoind.v1alpha.BitcoinService.CreateMultisig:input_type -> bitcoin.bitcoind.v1alpha.CreateMultisigRequest
+	94,  // 122: bitcoin.bitcoind.v1alpha.BitcoinService.CreatePsbt:input_type -> bitcoin.bitcoind.v1alpha.CreatePsbtRequest
+	96,  // 123: bitcoin.bitcoind.v1alpha.BitcoinService.DecodePsbt:input_type -> bitcoin.bitcoind.v1alpha.DecodePsbtRequest
+	98,  // 124: bitcoin.bitcoind.v1alpha.BitcoinService.AnalyzePsbt:input_type -> bitcoin.bitcoind.v1alpha.AnalyzePsbtRequest
+	100, // 125: bitcoin.bitcoind.v1alpha.BitcoinService.CombinePsbt:input_type -> bitcoin.bitcoind.v1alpha.CombinePsbtRequest
+	102, // 126: bitcoin.bitcoind.v1alpha.BitcoinService.UtxoUpdatePsbt:input_type -> bitcoin.bitcoind.v1alpha.UtxoUpdatePsbtRequest
+	104, // 127: bitcoin.bitcoind.v1alpha.BitcoinService.JoinPsbts:input_type -> bitcoin.bitcoind.v1alpha.JoinPsbtsRequest
+	106, // 128: bitcoin.bitcoind.v1alpha.BitcoinService.TestMempoolAccept:input_type -> bitcoin.bitcoind.v1alpha.TestMempoolAcceptRequest
+	145, // 129: bitcoin.bitcoind.v1alpha.BitcoinService.GetZmqNotifications:input_type -> google.protobuf.Empty
+	9,   // 130: bitcoin.bitcoind.v1alpha.BitcoinService.GetBlockchainInfo:output_type -> bitcoin.bitcoind.v1alpha.GetBlockchainInfoResponse
+	12,  // 131: bitcoin.bitcoind.v1alpha.BitcoinService.GetPeerInfo:output_type -> bitcoin.bitcoind.v1alpha.GetPeerInfoResponse
+	21,  // 132: bitcoin.bitcoind.v1alpha.BitcoinService.GetTransaction:output_type -> bitcoin.bitcoind.v1alpha.GetTransactionResponse
+	46,  // 133: bitcoin.bitcoind.v1alpha.BitcoinService.ListSinceBlock:output_type -> bitcoin.bitcoind.v1alpha.ListSinceBlockResponse
+	14,  // 134: bitcoin.bitcoind.v1alpha.BitcoinService.GetNewAddress:output_type -> bitcoin.bitcoind.v1alpha.GetNewAddressResponse
+	16,  // 135: bitcoin.bitcoind.v1alpha.BitcoinService.GetWalletInfo:output_type -> bitcoin.bitcoind.v1alpha.GetWalletInfoResponse
+	18,  // 136: bitcoin.bitcoind.v1alpha.BitcoinService.GetBalances:output_type -> bitcoin.bitcoind.v1alpha.GetBalancesResponse
+	29,  // 137: bitcoin.bitcoind.v1alpha.BitcoinService.Send:output_type -> bitcoin.bitcoind.v1alpha.SendResponse
+	31,  // 138: bitcoin.bitcoind.v1alpha.BitcoinService.SendToAddress:output_type -> bitcoin.bitcoind.v1alpha.SendToAddressResponse
+	44,  // 139: bitcoin.bitcoind.v1alpha.BitcoinService.BumpFee:output_type -> bitcoin.bitcoind.v1alpha.BumpFeeResponse
+	33,  // 140: bitcoin.bitcoind.v1alpha.BitcoinService.EstimateSmartFee:output_type -> bitcoin.bitcoind.v1alpha.EstimateSmartFeeResponse
+	38,  // 141: bitcoin.bitcoind.v1alpha.BitcoinService.ImportDescriptors:output_type -> bitcoin.bitcoind.v1alpha.ImportDescriptorsResponse
+	54,  // 142: bitcoin.bitcoind.v1alpha.BitcoinService.ListWallets:output_type -> bitcoin.bitcoind.v1alpha.ListWalletsResponse
+	57,  // 143: bitcoin.bitcoind.v1alpha.BitcoinService.ListUnspent:output_type -> bitcoin.bitcoind.v1alpha.ListUnspentResponse
+	53,  // 144: bitcoin.bitcoind.v1alpha.BitcoinService.ListTransactions:output_type -> bitcoin.bitcoind.v1alpha.ListTransactionsResponse
+	40,  // 145: bitcoin.bitcoind.v1alpha.BitcoinService.GetDescriptorInfo:output_type -> bitcoin.bitcoind.v1alpha.GetDescriptorInfoResponse
+	59,  // 146: bitcoin.bitcoind.v1alpha.BitcoinService.GetAddressInfo:output_type -> bitcoin.bitcoind.v1alpha.GetAddressInfoResponse
+	49,  // 147: bitcoin.bitcoind.v1alpha.BitcoinService.GetRawMempool:output_type -> bitcoin.bitcoind.v1alpha.GetRawMempoolResponse
+	27,  // 148: bitcoin.bitcoind.v1alpha.BitcoinService.GetRawTransaction:output_type -> bitcoin.bitcoind.v1alpha.GetRawTransactionResponse
+	36,  // 149: bitcoin.bitcoind.v1alpha.BitcoinService.DecodeRawTransaction:output_type -> bitcoin.bitcoind.v1alpha.DecodeRawTransactionResponse
+	93,  // 150: bitcoin.bitcoind.v1alpha.BitcoinService.CreateRawTransaction:output_type -> bitcoin.bitcoind.v1alpha.CreateRawTransactionResponse
+	42,  // 151: bitcoin.bitcoind.v1alpha.BitcoinService.GetBlock:output_type -> bitcoin.bitcoind.v1alpha.GetBlockResponse
+	51,  // 152: bitcoin.bitcoind.v1alpha.BitcoinService.GetBlockHash:output_type -> bitcoin.bitcoind.v1alpha.GetBlockHashResponse
+	61,  // 153: bitcoin.bitcoind.v1alpha.BitcoinService.CreateWallet:output_type -> bitcoin.bitcoind.v1alpha.CreateWalletResponse
+	63,  // 154: bitcoin.bitcoind.v1alpha.BitcoinService.BackupWallet:output_type -> bitcoin.bitcoind.v1alpha.BackupWalletResponse
+	65,  // 155: bitcoin.bitcoind.v1alpha.BitcoinService.DumpWallet:output_type -> bitcoin.bitcoind.v1alpha.DumpWalletResponse
+	67,  // 156: bitcoin.bitcoind.v1alpha.BitcoinService.ImportWallet:output_type -> bitcoin.bitcoind.v1alpha.ImportWalletResponse
+	69,  // 157: bitcoin.bitcoind.v1alpha.BitcoinService.UnloadWallet:output_type -> bitcoin.bitcoind.v1alpha.UnloadWalletResponse
+	71,  // 158: bitcoin.bitcoind.v1alpha.BitcoinService.DumpPrivKey:output_type -> bitcoin.bitcoind.v1alpha.DumpPrivKeyResponse
+	73,  // 159: bitcoin.bitcoind.v1alpha.BitcoinService.ImportPrivKey:output_type -> bitcoin.bitcoind.v1alpha.ImportPrivKeyResponse
+	75,  // 160: bitcoin.bitcoind.v1alpha.BitcoinService.ImportAddress:output_type -> bitcoin.bitcoind.v1alpha.ImportAddressResponse
+	77,  // 161: bitcoin.bitcoind.v1alpha.BitcoinService.ImportPubKey:output_type -> bitcoin.bitcoind.v1alpha.ImportPubKeyResponse
+	79,  // 162: bitcoin.bitcoind.v1alpha.BitcoinService.KeyPoolRefill:output_type -> bitcoin.bitcoind.v1alpha.KeyPoolRefillResponse
+	81,  // 163: bitcoin.bitcoind.v1alpha.BitcoinService.GetAccount:output_type -> bitcoin.bitcoind.v1alpha.GetAccountResponse
+	83,  // 164: bitcoin.bitcoind.v1alpha.BitcoinService.SetAccount:output_type -> bitcoin.bitcoind.v1alpha.SetAccountResponse
+	85,  // 165: bitcoin.bitcoind.v1alpha.BitcoinService.GetAddressesByAccount:output_type -> bitcoin.bitcoind.v1alpha.GetAddressesByAccountResponse
+	87,  // 166: bitcoin.bitcoind.v1alpha.BitcoinService.ListAccounts:output_type -> bitcoin.bitcoind.v1alpha.ListAccountsResponse
+	89,  // 167: bitcoin.bitcoind.v1alpha.BitcoinService.AddMultisigAddress:output_type -> bitcoin.bitcoind.v1alpha.AddMultisigAddressResponse
+	91,  // 168: bitcoin.bitcoind.v1alpha.BitcoinService.CreateMultisig:output_type -> bitcoin.bitcoind.v1alpha.CreateMultisigResponse
+	95,  // 169: bitcoin.bitcoind.v1alpha.BitcoinService.CreatePsbt:output_type -> bitcoin.bitcoind.v1alpha.CreatePsbtResponse
+	97,  // 170: bitcoin.bitcoind.v1alpha.BitcoinService.DecodePsbt:output_type -> bitcoin.bitcoind.v1alpha.DecodePsbtResponse
+	99,  // 171: bitcoin.bitcoind.v1alpha.BitcoinService.AnalyzePsbt:output_type -> bitcoin.bitcoind.v1alpha.AnalyzePsbtResponse
+	101, // 172: bitcoin.bitcoind.v1alpha.BitcoinService.CombinePsbt:output_type -> bitcoin.bitcoind.v1alpha.CombinePsbtResponse
+	103, // 173: bitcoin.bitcoind.v1alpha.BitcoinService.UtxoUpdatePsbt:output_type -> bitcoin.bitcoind.v1alpha.UtxoUpdatePsbtResponse
+	105, // 174: bitcoin.bitcoind.v1alpha.BitcoinService.JoinPsbts:output_type -> bitcoin.bitcoind.v1alpha.JoinPsbtsResponse
+	107, // 175: bitcoin.bitcoind.v1alpha.BitcoinService.TestMempoolAccept:output_type -> bitcoin.bitcoind.v1alpha.TestMempoolAcceptResponse
+	112, // 176: bitcoin.bitcoind.v1alpha.BitcoinService.GetZmqNotifications:output_type -> bitcoin.bitcoind.v1alpha.GetZmqNotificationsResponse
+	130, // [130:177] is the sub-list for method output_type
+	83,  // [83:130] is the sub-list for method input_type
+	83,  // [83:83] is the sub-list for extension type_name
+	83,  // [83:83] is the sub-list for extension extendee
+	0,   // [0:83] is the sub-list for field type_name
 }
 
 func init() { file_bitcoin_bitcoind_v1alpha_bitcoin_proto_init() }
@@ -9458,7 +9532,7 @@ func file_bitcoin_bitcoind_v1alpha_bitcoin_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_bitcoin_bitcoind_v1alpha_bitcoin_proto_rawDesc), len(file_bitcoin_bitcoind_v1alpha_bitcoin_proto_rawDesc)),
-			NumEnums:      7,
+			NumEnums:      8,
 			NumMessages:   134,
 			NumExtensions: 0,
 			NumServices:   1,
