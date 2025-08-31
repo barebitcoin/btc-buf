@@ -419,12 +419,23 @@ message GetRawTransactionRequest {
   // The transaction ID. Required.
   string txid = 1;
 
-  // If false, returns just the hex string. Otherwise, returns the complete object.
-  bool verbose = 2;
+  enum Verbosity {
+    VERBOSITY_UNSPECIFIED = 0;
+
+    // Returns the raw TX data, completely unprocessed. Response only sets hex.
+    VERBOSITY_RAW_DATA = 1;
+
+    // Returns information about the TX
+    VERBOSITY_TX_INFO = 2;
+
+    // Returns information about the TX, including fee and prevout information.
+    VERBOSITY_TX_PREVOUT_INFO = 3;
+  }
+
+  Verbosity verbosity = 2;
 
   // The block in which to look for the transaction
-  // TODO: not supported by rpcclient
-  // string blockhash = 3;
+  string blockhash = 3;
 }
 
 message ScriptSig {
@@ -473,8 +484,15 @@ message GetRawTransactionResponse {
 
   string blockhash = 4;
   uint32 confirmations = 5;
-  int64 time = 6;
-  int64 blocktime = 7;
+
+  // From docs: same as block time
+  reserved 6;
+  reserved "time";
+
+  google.protobuf.Timestamp block_time = 7;
+
+  // Transaction fee in BTC. Only set for for TX info verbosity.
+  double fee = 15;
 }
 
 message SendRequest {

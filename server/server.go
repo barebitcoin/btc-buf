@@ -459,8 +459,8 @@ func txListEntryToProto(tx btcjson.ListTransactionsResult) *pb.GetTransactionRes
 		WalletConflicts:   tx.WalletConflicts,
 		ReplacedByTxid:    tx.ReplacedByTXID,
 		ReplacesTxid:      tx.ReplacesTXID,
-		Time:              timestamppb.New(time.Unix(tx.Time, 0)),
-		TimeReceived:      timestamppb.New(time.Unix(tx.TimeReceived, 0)),
+		Time:              newTimestamp(tx.Time),
+		TimeReceived:      newTimestamp(tx.TimeReceived),
 		Bip125Replaceable: parseReplaceable(tx.BIP125Replaceable),
 		// Clunk town...
 		Details: []*pb.GetTransactionResponse_Details{{
@@ -597,9 +597,9 @@ func (b *Bitcoind) GetPeerInfo(
 						Permissions:         []string{},                             // Not in the RPC client
 						MinFeeFilter:        0,                                      // Not in the RPC client
 						SessionId:           "",                                     // Not in the RPC client
-						ConnectedAt:         timestamppb.New(time.Unix(peer.ConnTime, 0)),
-						LastSendAt:          timestamppb.New(time.Unix(peer.LastSend, 0)),
-						LastRecvAt:          timestamppb.New(time.Unix(peer.LastRecv, 0)),
+						ConnectedAt:         newTimestamp(peer.ConnTime),
+						LastSendAt:          newTimestamp(peer.LastSend),
+						LastRecvAt:          newTimestamp(peer.LastRecv),
 						Version:             peer.Version,
 						Subver:              peer.SubVer,
 						Inbound:             peer.Inbound,
@@ -685,6 +685,11 @@ func (b *Bitcoind) GetBlock(ctx context.Context, c *connect.Request[pb.GetBlockR
 		}
 	}
 
+	// Bitcoin Core default
+	if c.Msg.Verbosity == pb.GetBlockRequest_VERBOSITY_UNSPECIFIED {
+		c.Msg.Verbosity = pb.GetBlockRequest_VERBOSITY_BLOCK_INFO
+	}
+
 	switch c.Msg.Verbosity {
 	case pb.GetBlockRequest_VERBOSITY_RAW_DATA:
 		return withCancel(ctx, b.conf,
@@ -717,7 +722,7 @@ func (b *Bitcoind) GetBlock(ctx context.Context, c *connect.Request[pb.GetBlockR
 					VersionHex:        block.VersionHex,
 					Bits:              block.Bits,
 					MerkleRoot:        block.MerkleRoot,
-					Time:              &timestamppb.Timestamp{Seconds: block.Time},
+					Time:              newTimestamp(block.Time),
 					Nonce:             block.Nonce,
 					Difficulty:        block.Difficulty,
 					PreviousBlockHash: block.PreviousHash,
@@ -746,7 +751,8 @@ func (b *Bitcoind) GetRawTransaction(ctx context.Context, c *connect.Request[pb.
 		return nil, err
 	}
 
-	if !c.Msg.Verbose {
+	if c.Msg.Verbosity == pb.GetRawTransactionRequest_VERBOSITY_UNSPECIFIED ||
+		c.Msg.Verbosity == pb.GetRawTransactionRequest_VERBOSITY_RAW_DATA {
 		return withCancel(ctx, b.conf,
 			func(ctx context.Context) (*btcutil.Tx, error) { return b.rpc.GetRawTransaction(ctx, hash) },
 			func(tx *btcutil.Tx) *pb.GetRawTransactionResponse {
@@ -761,9 +767,24 @@ func (b *Bitcoind) GetRawTransaction(ctx context.Context, c *connect.Request[pb.
 		)
 	}
 
+	verbosity := 1
+	if c.Msg.Verbosity == pb.GetRawTransactionRequest_VERBOSITY_TX_INFO {
+		verbosity = 2
+	}
+
+	cmd := btcjson.NewGetRawTransactionCmd(hash.String(), btcjson.Int(verbosity))
+
 	return withCancel(ctx, b.conf,
 		func(ctx context.Context) (*btcjson.TxRawResult, error) {
-			return b.rpc.GetRawTransactionVerbose(ctx, hash)
+			res, err := rpcclient.ReceiveFuture(b.rpc.SendCmd(ctx, cmd))
+			if err != nil {
+				return nil, err
+			}
+			var rawTxResult btcjson.TxRawResult
+			if err := json.Unmarshal(res, &rawTxResult); err != nil {
+				return nil, err
+			}
+			return &rawTxResult, nil
 		},
 		func(tx *btcjson.TxRawResult) *pb.GetRawTransactionResponse {
 			decoded, _ := hex.DecodeString(tx.Hex)
@@ -771,10 +792,10 @@ func (b *Bitcoind) GetRawTransaction(ctx context.Context, c *connect.Request[pb.
 				Tx:            rawTransaction(decoded),
 				Blockhash:     tx.BlockHash,
 				Confirmations: uint32(tx.Confirmations),
-				Time:          tx.Time,
-				Blocktime:     tx.Blocktime,
+				BlockTime:     newTimestamp(tx.Blocktime),
 				Inputs:        lo.Map(tx.Vin, inputProto),
 				Outputs:       lo.Map(tx.Vout, outputProto),
+				Fee:           tx.Fee,
 				Size:          tx.Size,
 				Vsize:         tx.Vsize,
 				Weight:        tx.Weight,
@@ -876,11 +897,6 @@ func (b *Bitcoind) GetTransaction(ctx context.Context, c *connect.Request[pb.Get
 				details = append(details, detail)
 			}
 
-			var blockTime *timestamppb.Timestamp
-			if res.BlockTime != 0 {
-				blockTime = timestamppb.New(time.Unix(res.BlockTime, 0))
-			}
-
 			return &pb.GetTransactionResponse{
 				Hex:               res.Hex,
 				Amount:            res.Amount,
@@ -888,13 +904,13 @@ func (b *Bitcoind) GetTransaction(ctx context.Context, c *connect.Request[pb.Get
 				Confirmations:     int32(res.Confirmations),
 				BlockHash:         res.BlockHash,
 				BlockIndex:        uint32(res.BlockIndex),
-				BlockTime:         blockTime,
+				BlockTime:         newTimestamp(res.BlockTime),
 				Txid:              res.TxID,
 				ReplacedByTxid:    res.ReplacedByTXID,
 				ReplacesTxid:      res.ReplacesTXID,
 				WalletConflicts:   res.WalletConflicts,
-				Time:              timestamppb.New(time.Unix(res.Time, 0)),
-				TimeReceived:      timestamppb.New(time.Unix(res.TimeReceived, 0)),
+				Time:              newTimestamp(res.Time),
+				TimeReceived:      newTimestamp(res.TimeReceived),
 				Details:           details,
 				Bip125Replaceable: parseReplaceable(res.BIP125Replaceable),
 			}
@@ -1214,7 +1230,7 @@ func (b *Bitcoind) GetAddressInfo(ctx context.Context, c *connect.Request[pb.Get
 		return nil, err
 	}
 
-	return withCancel[*btcjson.GetAddressInfoResult, pb.GetAddressInfoResponse](
+	return withCancel(
 		ctx, b.conf, func(ctx context.Context) (*btcjson.GetAddressInfoResult, error) {
 			return rpc.GetAddressInfo(ctx, c.Msg.Address)
 		},
@@ -1260,7 +1276,7 @@ func (b *Bitcoind) GetRawMempool(ctx context.Context, c *connect.Request[pb.GetR
 		txids        []*chainhash.Hash
 		transactions map[string]btcjson.GetMempoolEntryResult
 	}
-	return withCancel[maybeVerbose, pb.GetRawMempoolResponse](
+	return withCancel(
 		ctx, b.conf, func(ctx context.Context) (maybeVerbose, error) {
 			if !c.Msg.Verbose {
 				res, err := b.rpc.GetRawMempool(ctx)
@@ -1285,7 +1301,7 @@ func (b *Bitcoind) GetRawMempool(ctx context.Context, c *connect.Request[pb.GetR
 						return &pb.MempoolEntry{
 							VirtualSize:     uint32(value.VSize),
 							Weight:          uint32(value.Weight),
-							Time:            &timestamppb.Timestamp{Seconds: value.Time},
+							Time:            newTimestamp(value.Time),
 							DescendantCount: uint32(value.DescendantCount),
 							DescendantSize:  uint32(value.DescendantSize),
 							AncestorCount:   uint32(value.AncestorCount),
@@ -2422,4 +2438,11 @@ type rawBip32Deriv struct {
 	Pubkey            string `json:"pubkey"`
 	MasterFingerprint string `json:"master_fingerprint"`
 	Path              string `json:"path"`
+}
+
+func newTimestamp(unix int64) *timestamppb.Timestamp {
+	if unix == 0 {
+		return nil
+	}
+	return timestamppb.New(time.Unix(unix, 0))
 }
