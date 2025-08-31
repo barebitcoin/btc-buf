@@ -16,10 +16,10 @@ linters:
               desc: use context logger
 
             - pkg: github.com/btcsuite/btcd/rpcclient
-              desc: use github.com/barebitcoin/btcd/rpcclient
+              desc: use ./rpcclient
 
             - pkg: github.com/btcsuite/btcd/btcjson
-              desc: use github.com/barebitcoin/btcd/rpcclient/btcjson
+              desc: use ./rpcclient/btcjson
 
   exclusions:
     paths:
