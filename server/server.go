@@ -2290,6 +2290,9 @@ func handleBtcJsonErrors() connect.Interceptor {
 				case rpcErr.Code == btcjson.ErrRPCDecodeHexString:
 					err = connect.NewError(connect.CodeInvalidArgument, errors.New(rpcErr.Message))
 
+				case rpcErr.Code == btcjson.ErrRPCInWarmup:
+					err = connect.NewError(connect.CodeFailedPrecondition, errors.New(rpcErr.Message))
+
 				default:
 					zerolog.Ctx(ctx).Warn().Msgf("unknown btcjson error: %s", rpcErr)
 				}
