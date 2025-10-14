@@ -11,8 +11,8 @@ build:
 run *args:
 	go run -v . {{ args }}
 
-lint: 
-	golangci-lint run
+lint args='': 
+	golangci-lint run {{ args }}
 
 format: format-go format-proto
 
