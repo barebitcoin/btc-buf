@@ -1329,35 +1329,6 @@ func (b *Bitcoind) GetRawMempool(ctx context.Context, c *connect.Request[pb.GetR
 	)
 }
 
-// AddMultisigAddress implements bitcoindv1alphaconnect.BitcoinServiceHandler.
-func (b *Bitcoind) AddMultisigAddress(ctx context.Context, c *connect.Request[pb.AddMultisigAddressRequest]) (*connect.Response[pb.AddMultisigAddressResponse], error) {
-	rpc, err := b.rpcForWallet(ctx, c.Msg)
-	if err != nil {
-		return nil, err
-	}
-
-	// Convert string keys to btcutil.Address
-	addresses := make([]btcutil.Address, len(c.Msg.Keys))
-	for i, key := range c.Msg.Keys {
-		addr, err := btcutil.DecodeAddress(key, &chaincfg.MainNetParams)
-		if err != nil {
-			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid address %s: %w", key, err))
-		}
-		addresses[i] = addr
-	}
-
-	return withCancel(
-		ctx, b.conf,
-		func(ctx context.Context) (btcutil.Address, error) {
-			return rpc.AddMultisigAddress(ctx, int(c.Msg.RequiredSigs), addresses, c.Msg.Label)
-		},
-		func(r btcutil.Address) *pb.AddMultisigAddressResponse {
-			return &pb.AddMultisigAddressResponse{
-				Address: r.String(),
-			}
-		})
-}
-
 // BackupWallet implements bitcoindv1alphaconnect.BitcoinServiceHandler.
 func (b *Bitcoind) BackupWallet(ctx context.Context, c *connect.Request[pb.BackupWalletRequest]) (*connect.Response[pb.BackupWalletResponse], error) {
 	if c.Msg.Destination == "" {
@@ -1975,57 +1946,6 @@ func (b *Bitcoind) CreateWallet(ctx context.Context, c *connect.Request[pb.Creat
 		})
 }
 
-// DumpPrivKey implements bitcoindv1alphaconnect.BitcoinServiceHandler.
-func (b *Bitcoind) DumpPrivKey(ctx context.Context, c *connect.Request[pb.DumpPrivKeyRequest]) (*connect.Response[pb.DumpPrivKeyResponse], error) {
-	if c.Msg.Address == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("address is required"))
-	}
-
-	rpc, err := b.rpcForWallet(ctx, c.Msg)
-	if err != nil {
-		return nil, err
-	}
-
-	return withCancel(
-		ctx, b.conf,
-		func(ctx context.Context) (*btcutil.WIF, error) {
-			address, err := btcutil.DecodeAddress(c.Msg.Address, &chaincfg.MainNetParams)
-			if err != nil {
-				return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid address %s: %w", c.Msg.Address, err))
-			}
-			return rpc.DumpPrivKey(ctx, address)
-		},
-		func(r *btcutil.WIF) *pb.DumpPrivKeyResponse {
-			return &pb.DumpPrivKeyResponse{
-				PrivateKey: r.String(),
-			}
-		})
-}
-
-// DumpWallet implements bitcoindv1alphaconnect.BitcoinServiceHandler.
-func (b *Bitcoind) DumpWallet(ctx context.Context, c *connect.Request[pb.DumpWalletRequest]) (*connect.Response[pb.DumpWalletResponse], error) {
-	if c.Msg.Filename == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("filename is required"))
-	}
-
-	rpc, err := b.rpcForWallet(ctx, c.Msg)
-	if err != nil {
-		return nil, err
-	}
-
-	// For now return just the filename since that's all we know is definitely there
-	return withCancel(
-		ctx, b.conf,
-		func(ctx context.Context) (*btcjson.DumpWalletResult, error) {
-			return rpc.DumpWallet(ctx, c.Msg.Filename)
-		},
-		func(r *btcjson.DumpWalletResult) *pb.DumpWalletResponse {
-			return &pb.DumpWalletResponse{
-				Filename: r.Filename,
-			}
-		})
-}
-
 // GetAccount implements bitcoindv1alphaconnect.BitcoinServiceHandler.
 func (b *Bitcoind) GetAccount(ctx context.Context, c *connect.Request[pb.GetAccountRequest]) (*connect.Response[pb.GetAccountResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("GetAccount is deprecated in Bitcoin Core"))
@@ -2034,106 +1954,6 @@ func (b *Bitcoind) GetAccount(ctx context.Context, c *connect.Request[pb.GetAcco
 // GetAddressesByAccount implements bitcoindv1alphaconnect.BitcoinServiceHandler.
 func (b *Bitcoind) GetAddressesByAccount(ctx context.Context, c *connect.Request[pb.GetAddressesByAccountRequest]) (*connect.Response[pb.GetAddressesByAccountResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("GetAddressesByAccount is deprecated in Bitcoin Core"))
-}
-
-// ImportAddress implements bitcoindv1alphaconnect.BitcoinServiceHandler.
-func (b *Bitcoind) ImportAddress(ctx context.Context, c *connect.Request[pb.ImportAddressRequest]) (*connect.Response[pb.ImportAddressResponse], error) {
-	if c.Msg.Address == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("address is required"))
-	}
-
-	rpc, err := b.rpcForWallet(ctx, c.Msg)
-	if err != nil {
-		return nil, err
-	}
-
-	// Convert string address to btcutil.Address
-	address, err := btcutil.DecodeAddress(c.Msg.Address, &chaincfg.MainNetParams)
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid address %s: %w", c.Msg.Address, err))
-	}
-
-	return withCancel(
-		ctx, b.conf,
-		func(ctx context.Context) (struct{}, error) {
-			err := rpc.ImportAddress(ctx, address.EncodeAddress())
-			return struct{}{}, err
-		},
-		func(_ struct{}) *pb.ImportAddressResponse {
-			return &pb.ImportAddressResponse{}
-		})
-}
-
-// ImportPrivKey implements bitcoindv1alphaconnect.BitcoinServiceHandler.
-func (b *Bitcoind) ImportPrivKey(ctx context.Context, c *connect.Request[pb.ImportPrivKeyRequest]) (*connect.Response[pb.ImportPrivKeyResponse], error) {
-	if c.Msg.PrivateKey == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("private key is required"))
-	}
-
-	rpc, err := b.rpcForWallet(ctx, c.Msg)
-	if err != nil {
-		return nil, err
-	}
-
-	// Convert string private key to WIF
-	wif, err := btcutil.DecodeWIF(c.Msg.PrivateKey)
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid private key: %w", err))
-	}
-
-	return withCancel(
-		ctx, b.conf,
-		func(ctx context.Context) (struct{}, error) {
-			err := rpc.ImportPrivKey(ctx, wif)
-			return struct{}{}, err
-		},
-		func(_ struct{}) *pb.ImportPrivKeyResponse {
-			return &pb.ImportPrivKeyResponse{}
-		})
-}
-
-// ImportPubKey implements bitcoindv1alphaconnect.BitcoinServiceHandler.
-func (b *Bitcoind) ImportPubKey(ctx context.Context, c *connect.Request[pb.ImportPubKeyRequest]) (*connect.Response[pb.ImportPubKeyResponse], error) {
-	if c.Msg.Pubkey == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("public key is required"))
-	}
-
-	rpc, err := b.rpcForWallet(ctx, c.Msg)
-	if err != nil {
-		return nil, err
-	}
-
-	return withCancel(
-		ctx, b.conf,
-		func(ctx context.Context) (struct{}, error) {
-			err := rpc.ImportPubKey(ctx, c.Msg.Pubkey)
-			return struct{}{}, err
-		},
-		func(_ struct{}) *pb.ImportPubKeyResponse {
-			return &pb.ImportPubKeyResponse{}
-		})
-}
-
-// ImportWallet implements bitcoindv1alphaconnect.BitcoinServiceHandler.
-func (b *Bitcoind) ImportWallet(ctx context.Context, c *connect.Request[pb.ImportWalletRequest]) (*connect.Response[pb.ImportWalletResponse], error) {
-	if c.Msg.Filename == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("filename is required"))
-	}
-
-	rpc, err := b.rpcForWallet(ctx, c.Msg)
-	if err != nil {
-		return nil, err
-	}
-
-	return withCancel(
-		ctx, b.conf,
-		func(ctx context.Context) (struct{}, error) {
-			err := rpc.ImportWallet(ctx, c.Msg.Filename)
-			return struct{}{}, err
-		},
-		func(_ struct{}) *pb.ImportWalletResponse {
-			return &pb.ImportWalletResponse{}
-		})
 }
 
 // KeyPoolRefill implements bitcoindv1alphaconnect.BitcoinServiceHandler.
