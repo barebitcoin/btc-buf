@@ -12,10 +12,10 @@ import (
 	"strings"
 )
 
-func readCookieFile(path string) (username, password string, err error) {
+func readCookieFile(path string) (string, string, error) {
 	f, err := os.Open(path)
 	if err != nil {
-		return
+		return "", "", err
 	}
 	defer func() {
 		_ = f.Close()
@@ -25,16 +25,16 @@ func readCookieFile(path string) (username, password string, err error) {
 	scanner.Scan()
 	err = scanner.Err()
 	if err != nil {
-		return
+		return "", "", err
 	}
 	s := scanner.Text()
 
 	parts := strings.SplitN(s, ":", 2)
 	if len(parts) != 2 {
 		err = fmt.Errorf("malformed cookie file")
-		return
+		return "", "", err
 	}
 
-	username, password = parts[0], parts[1]
-	return
+	username, password := parts[0], parts[1]
+	return username, password, err
 }
