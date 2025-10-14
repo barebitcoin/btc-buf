@@ -334,7 +334,11 @@ message WalletScan {
 
 message GetTransactionRequest {
   string txid = 1;
-  bool include_watchonly = 2;
+
+  // Removed in v30
+  reserved 2;
+  reserved 'include_watchonly';
+
   bool verbose = 3;
   string wallet = 4;
 }
@@ -825,8 +829,9 @@ message ListUnspentRequest {
   // Whether to include unsafe outputs
   bool include_unsafe = 5;
 
-  // Whether to include watch-only addresses
-  bool include_watch_only = 6;
+  // Removed in v30
+  reserved 6;
+  reserved 'include_watch_only';
 
   // TODO: query_options. WTF bitcoin core, a random
   // pseudo-implementations of named arguments? Aaaah
@@ -918,7 +923,9 @@ message GetAddressInfoResponse {
 
   bool is_mine = 3;
 
-  bool is_watch_only = 4;
+  // Removed in v30
+  reserved 4;
+  reserved 'is_watch_only';
 
   // If Core knows how to spend coins sent to this address, ignoring
   // possible lack of private keys.

@@ -1510,13 +1510,12 @@ func (x *WalletScan) GetProgress() float64 {
 }
 
 type GetTransactionRequest struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	Txid             string                 `protobuf:"bytes,1,opt,name=txid,proto3" json:"txid,omitempty"`
-	IncludeWatchonly bool                   `protobuf:"varint,2,opt,name=include_watchonly,json=includeWatchonly,proto3" json:"include_watchonly,omitempty"`
-	Verbose          bool                   `protobuf:"varint,3,opt,name=verbose,proto3" json:"verbose,omitempty"`
-	Wallet           string                 `protobuf:"bytes,4,opt,name=wallet,proto3" json:"wallet,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Txid          string                 `protobuf:"bytes,1,opt,name=txid,proto3" json:"txid,omitempty"`
+	Verbose       bool                   `protobuf:"varint,3,opt,name=verbose,proto3" json:"verbose,omitempty"`
+	Wallet        string                 `protobuf:"bytes,4,opt,name=wallet,proto3" json:"wallet,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GetTransactionRequest) Reset() {
@@ -1554,13 +1553,6 @@ func (x *GetTransactionRequest) GetTxid() string {
 		return x.Txid
 	}
 	return ""
-}
-
-func (x *GetTransactionRequest) GetIncludeWatchonly() bool {
-	if x != nil {
-		return x.IncludeWatchonly
-	}
-	return false
 }
 
 func (x *GetTransactionRequest) GetVerbose() bool {
@@ -4033,10 +4025,8 @@ type ListUnspentRequest struct {
 	Addresses []string `protobuf:"bytes,4,rep,name=addresses,proto3" json:"addresses,omitempty"`
 	// Whether to include unsafe outputs
 	IncludeUnsafe bool `protobuf:"varint,5,opt,name=include_unsafe,json=includeUnsafe,proto3" json:"include_unsafe,omitempty"`
-	// Whether to include watch-only addresses
-	IncludeWatchOnly bool `protobuf:"varint,6,opt,name=include_watch_only,json=includeWatchOnly,proto3" json:"include_watch_only,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ListUnspentRequest) Reset() {
@@ -4100,13 +4090,6 @@ func (x *ListUnspentRequest) GetAddresses() []string {
 func (x *ListUnspentRequest) GetIncludeUnsafe() bool {
 	if x != nil {
 		return x.IncludeUnsafe
-	}
-	return false
-}
-
-func (x *ListUnspentRequest) GetIncludeWatchOnly() bool {
-	if x != nil {
-		return x.IncludeWatchOnly
 	}
 	return false
 }
@@ -4321,7 +4304,6 @@ type GetAddressInfoResponse struct {
 	// Hex-encoded script pub key
 	ScriptPubKey string `protobuf:"bytes,2,opt,name=script_pub_key,json=scriptPubKey,proto3" json:"script_pub_key,omitempty"`
 	IsMine       bool   `protobuf:"varint,3,opt,name=is_mine,json=isMine,proto3" json:"is_mine,omitempty"`
-	IsWatchOnly  bool   `protobuf:"varint,4,opt,name=is_watch_only,json=isWatchOnly,proto3" json:"is_watch_only,omitempty"`
 	// If Core knows how to spend coins sent to this address, ignoring
 	// possible lack of private keys.
 	Solvable       bool   `protobuf:"varint,5,opt,name=solvable,proto3" json:"solvable,omitempty"`
@@ -4384,13 +4366,6 @@ func (x *GetAddressInfoResponse) GetScriptPubKey() string {
 func (x *GetAddressInfoResponse) GetIsMine() bool {
 	if x != nil {
 		return x.IsMine
-	}
-	return false
-}
-
-func (x *GetAddressInfoResponse) GetIsWatchOnly() bool {
-	if x != nil {
-		return x.IsWatchOnly
 	}
 	return false
 }
@@ -7865,12 +7840,11 @@ const file_bitcoin_bitcoind_v1alpha_bitcoin_proto_rawDesc = "" +
 	"\n" +
 	"WalletScan\x12\x1a\n" +
 	"\bduration\x18\x01 \x01(\x03R\bduration\x12\x1a\n" +
-	"\bprogress\x18\x02 \x01(\x01R\bprogress\"\x8a\x01\n" +
+	"\bprogress\x18\x02 \x01(\x01R\bprogress\"v\n" +
 	"\x15GetTransactionRequest\x12\x12\n" +
-	"\x04txid\x18\x01 \x01(\tR\x04txid\x12+\n" +
-	"\x11include_watchonly\x18\x02 \x01(\bR\x10includeWatchonly\x12\x18\n" +
+	"\x04txid\x18\x01 \x01(\tR\x04txid\x12\x18\n" +
 	"\averbose\x18\x03 \x01(\bR\averbose\x12\x16\n" +
-	"\x06wallet\x18\x04 \x01(\tR\x06wallet\"\x88\t\n" +
+	"\x06wallet\x18\x04 \x01(\tR\x06walletJ\x04\b\x02\x10\x03R\x11include_watchonly\"\x88\t\n" +
 	"\x16GetTransactionResponse\x12\x16\n" +
 	"\x06amount\x18\x01 \x01(\x01R\x06amount\x12\x10\n" +
 	"\x03fee\x18\x02 \x01(\x01R\x03fee\x12$\n" +
@@ -8135,16 +8109,15 @@ const file_bitcoin_bitcoind_v1alpha_bitcoin_proto_rawDesc = "" +
 	"\x18ListTransactionsResponse\x12T\n" +
 	"\ftransactions\x18\x01 \x03(\v20.bitcoin.bitcoind.v1alpha.GetTransactionResponseR\ftransactions\"/\n" +
 	"\x13ListWalletsResponse\x12\x18\n" +
-	"\awallets\x18\x01 \x03(\tR\awallets\"\xc7\x02\n" +
+	"\awallets\x18\x01 \x03(\tR\awallets\"\xb3\x02\n" +
 	"\x12ListUnspentRequest\x12\x16\n" +
 	"\x06wallet\x18\x01 \x01(\tR\x06wallet\x128\n" +
 	"\x15minimum_confirmations\x18\x02 \x01(\rH\x00R\x14minimumConfirmations\x88\x01\x01\x128\n" +
 	"\x15maximum_confirmations\x18\x03 \x01(\rH\x01R\x14maximumConfirmations\x88\x01\x01\x12\x1c\n" +
 	"\taddresses\x18\x04 \x03(\tR\taddresses\x12%\n" +
-	"\x0einclude_unsafe\x18\x05 \x01(\bR\rincludeUnsafe\x12,\n" +
-	"\x12include_watch_only\x18\x06 \x01(\bR\x10includeWatchOnlyB\x18\n" +
+	"\x0einclude_unsafe\x18\x05 \x01(\bR\rincludeUnsafeB\x18\n" +
 	"\x16_minimum_confirmationsB\x18\n" +
-	"\x16_maximum_confirmations\"\xf8\x01\n" +
+	"\x16_maximum_confirmationsJ\x04\b\x06\x10\aR\x12include_watch_only\"\xf8\x01\n" +
 	"\rUnspentOutput\x12\x12\n" +
 	"\x04txid\x18\x01 \x01(\tR\x04txid\x12\x12\n" +
 	"\x04vout\x18\x02 \x01(\rR\x04vout\x12\x18\n" +
@@ -8158,12 +8131,11 @@ const file_bitcoin_bitcoind_v1alpha_bitcoin_proto_rawDesc = "" +
 	"\aunspent\x18\x01 \x03(\v2'.bitcoin.bitcoind.v1alpha.UnspentOutputR\aunspent\"I\n" +
 	"\x15GetAddressInfoRequest\x12\x18\n" +
 	"\aaddress\x18\x01 \x01(\tR\aaddress\x12\x16\n" +
-	"\x06wallet\x18\x02 \x01(\tR\x06wallet\"\xa2\x03\n" +
+	"\x06wallet\x18\x02 \x01(\tR\x06wallet\"\x93\x03\n" +
 	"\x16GetAddressInfoResponse\x12\x18\n" +
 	"\aaddress\x18\x01 \x01(\tR\aaddress\x12$\n" +
 	"\x0escript_pub_key\x18\x02 \x01(\tR\fscriptPubKey\x12\x17\n" +
-	"\ais_mine\x18\x03 \x01(\bR\x06isMine\x12\"\n" +
-	"\ris_watch_only\x18\x04 \x01(\bR\visWatchOnly\x12\x1a\n" +
+	"\ais_mine\x18\x03 \x01(\bR\x06isMine\x12\x1a\n" +
 	"\bsolvable\x18\x05 \x01(\bR\bsolvable\x12\x1b\n" +
 	"\tis_script\x18\x06 \x01(\bR\bisScript\x12\x1b\n" +
 	"\tis_change\x18\a \x01(\bR\bisChange\x12\x1d\n" +
@@ -8174,7 +8146,7 @@ const file_bitcoin_bitcoind_v1alpha_bitcoin_proto_rawDesc = "" +
 	" \x01(\tR\x0ewitnessProgram\x12\x1f\n" +
 	"\vscript_type\x18\v \x01(\tR\n" +
 	"scriptType\x12#\n" +
-	"\ris_compressed\x18\f \x01(\bR\fisCompressed\"\xb2\x01\n" +
+	"\ris_compressed\x18\f \x01(\bR\fisCompressedJ\x04\b\x04\x10\x05R\ris_watch_only\"\xb2\x01\n" +
 	"\x13CreateWalletRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x120\n" +
 	"\x14disable_private_keys\x18\x02 \x01(\bR\x12disablePrivateKeys\x12\x14\n" +

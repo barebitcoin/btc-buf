@@ -876,7 +876,7 @@ func (b *Bitcoind) GetTransaction(ctx context.Context, c *connect.Request[pb.Get
 
 	return withCancel(ctx, b.conf,
 		func(ctx context.Context) (*btcjson.GetTransactionResult, error) {
-			return rpc.GetTransactionWatchOnly(ctx, hash, c.Msg.IncludeWatchonly)
+			return rpc.GetTransaction(ctx, hash)
 		},
 
 		func(res *btcjson.GetTransactionResult) *pb.GetTransactionResponse {
@@ -1239,7 +1239,6 @@ func (b *Bitcoind) GetAddressInfo(ctx context.Context, c *connect.Request[pb.Get
 				Address:        r.Address,
 				ScriptPubKey:   r.ScriptPubKey,
 				IsMine:         r.IsMine,
-				IsWatchOnly:    r.IsWatchOnly,
 				Solvable:       r.Solvable,
 				IsScript:       r.IsScript,
 				IsChange:       r.IsChange,
