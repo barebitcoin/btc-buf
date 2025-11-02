@@ -42,6 +42,7 @@ service BitcoinService {
   rpc GetRawTransaction(GetRawTransactionRequest) returns (GetRawTransactionResponse);
   rpc DecodeRawTransaction(DecodeRawTransactionRequest) returns (DecodeRawTransactionResponse);
   rpc CreateRawTransaction(CreateRawTransactionRequest) returns (CreateRawTransactionResponse);
+  rpc SendRawTransaction(SendRawTransactionRequest) returns (SendRawTransactionResponse);
 
   rpc GetBlock(GetBlockRequest) returns (GetBlockResponse);
   rpc GetBlockHash(GetBlockHashRequest) returns (GetBlockHashResponse);
@@ -1043,6 +1044,16 @@ message CreateRawTransactionRequest {
 
 message CreateRawTransactionResponse {
   RawTransaction tx = 1;
+}
+
+message SendRawTransactionRequest {
+  string hex_string = 1;
+  optional double maxfeerate = 2; // Max fee rate in BTC/kvB, default 0.10
+  optional double maxburnamount = 3; // Max burn amount in BTC, default 0.00
+}
+
+message SendRawTransactionResponse {
+  string txid = 1;
 }
 
 message CreatePsbtRequest {
