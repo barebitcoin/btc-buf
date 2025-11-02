@@ -1580,6 +1580,47 @@ func (b *Bitcoind) CreateRawTransaction(ctx context.Context, c *connect.Request[
 		})
 }
 
+// SendRawTransaction implements bitcoindv1alphaconnect.BitcoinServiceHandler.
+func (b *Bitcoind) SendRawTransaction(ctx context.Context, c *connect.Request[pb.SendRawTransactionRequest]) (*connect.Response[pb.SendRawTransactionResponse], error) {
+	if c.Msg.HexString == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("hex_string is required"))
+	}
+
+	return withCancel(
+		ctx, b.conf,
+		func(ctx context.Context) (string, error) {
+			args := []any{c.Msg.HexString}
+			if c.Msg.Maxfeerate != nil {
+				args = append(args, *c.Msg.Maxfeerate)
+			}
+			if c.Msg.Maxburnamount != nil {
+				args = append(args, *c.Msg.Maxburnamount)
+			}
+
+			cmd, err := btcjson.NewCmd("sendrawtransaction", args...)
+			if err != nil {
+				return "", err
+			}
+
+			res, err := rpcclient.ReceiveFuture(b.rpc.SendCmd(ctx, cmd))
+			if err != nil {
+				return "", fmt.Errorf("send sendrawtransaction: %w", err)
+			}
+
+			var txid string
+			if err := json.Unmarshal(res, &txid); err != nil {
+				return "", fmt.Errorf("unmarshal sendrawtransaction response: %w", err)
+			}
+
+			return txid, nil
+		},
+		func(r string) *pb.SendRawTransactionResponse {
+			return &pb.SendRawTransactionResponse{
+				Txid: r,
+			}
+		})
+}
+
 // DecodePsbt implements bitcoindv1alphaconnect.BitcoinServiceHandler.
 func (b *Bitcoind) DecodePsbt(ctx context.Context, c *connect.Request[pb.DecodePsbtRequest]) (*connect.Response[pb.DecodePsbtResponse], error) {
 	if c.Msg.Psbt == "" {

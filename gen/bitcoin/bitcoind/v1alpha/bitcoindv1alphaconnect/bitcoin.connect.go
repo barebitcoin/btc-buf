@@ -95,6 +95,9 @@ const (
 	// BitcoinServiceCreateRawTransactionProcedure is the fully-qualified name of the BitcoinService's
 	// CreateRawTransaction RPC.
 	BitcoinServiceCreateRawTransactionProcedure = "/bitcoin.bitcoind.v1alpha.BitcoinService/CreateRawTransaction"
+	// BitcoinServiceSendRawTransactionProcedure is the fully-qualified name of the BitcoinService's
+	// SendRawTransaction RPC.
+	BitcoinServiceSendRawTransactionProcedure = "/bitcoin.bitcoind.v1alpha.BitcoinService/SendRawTransaction"
 	// BitcoinServiceGetBlockProcedure is the fully-qualified name of the BitcoinService's GetBlock RPC.
 	BitcoinServiceGetBlockProcedure = "/bitcoin.bitcoind.v1alpha.BitcoinService/GetBlock"
 	// BitcoinServiceGetBlockHashProcedure is the fully-qualified name of the BitcoinService's
@@ -183,6 +186,7 @@ type BitcoinServiceClient interface {
 	GetRawTransaction(context.Context, *connect.Request[v1alpha.GetRawTransactionRequest]) (*connect.Response[v1alpha.GetRawTransactionResponse], error)
 	DecodeRawTransaction(context.Context, *connect.Request[v1alpha.DecodeRawTransactionRequest]) (*connect.Response[v1alpha.DecodeRawTransactionResponse], error)
 	CreateRawTransaction(context.Context, *connect.Request[v1alpha.CreateRawTransactionRequest]) (*connect.Response[v1alpha.CreateRawTransactionResponse], error)
+	SendRawTransaction(context.Context, *connect.Request[v1alpha.SendRawTransactionRequest]) (*connect.Response[v1alpha.SendRawTransactionResponse], error)
 	GetBlock(context.Context, *connect.Request[v1alpha.GetBlockRequest]) (*connect.Response[v1alpha.GetBlockResponse], error)
 	GetBlockHash(context.Context, *connect.Request[v1alpha.GetBlockHashRequest]) (*connect.Response[v1alpha.GetBlockHashResponse], error)
 	// Wallet management
@@ -348,6 +352,12 @@ func NewBitcoinServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(bitcoinServiceMethods.ByName("CreateRawTransaction")),
 			connect.WithClientOptions(opts...),
 		),
+		sendRawTransaction: connect.NewClient[v1alpha.SendRawTransactionRequest, v1alpha.SendRawTransactionResponse](
+			httpClient,
+			baseURL+BitcoinServiceSendRawTransactionProcedure,
+			connect.WithSchema(bitcoinServiceMethods.ByName("SendRawTransaction")),
+			connect.WithClientOptions(opts...),
+		),
 		getBlock: connect.NewClient[v1alpha.GetBlockRequest, v1alpha.GetBlockResponse](
 			httpClient,
 			baseURL+BitcoinServiceGetBlockProcedure,
@@ -488,6 +498,7 @@ type bitcoinServiceClient struct {
 	getRawTransaction     *connect.Client[v1alpha.GetRawTransactionRequest, v1alpha.GetRawTransactionResponse]
 	decodeRawTransaction  *connect.Client[v1alpha.DecodeRawTransactionRequest, v1alpha.DecodeRawTransactionResponse]
 	createRawTransaction  *connect.Client[v1alpha.CreateRawTransactionRequest, v1alpha.CreateRawTransactionResponse]
+	sendRawTransaction    *connect.Client[v1alpha.SendRawTransactionRequest, v1alpha.SendRawTransactionResponse]
 	getBlock              *connect.Client[v1alpha.GetBlockRequest, v1alpha.GetBlockResponse]
 	getBlockHash          *connect.Client[v1alpha.GetBlockHashRequest, v1alpha.GetBlockHashResponse]
 	createWallet          *connect.Client[v1alpha.CreateWalletRequest, v1alpha.CreateWalletResponse]
@@ -612,6 +623,11 @@ func (c *bitcoinServiceClient) DecodeRawTransaction(ctx context.Context, req *co
 // CreateRawTransaction calls bitcoin.bitcoind.v1alpha.BitcoinService.CreateRawTransaction.
 func (c *bitcoinServiceClient) CreateRawTransaction(ctx context.Context, req *connect.Request[v1alpha.CreateRawTransactionRequest]) (*connect.Response[v1alpha.CreateRawTransactionResponse], error) {
 	return c.createRawTransaction.CallUnary(ctx, req)
+}
+
+// SendRawTransaction calls bitcoin.bitcoind.v1alpha.BitcoinService.SendRawTransaction.
+func (c *bitcoinServiceClient) SendRawTransaction(ctx context.Context, req *connect.Request[v1alpha.SendRawTransactionRequest]) (*connect.Response[v1alpha.SendRawTransactionResponse], error) {
+	return c.sendRawTransaction.CallUnary(ctx, req)
 }
 
 // GetBlock calls bitcoin.bitcoind.v1alpha.BitcoinService.GetBlock.
@@ -740,6 +756,7 @@ type BitcoinServiceHandler interface {
 	GetRawTransaction(context.Context, *connect.Request[v1alpha.GetRawTransactionRequest]) (*connect.Response[v1alpha.GetRawTransactionResponse], error)
 	DecodeRawTransaction(context.Context, *connect.Request[v1alpha.DecodeRawTransactionRequest]) (*connect.Response[v1alpha.DecodeRawTransactionResponse], error)
 	CreateRawTransaction(context.Context, *connect.Request[v1alpha.CreateRawTransactionRequest]) (*connect.Response[v1alpha.CreateRawTransactionResponse], error)
+	SendRawTransaction(context.Context, *connect.Request[v1alpha.SendRawTransactionRequest]) (*connect.Response[v1alpha.SendRawTransactionResponse], error)
 	GetBlock(context.Context, *connect.Request[v1alpha.GetBlockRequest]) (*connect.Response[v1alpha.GetBlockResponse], error)
 	GetBlockHash(context.Context, *connect.Request[v1alpha.GetBlockHashRequest]) (*connect.Response[v1alpha.GetBlockHashResponse], error)
 	// Wallet management
@@ -901,6 +918,12 @@ func NewBitcoinServiceHandler(svc BitcoinServiceHandler, opts ...connect.Handler
 		connect.WithSchema(bitcoinServiceMethods.ByName("CreateRawTransaction")),
 		connect.WithHandlerOptions(opts...),
 	)
+	bitcoinServiceSendRawTransactionHandler := connect.NewUnaryHandler(
+		BitcoinServiceSendRawTransactionProcedure,
+		svc.SendRawTransaction,
+		connect.WithSchema(bitcoinServiceMethods.ByName("SendRawTransaction")),
+		connect.WithHandlerOptions(opts...),
+	)
 	bitcoinServiceGetBlockHandler := connect.NewUnaryHandler(
 		BitcoinServiceGetBlockProcedure,
 		svc.GetBlock,
@@ -1059,6 +1082,8 @@ func NewBitcoinServiceHandler(svc BitcoinServiceHandler, opts ...connect.Handler
 			bitcoinServiceDecodeRawTransactionHandler.ServeHTTP(w, r)
 		case BitcoinServiceCreateRawTransactionProcedure:
 			bitcoinServiceCreateRawTransactionHandler.ServeHTTP(w, r)
+		case BitcoinServiceSendRawTransactionProcedure:
+			bitcoinServiceSendRawTransactionHandler.ServeHTTP(w, r)
 		case BitcoinServiceGetBlockProcedure:
 			bitcoinServiceGetBlockHandler.ServeHTTP(w, r)
 		case BitcoinServiceGetBlockHashProcedure:
@@ -1188,6 +1213,10 @@ func (UnimplementedBitcoinServiceHandler) DecodeRawTransaction(context.Context, 
 
 func (UnimplementedBitcoinServiceHandler) CreateRawTransaction(context.Context, *connect.Request[v1alpha.CreateRawTransactionRequest]) (*connect.Response[v1alpha.CreateRawTransactionResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("bitcoin.bitcoind.v1alpha.BitcoinService.CreateRawTransaction is not implemented"))
+}
+
+func (UnimplementedBitcoinServiceHandler) SendRawTransaction(context.Context, *connect.Request[v1alpha.SendRawTransactionRequest]) (*connect.Response[v1alpha.SendRawTransactionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("bitcoin.bitcoind.v1alpha.BitcoinService.SendRawTransaction is not implemented"))
 }
 
 func (UnimplementedBitcoinServiceHandler) GetBlock(context.Context, *connect.Request[v1alpha.GetBlockRequest]) (*connect.Response[v1alpha.GetBlockResponse], error) {
