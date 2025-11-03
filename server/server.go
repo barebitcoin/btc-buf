@@ -1110,25 +1110,15 @@ func (b *Bitcoind) SendToAddress(ctx context.Context, c *connect.Request[pb.Send
 
 // DecodeRawTransaction implements bitcoindv1alphaconnect.BitcoinServiceHandler.
 func (b *Bitcoind) DecodeRawTransaction(ctx context.Context, c *connect.Request[pb.DecodeRawTransactionRequest]) (*connect.Response[pb.DecodeRawTransactionResponse], error) {
-	if (len(c.Msg.GetTx().GetHex()) == 0) == (len(c.Msg.GetTx().GetData()) == 0) {
-		err := errors.New("must specify transaction bytes as either raw or hex-encoded")
-		return nil, connect.NewError(connect.CodeInvalidArgument, err)
-	}
-
-	if c.Msg.Tx.Hex != "" {
-		decoded, err := hex.DecodeString(c.Msg.Tx.Hex)
-		if err != nil {
-			err := fmt.Errorf("invalid hex data: %w", err)
-			return nil, connect.NewError(connect.CodeInvalidArgument, err)
-		}
-
-		c.Msg.Tx.Data = decoded
+	data, err := getRawTransactionBytes(c.Msg.Tx)
+	if err != nil {
+		return nil, err
 	}
 
 	return withCancel(
 		ctx, b.conf,
 		func(ctx context.Context) (*btcjson.TxRawResult, error) {
-			return b.rpc.DecodeRawTransaction(ctx, c.Msg.Tx.Data)
+			return b.rpc.DecodeRawTransaction(ctx, data)
 		},
 
 		func(r *btcjson.TxRawResult) *pb.DecodeRawTransactionResponse {
@@ -1670,19 +1660,20 @@ func (b *Bitcoind) CreateRawTransaction(ctx context.Context, c *connect.Request[
 
 // SendRawTransaction implements bitcoindv1alphaconnect.BitcoinServiceHandler.
 func (b *Bitcoind) SendRawTransaction(ctx context.Context, c *connect.Request[pb.SendRawTransactionRequest]) (*connect.Response[pb.SendRawTransactionResponse], error) {
-	if c.Msg.HexString == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("hex_string is required"))
+	data, err := getRawTransactionBytes(c.Msg.Tx)
+	if err != nil {
+		return nil, err
 	}
 
 	return withCancel(
 		ctx, b.conf,
 		func(ctx context.Context) (string, error) {
-			args := []any{c.Msg.HexString}
-			if c.Msg.Maxfeerate != nil {
-				args = append(args, *c.Msg.Maxfeerate)
+			args := []any{hex.EncodeToString(data)}
+			if c.Msg.MaxFeeRate != nil {
+				args = append(args, *c.Msg.MaxFeeRate)
 			}
-			if c.Msg.Maxburnamount != nil {
-				args = append(args, *c.Msg.Maxburnamount)
+			if c.Msg.MaxBurnAmount != nil {
+				args = append(args, *c.Msg.MaxBurnAmount)
 			}
 
 			cmd, err := btcjson.NewCmd("sendrawtransaction", args...)
@@ -2470,4 +2461,23 @@ func newTimestamp(unix int64) *timestamppb.Timestamp {
 		return nil
 	}
 	return timestamppb.New(time.Unix(unix, 0))
+}
+
+func getRawTransactionBytes(tx *pb.RawTransaction) ([]byte, error) {
+	if (len(tx.GetHex()) == 0) == (len(tx.GetData()) == 0) {
+		err := errors.New("must specify transaction bytes as either raw or hex-encoded")
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+
+	if len(tx.GetHex()) > 0 {
+		decoded, err := hex.DecodeString(tx.GetHex())
+		if err != nil {
+			err := fmt.Errorf("invalid hex data: %w", err)
+			return nil, connect.NewError(connect.CodeInvalidArgument, err)
+		}
+
+		return decoded, nil
+	}
+
+	return tx.GetData(), nil
 }
