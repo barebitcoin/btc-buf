@@ -1108,9 +1108,10 @@ message CreateRawTransactionResponse {
 }
 
 message SendRawTransactionRequest {
-  string hex_string = 1;
-  optional double maxfeerate = 2; // Max fee rate in BTC/kvB, default 0.10
-  optional double maxburnamount = 3; // Max burn amount in BTC, default 0.00
+  RawTransaction tx = 1;
+
+  optional double max_fee_rate = 2; // Max fee rate in BTC/kvB, default 0.10
+  optional double max_burn_amount = 3; // Max burn amount in BTC, default 0.00
 }
 
 message SendRawTransactionResponse {
