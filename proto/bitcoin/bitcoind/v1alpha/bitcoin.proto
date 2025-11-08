@@ -622,6 +622,8 @@ message ImportDescriptorsRequest {
 
     uint32 range_start = 3;
     uint32 range_end = 4;
+    // If a ranged descriptor is set to active, this specifies the next index to generate addresses from
+    uint32 next_index = 8;
 
     // Nil passes 'now' to Bitcoin Core, which bypasses scanning.
     google.protobuf.Timestamp timestamp = 5;

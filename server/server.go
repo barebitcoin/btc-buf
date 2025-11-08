@@ -36,7 +36,7 @@ import (
 )
 
 func init() {
-	btcjson.MustRegisterCmd("importdescriptors", new(btcjson.ImportMultiCmd), btcjson.UFWalletOnly)
+	btcjson.MustRegisterCmd("importdescriptors", new(commands.ImportDescriptorsCmd), btcjson.UFWalletOnly)
 	btcjson.MustRegisterCmd("bumpfee", new(commands.BumpFee), btcjson.UFWalletOnly)
 	btcjson.MustRegisterCmd("analyzepsbt", new(commands.AnalyzePsbt), btcjson.UFWalletOnly)
 	btcjson.MustRegisterCmd("combinepsbt", new(commands.CombinePsbt), btcjson.UFWalletOnly)
@@ -1175,28 +1175,27 @@ func (b *Bitcoind) ImportDescriptors(ctx context.Context, c *connect.Request[pb.
 
 	return withCancel(
 		ctx, b.conf, func(ctx context.Context) ([]parsedDescriptorResponse, error) {
-			cmd := btcjson.ImportMultiCmd{
-				Requests: lo.Map(c.Msg.Requests, func(req *pb.ImportDescriptorsRequest_Request, idx int) btcjson.ImportMultiRequest {
-					importReq := btcjson.ImportMultiRequest{
+			cmd := commands.ImportDescriptorsCmd{
+				Requests: lo.Map(c.Msg.Requests, func(req *pb.ImportDescriptorsRequest_Request, idx int) commands.ImportDescriptorsRequestItem {
+					importReq := commands.ImportDescriptorsRequestItem{
 						Descriptor: &req.Descriptor_,
-						Timestamp: lo.If(req.Timestamp == nil,
-							btcjson.TimestampOrNow{
-								Value: "now",
-							}).
-							ElseF(func() btcjson.TimestampOrNow {
-								return btcjson.TimestampOrNow{
-									Value: req.Timestamp.AsTime().Unix(),
-								}
-							}),
+					}
+
+					// Set timestamp
+					if req.Timestamp == nil {
+						importReq.Timestamp = "now"
+					} else {
+						importReq.Timestamp = req.Timestamp.AsTime().Unix()
 					}
 
 					// Add range if specified
 					if req.RangeStart != 0 || req.RangeEnd != 0 {
-						// Use [start, end] format
-						rangeVal := &btcjson.DescriptorRange{
-							Value: []int{int(req.RangeStart), int(req.RangeEnd)},
-						}
-						importReq.Range = rangeVal
+						importReq.Range = []int{int(req.RangeStart), int(req.RangeEnd)}
+					}
+
+					if req.NextIndex != 0 {
+						nextIndex := int(req.NextIndex)
+						importReq.NextIndex = &nextIndex
 					}
 
 					// Add internal flag
@@ -1209,6 +1208,11 @@ func (b *Bitcoind) ImportDescriptors(ctx context.Context, c *connect.Request[pb.
 					if req.Label != "" {
 						label := req.Label
 						importReq.Label = &label
+					}
+
+					if req.Active {
+						active := req.Active
+						importReq.Active = &active
 					}
 
 					return importReq
