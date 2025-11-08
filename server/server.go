@@ -1177,7 +1177,7 @@ func (b *Bitcoind) ImportDescriptors(ctx context.Context, c *connect.Request[pb.
 		ctx, b.conf, func(ctx context.Context) ([]parsedDescriptorResponse, error) {
 			cmd := btcjson.ImportMultiCmd{
 				Requests: lo.Map(c.Msg.Requests, func(req *pb.ImportDescriptorsRequest_Request, idx int) btcjson.ImportMultiRequest {
-					return btcjson.ImportMultiRequest{
+					importReq := btcjson.ImportMultiRequest{
 						Descriptor: &req.Descriptor_,
 						Timestamp: lo.If(req.Timestamp == nil,
 							btcjson.TimestampOrNow{
@@ -1189,6 +1189,29 @@ func (b *Bitcoind) ImportDescriptors(ctx context.Context, c *connect.Request[pb.
 								}
 							}),
 					}
+
+					// Add range if specified
+					if req.RangeStart != 0 || req.RangeEnd != 0 {
+						// Use [start, end] format
+						rangeVal := &btcjson.DescriptorRange{
+							Value: []int{int(req.RangeStart), int(req.RangeEnd)},
+						}
+						importReq.Range = rangeVal
+					}
+
+					// Add internal flag
+					if req.Internal {
+						internal := req.Internal
+						importReq.Internal = &internal
+					}
+
+					// Add label if provided
+					if req.Label != "" {
+						label := req.Label
+						importReq.Label = &label
+					}
+
+					return importReq
 				}),
 			}
 			res, err := rpcclient.ReceiveFuture(rpc.SendCmd(ctx, &cmd))
