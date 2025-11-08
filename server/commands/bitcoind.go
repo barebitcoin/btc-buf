@@ -48,3 +48,19 @@ type UtxoUpdatePsbt struct {
 type JoinPsbts struct {
 	Psbts []string `json:"psbts"`
 }
+
+// ImportDescriptorsRequestItem represents a single descriptor import request
+type ImportDescriptorsRequestItem struct {
+	Descriptor *string     `json:"desc,omitempty"`
+	Active     *bool       `json:"active,omitempty"`
+	Range      interface{} `json:"range,omitempty"` // Can be int or [int,int]
+	NextIndex  *int        `json:"next_index,omitempty"`
+	Timestamp  interface{} `json:"timestamp"` // Can be int64 or "now"
+	Internal   *bool       `json:"internal,omitempty"`
+	Label      *string     `json:"label,omitempty"`
+}
+
+// ImportDescriptorsCmd defines the importdescriptors JSON-RPC command
+type ImportDescriptorsCmd struct {
+	Requests []ImportDescriptorsRequestItem `json:"requests"`
+}

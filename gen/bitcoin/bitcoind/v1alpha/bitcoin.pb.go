@@ -6790,6 +6790,8 @@ type ImportDescriptorsRequest_Request struct {
 	Active     bool   `protobuf:"varint,2,opt,name=active,proto3" json:"active,omitempty"`
 	RangeStart uint32 `protobuf:"varint,3,opt,name=range_start,json=rangeStart,proto3" json:"range_start,omitempty"`
 	RangeEnd   uint32 `protobuf:"varint,4,opt,name=range_end,json=rangeEnd,proto3" json:"range_end,omitempty"`
+	// If a ranged descriptor is set to active, this specifies the next index to generate addresses from
+	NextIndex uint32 `protobuf:"varint,8,opt,name=next_index,json=nextIndex,proto3" json:"next_index,omitempty"`
 	// Nil passes 'now' to Bitcoin Core, which bypasses scanning.
 	Timestamp *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
 	// Whether matching outputs should be treated as not incoming payments (e.g. change)
@@ -6854,6 +6856,13 @@ func (x *ImportDescriptorsRequest_Request) GetRangeStart() uint32 {
 func (x *ImportDescriptorsRequest_Request) GetRangeEnd() uint32 {
 	if x != nil {
 		return x.RangeEnd
+	}
+	return 0
+}
+
+func (x *ImportDescriptorsRequest_Request) GetNextIndex() uint32 {
+	if x != nil {
+		return x.NextIndex
 	}
 	return 0
 }
@@ -8088,10 +8097,10 @@ const file_bitcoin_bitcoind_v1alpha_bitcoin_proto_rawDesc = "" +
 	"\aversion\x18\x06 \x01(\rR\aversion\x12\x1a\n" +
 	"\blocktime\x18\a \x01(\rR\blocktime\x127\n" +
 	"\x06inputs\x18\b \x03(\v2\x1f.bitcoin.bitcoind.v1alpha.InputR\x06inputs\x12:\n" +
-	"\aoutputs\x18\t \x03(\v2 .bitcoin.bitcoind.v1alpha.OutputR\aoutputs\"\xf8\x02\n" +
+	"\aoutputs\x18\t \x03(\v2 .bitcoin.bitcoind.v1alpha.OutputR\aoutputs\"\x97\x03\n" +
 	"\x18ImportDescriptorsRequest\x12\x16\n" +
 	"\x06wallet\x18\x01 \x01(\tR\x06wallet\x12V\n" +
-	"\brequests\x18\x02 \x03(\v2:.bitcoin.bitcoind.v1alpha.ImportDescriptorsRequest.RequestR\brequests\x1a\xeb\x01\n" +
+	"\brequests\x18\x02 \x03(\v2:.bitcoin.bitcoind.v1alpha.ImportDescriptorsRequest.RequestR\brequests\x1a\x8a\x02\n" +
 	"\aRequest\x12\x1e\n" +
 	"\n" +
 	"descriptor\x18\x01 \x01(\tR\n" +
@@ -8099,7 +8108,9 @@ const file_bitcoin_bitcoind_v1alpha_bitcoin_proto_rawDesc = "" +
 	"\x06active\x18\x02 \x01(\bR\x06active\x12\x1f\n" +
 	"\vrange_start\x18\x03 \x01(\rR\n" +
 	"rangeStart\x12\x1b\n" +
-	"\trange_end\x18\x04 \x01(\rR\brangeEnd\x128\n" +
+	"\trange_end\x18\x04 \x01(\rR\brangeEnd\x12\x1d\n" +
+	"\n" +
+	"next_index\x18\b \x01(\rR\tnextIndex\x128\n" +
 	"\ttimestamp\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\x12\x1a\n" +
 	"\binternal\x18\x06 \x01(\bR\binternal\x12\x14\n" +
 	"\x05label\x18\a \x01(\tR\x05label\"\xc2\x02\n" +
