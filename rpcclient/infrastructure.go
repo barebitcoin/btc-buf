@@ -95,12 +95,6 @@ type Client struct {
 	backendVersionMu sync.Mutex
 	backendVersion   BackendVersion
 
-	// mtx is a mutex to protect access to connection related fields.
-	mtx sync.Mutex
-
-	// disconnected indicated whether or not the server is disconnected.
-	disconnected bool
-
 	// whether or not to batch requests, false unless changed by Batch()
 	batch     bool
 	batchList *list.List
@@ -111,12 +105,11 @@ type Client struct {
 	requestList *list.List
 
 	// Networking infrastructure.
-	sendChan        chan []byte
-	sendPostChan    chan *jsonRequest
-	connEstablished chan struct{}
-	disconnect      chan struct{}
-	shutdown        chan struct{}
-	wg              sync.WaitGroup
+	sendChan     chan []byte
+	sendPostChan chan *jsonRequest
+	disconnect   chan struct{}
+	shutdown     chan struct{}
+	wg           sync.WaitGroup
 }
 
 // NextID returns the next id to be used when sending a JSON-RPC message.  This
@@ -490,20 +483,6 @@ func (c *Client) sendCmdAndWait(ctx context.Context, cmd interface{}) (interface
 	return ReceiveFuture(c.SendCmd(ctx, cmd))
 }
 
-// Disconnected returns whether or not the server is disconnected.  If a
-// websocket client was created but never connected, this also returns false.
-func (c *Client) Disconnected() bool {
-	c.mtx.Lock()
-	defer c.mtx.Unlock()
-
-	select {
-	case <-c.connEstablished:
-		return c.disconnected
-	default:
-		return false
-	}
-}
-
 // doShutdown closes the shutdown channel and logs the shutdown unless shutdown
 // is already in progress.  It will return false if the shutdown is not needed.
 //
@@ -722,7 +701,6 @@ func New(ctx context.Context, config *ConnConfig) (*Client, error) {
 	// on the HTTP POST mode.  Also, set the notification handlers to nil
 	// when running in HTTP POST mode.
 	var httpClient *http.Client
-	connEstablished := make(chan struct{})
 	start := true
 
 	var err error
@@ -732,17 +710,16 @@ func New(ctx context.Context, config *ConnConfig) (*Client, error) {
 	}
 
 	client := &Client{
-		config:          config,
-		httpClient:      httpClient,
-		requestMap:      make(map[uint64]*list.Element),
-		requestList:     list.New(),
-		batch:           false,
-		batchList:       list.New(),
-		sendChan:        make(chan []byte, sendBufferSize),
-		sendPostChan:    make(chan *jsonRequest, sendPostBufferSize),
-		connEstablished: connEstablished,
-		disconnect:      make(chan struct{}),
-		shutdown:        make(chan struct{}),
+		config:       config,
+		httpClient:   httpClient,
+		requestMap:   make(map[uint64]*list.Element),
+		requestList:  list.New(),
+		batch:        false,
+		batchList:    list.New(),
+		sendChan:     make(chan []byte, sendBufferSize),
+		sendPostChan: make(chan *jsonRequest, sendPostBufferSize),
+		disconnect:   make(chan struct{}),
+		shutdown:     make(chan struct{}),
 	}
 
 	// Default network is mainnet, no parameters are necessary but if mainnet
@@ -765,9 +742,6 @@ func New(ctx context.Context, config *ConnConfig) (*Client, error) {
 	}
 
 	if start {
-		zerolog.Ctx(ctx).Info().Msgf("Established connection to RPC server %s",
-			config.Host)
-		close(connEstablished)
 		client.start(ctx)
 	}
 
