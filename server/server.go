@@ -169,7 +169,7 @@ func NewBitcoind(
 			case bitcoindErrorCode(err) == btcjson.ErrRPCWalletNotFound:
 				log.Debug().Err(err).Msg("could not get wallet, trying loading")
 
-				if _, err := server.rpc.LoadWallet(ctx, wallet); err == nil {
+				if _, err := server.rpc.LoadWallet(ctx, wallet, nil); err == nil {
 					log.Info().Msgf("loaded wallet: %s", wallet)
 					break
 				}
@@ -2049,6 +2049,30 @@ func (b *Bitcoind) ListAccounts(ctx context.Context, c *connect.Request[pb.ListA
 // SetAccount implements bitcoindv1alphaconnect.BitcoinServiceHandler.
 func (b *Bitcoind) SetAccount(ctx context.Context, c *connect.Request[pb.SetAccountRequest]) (*connect.Response[pb.SetAccountResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("SetAccount is deprecated in Bitcoin Core"))
+}
+
+// LoadWallet implements bitcoindv1alphaconnect.BitcoinServiceHandler.
+func (b *Bitcoind) LoadWallet(ctx context.Context, c *connect.Request[pb.LoadWalletRequest]) (*connect.Response[pb.LoadWalletResponse], error) {
+	if c.Msg.Filename == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("filename is required"))
+	}
+
+	var loadOnStartup *bool
+	if c.Msg.LoadOnStartup {
+		loadOnStartup = &c.Msg.LoadOnStartup
+	}
+
+	return withCancel(
+		ctx, b.conf,
+		func(ctx context.Context) (*btcjson.LoadWalletResult, error) {
+			return b.rpc.LoadWallet(ctx, c.Msg.Filename, loadOnStartup)
+		},
+		func(r *btcjson.LoadWalletResult) *pb.LoadWalletResponse {
+			return &pb.LoadWalletResponse{
+				Name:     r.Name,
+				Warnings: r.Warnings,
+			}
+		})
 }
 
 // UnloadWallet implements bitcoindv1alphaconnect.BitcoinServiceHandler.

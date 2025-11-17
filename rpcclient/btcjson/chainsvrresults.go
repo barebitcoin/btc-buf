@@ -879,8 +879,8 @@ type DeriveAddressesResult []string
 
 // LoadWalletResult models the data from the loadwallet command
 type LoadWalletResult struct {
-	Name    string `json:"name"`
-	Warning string `json:"warning"`
+	Name     string   `json:"name"`
+	Warnings []string `json:"warnings"`
 }
 
 // DumpWalletResult models the data from the dumpwallet command

@@ -2955,13 +2955,14 @@ func (r FutureLoadWalletResult) Receive() (*btcjson.LoadWalletResult, error) {
 // returned instance.
 //
 // See LoadWallet for the blocking version and more details.
-func (c *Client) LoadWalletAsync(ctx context.Context, walletName string) FutureLoadWalletResult {
-	return c.SendCmd(ctx, btcjson.NewLoadWalletCmd(walletName))
+func (c *Client) LoadWalletAsync(ctx context.Context, walletName string, loadOnStartup *bool) FutureLoadWalletResult {
+	return c.SendCmd(ctx, btcjson.NewLoadWalletCmd(walletName, loadOnStartup))
 }
 
 // LoadWallet loads a wallet from a wallet file or directory.
-func (c *Client) LoadWallet(ctx context.Context, walletName string) (*btcjson.LoadWalletResult, error) {
-	return c.LoadWalletAsync(ctx, walletName).Receive()
+// The loadOnStartup parameter is optional and controls whether the wallet should be loaded on startup.
+func (c *Client) LoadWallet(ctx context.Context, walletName string, loadOnStartup *bool) (*btcjson.LoadWalletResult, error) {
+	return c.LoadWalletAsync(ctx, walletName, loadOnStartup).Receive()
 }
 
 // FutureListWallets is a future promise to deliver the result of an
