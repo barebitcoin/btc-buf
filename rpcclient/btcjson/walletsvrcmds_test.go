@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/btcsuite/btcd/btcutil"
+	"github.com/samber/lo"
 
 	"github.com/barebitcoin/btc-buf/rpcclient/btcjson"
 )
@@ -148,10 +149,21 @@ func TestWalletSvrCmds(t *testing.T) {
 				return btcjson.NewCmd("loadwallet", "wallet.dat")
 			},
 			staticCmd: func() interface{} {
-				return btcjson.NewLoadWalletCmd("wallet.dat")
+				return btcjson.NewLoadWalletCmd("wallet.dat", nil)
 			},
 			marshalled:   `{"jsonrpc":"1.0","method":"loadwallet","params":["wallet.dat"],"id":1}`,
 			unmarshalled: &btcjson.LoadWalletCmd{WalletName: "wallet.dat"},
+		},
+		{
+			name: "loadwallet with load_on_startup",
+			newCmd: func() (interface{}, error) {
+				return btcjson.NewCmd("loadwallet", "wallet.dat", true)
+			},
+			staticCmd: func() interface{} {
+				return btcjson.NewLoadWalletCmd("wallet.dat", lo.ToPtr(true))
+			},
+			marshalled:   `{"jsonrpc":"1.0","method":"loadwallet","params":["wallet.dat",true],"id":1}`,
+			unmarshalled: &btcjson.LoadWalletCmd{WalletName: "wallet.dat", LoadOnStartup: lo.ToPtr(true)},
 		},
 		{
 			name: "unloadwallet",

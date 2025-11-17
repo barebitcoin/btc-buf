@@ -49,6 +49,7 @@ service BitcoinService {
 
   // Wallet management
   rpc CreateWallet(CreateWalletRequest) returns (CreateWalletResponse);
+  rpc LoadWallet(LoadWalletRequest) returns (LoadWalletResponse);
   rpc BackupWallet(BackupWalletRequest) returns (BackupWalletResponse);
   rpc UnloadWallet(UnloadWalletRequest) returns (UnloadWalletResponse);
 
@@ -964,6 +965,16 @@ message CreateWalletRequest {
 message CreateWalletResponse {
   string name = 1;
   string warning = 2;
+}
+
+message LoadWalletRequest {
+  string filename = 1;
+  bool load_on_startup = 2;
+}
+
+message LoadWalletResponse {
+  string name = 1;
+  repeated string warnings = 2;
 }
 
 message BackupWalletRequest {

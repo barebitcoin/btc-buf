@@ -106,6 +106,9 @@ const (
 	// BitcoinServiceCreateWalletProcedure is the fully-qualified name of the BitcoinService's
 	// CreateWallet RPC.
 	BitcoinServiceCreateWalletProcedure = "/bitcoin.bitcoind.v1alpha.BitcoinService/CreateWallet"
+	// BitcoinServiceLoadWalletProcedure is the fully-qualified name of the BitcoinService's LoadWallet
+	// RPC.
+	BitcoinServiceLoadWalletProcedure = "/bitcoin.bitcoind.v1alpha.BitcoinService/LoadWallet"
 	// BitcoinServiceBackupWalletProcedure is the fully-qualified name of the BitcoinService's
 	// BackupWallet RPC.
 	BitcoinServiceBackupWalletProcedure = "/bitcoin.bitcoind.v1alpha.BitcoinService/BackupWallet"
@@ -191,6 +194,7 @@ type BitcoinServiceClient interface {
 	GetBlockHash(context.Context, *connect.Request[v1alpha.GetBlockHashRequest]) (*connect.Response[v1alpha.GetBlockHashResponse], error)
 	// Wallet management
 	CreateWallet(context.Context, *connect.Request[v1alpha.CreateWalletRequest]) (*connect.Response[v1alpha.CreateWalletResponse], error)
+	LoadWallet(context.Context, *connect.Request[v1alpha.LoadWalletRequest]) (*connect.Response[v1alpha.LoadWalletResponse], error)
 	BackupWallet(context.Context, *connect.Request[v1alpha.BackupWalletRequest]) (*connect.Response[v1alpha.BackupWalletResponse], error)
 	UnloadWallet(context.Context, *connect.Request[v1alpha.UnloadWalletRequest]) (*connect.Response[v1alpha.UnloadWalletResponse], error)
 	// Key/Address management
@@ -376,6 +380,12 @@ func NewBitcoinServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(bitcoinServiceMethods.ByName("CreateWallet")),
 			connect.WithClientOptions(opts...),
 		),
+		loadWallet: connect.NewClient[v1alpha.LoadWalletRequest, v1alpha.LoadWalletResponse](
+			httpClient,
+			baseURL+BitcoinServiceLoadWalletProcedure,
+			connect.WithSchema(bitcoinServiceMethods.ByName("LoadWallet")),
+			connect.WithClientOptions(opts...),
+		),
 		backupWallet: connect.NewClient[v1alpha.BackupWalletRequest, v1alpha.BackupWalletResponse](
 			httpClient,
 			baseURL+BitcoinServiceBackupWalletProcedure,
@@ -502,6 +512,7 @@ type bitcoinServiceClient struct {
 	getBlock              *connect.Client[v1alpha.GetBlockRequest, v1alpha.GetBlockResponse]
 	getBlockHash          *connect.Client[v1alpha.GetBlockHashRequest, v1alpha.GetBlockHashResponse]
 	createWallet          *connect.Client[v1alpha.CreateWalletRequest, v1alpha.CreateWalletResponse]
+	loadWallet            *connect.Client[v1alpha.LoadWalletRequest, v1alpha.LoadWalletResponse]
 	backupWallet          *connect.Client[v1alpha.BackupWalletRequest, v1alpha.BackupWalletResponse]
 	unloadWallet          *connect.Client[v1alpha.UnloadWalletRequest, v1alpha.UnloadWalletResponse]
 	keyPoolRefill         *connect.Client[v1alpha.KeyPoolRefillRequest, v1alpha.KeyPoolRefillResponse]
@@ -645,6 +656,11 @@ func (c *bitcoinServiceClient) CreateWallet(ctx context.Context, req *connect.Re
 	return c.createWallet.CallUnary(ctx, req)
 }
 
+// LoadWallet calls bitcoin.bitcoind.v1alpha.BitcoinService.LoadWallet.
+func (c *bitcoinServiceClient) LoadWallet(ctx context.Context, req *connect.Request[v1alpha.LoadWalletRequest]) (*connect.Response[v1alpha.LoadWalletResponse], error) {
+	return c.loadWallet.CallUnary(ctx, req)
+}
+
 // BackupWallet calls bitcoin.bitcoind.v1alpha.BitcoinService.BackupWallet.
 func (c *bitcoinServiceClient) BackupWallet(ctx context.Context, req *connect.Request[v1alpha.BackupWalletRequest]) (*connect.Response[v1alpha.BackupWalletResponse], error) {
 	return c.backupWallet.CallUnary(ctx, req)
@@ -761,6 +777,7 @@ type BitcoinServiceHandler interface {
 	GetBlockHash(context.Context, *connect.Request[v1alpha.GetBlockHashRequest]) (*connect.Response[v1alpha.GetBlockHashResponse], error)
 	// Wallet management
 	CreateWallet(context.Context, *connect.Request[v1alpha.CreateWalletRequest]) (*connect.Response[v1alpha.CreateWalletResponse], error)
+	LoadWallet(context.Context, *connect.Request[v1alpha.LoadWalletRequest]) (*connect.Response[v1alpha.LoadWalletResponse], error)
 	BackupWallet(context.Context, *connect.Request[v1alpha.BackupWalletRequest]) (*connect.Response[v1alpha.BackupWalletResponse], error)
 	UnloadWallet(context.Context, *connect.Request[v1alpha.UnloadWalletRequest]) (*connect.Response[v1alpha.UnloadWalletResponse], error)
 	// Key/Address management
@@ -942,6 +959,12 @@ func NewBitcoinServiceHandler(svc BitcoinServiceHandler, opts ...connect.Handler
 		connect.WithSchema(bitcoinServiceMethods.ByName("CreateWallet")),
 		connect.WithHandlerOptions(opts...),
 	)
+	bitcoinServiceLoadWalletHandler := connect.NewUnaryHandler(
+		BitcoinServiceLoadWalletProcedure,
+		svc.LoadWallet,
+		connect.WithSchema(bitcoinServiceMethods.ByName("LoadWallet")),
+		connect.WithHandlerOptions(opts...),
+	)
 	bitcoinServiceBackupWalletHandler := connect.NewUnaryHandler(
 		BitcoinServiceBackupWalletProcedure,
 		svc.BackupWallet,
@@ -1090,6 +1113,8 @@ func NewBitcoinServiceHandler(svc BitcoinServiceHandler, opts ...connect.Handler
 			bitcoinServiceGetBlockHashHandler.ServeHTTP(w, r)
 		case BitcoinServiceCreateWalletProcedure:
 			bitcoinServiceCreateWalletHandler.ServeHTTP(w, r)
+		case BitcoinServiceLoadWalletProcedure:
+			bitcoinServiceLoadWalletHandler.ServeHTTP(w, r)
 		case BitcoinServiceBackupWalletProcedure:
 			bitcoinServiceBackupWalletHandler.ServeHTTP(w, r)
 		case BitcoinServiceUnloadWalletProcedure:
@@ -1229,6 +1254,10 @@ func (UnimplementedBitcoinServiceHandler) GetBlockHash(context.Context, *connect
 
 func (UnimplementedBitcoinServiceHandler) CreateWallet(context.Context, *connect.Request[v1alpha.CreateWalletRequest]) (*connect.Response[v1alpha.CreateWalletResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("bitcoin.bitcoind.v1alpha.BitcoinService.CreateWallet is not implemented"))
+}
+
+func (UnimplementedBitcoinServiceHandler) LoadWallet(context.Context, *connect.Request[v1alpha.LoadWalletRequest]) (*connect.Response[v1alpha.LoadWalletResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("bitcoin.bitcoind.v1alpha.BitcoinService.LoadWallet is not implemented"))
 }
 
 func (UnimplementedBitcoinServiceHandler) BackupWallet(context.Context, *connect.Request[v1alpha.BackupWalletRequest]) (*connect.Response[v1alpha.BackupWalletResponse], error) {

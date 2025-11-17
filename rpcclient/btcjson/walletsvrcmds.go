@@ -367,13 +367,17 @@ func NewUnloadWalletCmd(walletName *string) *UnloadWalletCmd {
 
 // LoadWalletCmd defines the loadwallet JSON-RPC command
 type LoadWalletCmd struct {
-	WalletName string
+	WalletName    string
+	LoadOnStartup *bool
 }
 
 // NewLoadWalletCmd returns a new instance which can be used to issue a
 // loadwallet JSON-RPC command
-func NewLoadWalletCmd(walletName string) *LoadWalletCmd {
-	return &LoadWalletCmd{WalletName: walletName}
+func NewLoadWalletCmd(walletName string, loadOnStartup *bool) *LoadWalletCmd {
+	return &LoadWalletCmd{
+		WalletName:    walletName,
+		LoadOnStartup: loadOnStartup,
+	}
 }
 
 type ListWalletsCmd struct{}
