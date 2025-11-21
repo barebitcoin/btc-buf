@@ -618,6 +618,67 @@ func (b *Bitcoind) GetPeerInfo(
 		})
 }
 
+// GetNetworkInfo implements bitcoindv1alpha.BitcoinServiceServer
+func (b *Bitcoind) GetNetworkInfo(
+	ctx context.Context, req *connect.Request[pb.GetNetworkInfoRequest],
+) (*connect.Response[pb.GetNetworkInfoResponse], error) {
+	return withCancel(ctx, b.conf, b.rpc.GetNetworkInfo,
+		func(info *btcjson.GetNetworkInfoResult) *pb.GetNetworkInfoResponse {
+			// Convert warnings - handle both single string and array formats
+			warnings := []string{}
+			for _, w := range info.Warnings {
+				warnings = append(warnings, w)
+			}
+
+			return &pb.GetNetworkInfoResponse{
+				Version:            info.Version,
+				Subversion:         info.SubVersion,
+				ProtocolVersion:    info.ProtocolVersion,
+				LocalServices:      info.LocalServices,
+				LocalServicesNames: []string{}, // Not in the RPC client result struct
+				LocalRelay:         info.LocalRelay,
+				TimeOffset:         info.TimeOffset,
+				Connections:        info.Connections,
+				ConnectionsIn:      info.ConnectionsIn,
+				ConnectionsOut:     info.ConnectionsOut,
+				NetworkActive:      info.NetworkActive,
+				Networks: lo.Map(info.Networks, func(n btcjson.NetworksResult, _ int) *pb.GetNetworkInfoResponse_Network {
+					return &pb.GetNetworkInfoResponse_Network{
+						Name:                      n.Name,
+						Limited:                   n.Limited,
+						Reachable:                 n.Reachable,
+						Proxy:                     n.Proxy,
+						ProxyRandomizeCredentials: n.ProxyRandomizeCredentials,
+					}
+				}),
+				RelayFee:       info.RelayFee,
+				IncrementalFee: info.IncrementalFee,
+				LocalAddresses: lo.Map(info.LocalAddresses, func(a btcjson.LocalAddressesResult, _ int) *pb.GetNetworkInfoResponse_LocalAddress {
+					return &pb.GetNetworkInfoResponse_LocalAddress{
+						Address: a.Address,
+						Port:    uint32(a.Port),
+						Score:   a.Score,
+					}
+				}),
+				Warnings: warnings,
+			}
+		})
+}
+
+// GetNetTotals implements bitcoindv1alpha.BitcoinServiceServer
+func (b *Bitcoind) GetNetTotals(
+	ctx context.Context, req *connect.Request[pb.GetNetTotalsRequest],
+) (*connect.Response[pb.GetNetTotalsResponse], error) {
+	return withCancel(ctx, b.conf, b.rpc.GetNetTotals,
+		func(totals *btcjson.GetNetTotalsResult) *pb.GetNetTotalsResponse {
+			return &pb.GetNetTotalsResponse{
+				TotalBytesRecv: totals.TotalBytesRecv,
+				TotalBytesSent: totals.TotalBytesSent,
+				TimeMillis:     totals.TimeMillis,
+			}
+		})
+}
+
 // GetWalletInfo implements bitcoindv1alpha.BitcoinServiceServer
 func (b *Bitcoind) GetWalletInfo(
 	ctx context.Context, req *connect.Request[pb.GetWalletInfoRequest],

@@ -10,6 +10,8 @@ import "google/protobuf/wrappers.proto";
 service BitcoinService {
   rpc GetBlockchainInfo(GetBlockchainInfoRequest) returns (GetBlockchainInfoResponse);
   rpc GetPeerInfo(GetPeerInfoRequest) returns (GetPeerInfoResponse);
+  rpc GetNetworkInfo(GetNetworkInfoRequest) returns (GetNetworkInfoResponse);
+  rpc GetNetTotals(GetNetTotalsRequest) returns (GetNetTotalsResponse);
 
   // Fetches in-wallet transactions
   rpc GetTransaction(GetTransactionRequest) returns (GetTransactionResponse);
@@ -249,6 +251,51 @@ message Peer {
 
 message GetPeerInfoResponse {
   repeated Peer peers = 1;
+}
+
+message GetNetworkInfoRequest {}
+
+message GetNetworkInfoResponse {
+  int32 version = 1;
+  string subversion = 2;
+  int32 protocol_version = 3;
+  string local_services = 4;
+  repeated string local_services_names = 5;
+  bool local_relay = 6;
+  int64 time_offset = 7;
+  int32 connections = 8;
+  int32 connections_in = 9;
+  int32 connections_out = 10;
+  bool network_active = 11;
+
+  message Network {
+    string name = 1;
+    bool limited = 2;
+    bool reachable = 3;
+    string proxy = 4;
+    bool proxy_randomize_credentials = 5;
+  }
+  repeated Network networks = 12;
+
+  double relay_fee = 13;
+  double incremental_fee = 14;
+
+  message LocalAddress {
+    string address = 1;
+    uint32 port = 2;
+    int32 score = 3;
+  }
+  repeated LocalAddress local_addresses = 15;
+
+  repeated string warnings = 16;
+}
+
+message GetNetTotalsRequest {}
+
+message GetNetTotalsResponse {
+  uint64 total_bytes_recv = 1;
+  uint64 total_bytes_sent = 2;
+  int64 time_millis = 3;
 }
 
 message GetNewAddressRequest {
