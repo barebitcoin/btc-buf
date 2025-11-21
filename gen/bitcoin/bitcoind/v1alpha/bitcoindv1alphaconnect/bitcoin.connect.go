@@ -40,6 +40,12 @@ const (
 	// BitcoinServiceGetPeerInfoProcedure is the fully-qualified name of the BitcoinService's
 	// GetPeerInfo RPC.
 	BitcoinServiceGetPeerInfoProcedure = "/bitcoin.bitcoind.v1alpha.BitcoinService/GetPeerInfo"
+	// BitcoinServiceGetNetworkInfoProcedure is the fully-qualified name of the BitcoinService's
+	// GetNetworkInfo RPC.
+	BitcoinServiceGetNetworkInfoProcedure = "/bitcoin.bitcoind.v1alpha.BitcoinService/GetNetworkInfo"
+	// BitcoinServiceGetNetTotalsProcedure is the fully-qualified name of the BitcoinService's
+	// GetNetTotals RPC.
+	BitcoinServiceGetNetTotalsProcedure = "/bitcoin.bitcoind.v1alpha.BitcoinService/GetNetTotals"
 	// BitcoinServiceGetTransactionProcedure is the fully-qualified name of the BitcoinService's
 	// GetTransaction RPC.
 	BitcoinServiceGetTransactionProcedure = "/bitcoin.bitcoind.v1alpha.BitcoinService/GetTransaction"
@@ -163,6 +169,8 @@ const (
 type BitcoinServiceClient interface {
 	GetBlockchainInfo(context.Context, *connect.Request[v1alpha.GetBlockchainInfoRequest]) (*connect.Response[v1alpha.GetBlockchainInfoResponse], error)
 	GetPeerInfo(context.Context, *connect.Request[v1alpha.GetPeerInfoRequest]) (*connect.Response[v1alpha.GetPeerInfoResponse], error)
+	GetNetworkInfo(context.Context, *connect.Request[v1alpha.GetNetworkInfoRequest]) (*connect.Response[v1alpha.GetNetworkInfoResponse], error)
+	GetNetTotals(context.Context, *connect.Request[v1alpha.GetNetTotalsRequest]) (*connect.Response[v1alpha.GetNetTotalsResponse], error)
 	// Fetches in-wallet transactions
 	GetTransaction(context.Context, *connect.Request[v1alpha.GetTransactionRequest]) (*connect.Response[v1alpha.GetTransactionResponse], error)
 	ListSinceBlock(context.Context, *connect.Request[v1alpha.ListSinceBlockRequest]) (*connect.Response[v1alpha.ListSinceBlockResponse], error)
@@ -240,6 +248,18 @@ func NewBitcoinServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			httpClient,
 			baseURL+BitcoinServiceGetPeerInfoProcedure,
 			connect.WithSchema(bitcoinServiceMethods.ByName("GetPeerInfo")),
+			connect.WithClientOptions(opts...),
+		),
+		getNetworkInfo: connect.NewClient[v1alpha.GetNetworkInfoRequest, v1alpha.GetNetworkInfoResponse](
+			httpClient,
+			baseURL+BitcoinServiceGetNetworkInfoProcedure,
+			connect.WithSchema(bitcoinServiceMethods.ByName("GetNetworkInfo")),
+			connect.WithClientOptions(opts...),
+		),
+		getNetTotals: connect.NewClient[v1alpha.GetNetTotalsRequest, v1alpha.GetNetTotalsResponse](
+			httpClient,
+			baseURL+BitcoinServiceGetNetTotalsProcedure,
+			connect.WithSchema(bitcoinServiceMethods.ByName("GetNetTotals")),
 			connect.WithClientOptions(opts...),
 		),
 		getTransaction: connect.NewClient[v1alpha.GetTransactionRequest, v1alpha.GetTransactionResponse](
@@ -489,6 +509,8 @@ func NewBitcoinServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 type bitcoinServiceClient struct {
 	getBlockchainInfo     *connect.Client[v1alpha.GetBlockchainInfoRequest, v1alpha.GetBlockchainInfoResponse]
 	getPeerInfo           *connect.Client[v1alpha.GetPeerInfoRequest, v1alpha.GetPeerInfoResponse]
+	getNetworkInfo        *connect.Client[v1alpha.GetNetworkInfoRequest, v1alpha.GetNetworkInfoResponse]
+	getNetTotals          *connect.Client[v1alpha.GetNetTotalsRequest, v1alpha.GetNetTotalsResponse]
 	getTransaction        *connect.Client[v1alpha.GetTransactionRequest, v1alpha.GetTransactionResponse]
 	listSinceBlock        *connect.Client[v1alpha.ListSinceBlockRequest, v1alpha.ListSinceBlockResponse]
 	getNewAddress         *connect.Client[v1alpha.GetNewAddressRequest, v1alpha.GetNewAddressResponse]
@@ -539,6 +561,16 @@ func (c *bitcoinServiceClient) GetBlockchainInfo(ctx context.Context, req *conne
 // GetPeerInfo calls bitcoin.bitcoind.v1alpha.BitcoinService.GetPeerInfo.
 func (c *bitcoinServiceClient) GetPeerInfo(ctx context.Context, req *connect.Request[v1alpha.GetPeerInfoRequest]) (*connect.Response[v1alpha.GetPeerInfoResponse], error) {
 	return c.getPeerInfo.CallUnary(ctx, req)
+}
+
+// GetNetworkInfo calls bitcoin.bitcoind.v1alpha.BitcoinService.GetNetworkInfo.
+func (c *bitcoinServiceClient) GetNetworkInfo(ctx context.Context, req *connect.Request[v1alpha.GetNetworkInfoRequest]) (*connect.Response[v1alpha.GetNetworkInfoResponse], error) {
+	return c.getNetworkInfo.CallUnary(ctx, req)
+}
+
+// GetNetTotals calls bitcoin.bitcoind.v1alpha.BitcoinService.GetNetTotals.
+func (c *bitcoinServiceClient) GetNetTotals(ctx context.Context, req *connect.Request[v1alpha.GetNetTotalsRequest]) (*connect.Response[v1alpha.GetNetTotalsResponse], error) {
+	return c.getNetTotals.CallUnary(ctx, req)
 }
 
 // GetTransaction calls bitcoin.bitcoind.v1alpha.BitcoinService.GetTransaction.
@@ -746,6 +778,8 @@ func (c *bitcoinServiceClient) GetZmqNotifications(ctx context.Context, req *con
 type BitcoinServiceHandler interface {
 	GetBlockchainInfo(context.Context, *connect.Request[v1alpha.GetBlockchainInfoRequest]) (*connect.Response[v1alpha.GetBlockchainInfoResponse], error)
 	GetPeerInfo(context.Context, *connect.Request[v1alpha.GetPeerInfoRequest]) (*connect.Response[v1alpha.GetPeerInfoResponse], error)
+	GetNetworkInfo(context.Context, *connect.Request[v1alpha.GetNetworkInfoRequest]) (*connect.Response[v1alpha.GetNetworkInfoResponse], error)
+	GetNetTotals(context.Context, *connect.Request[v1alpha.GetNetTotalsRequest]) (*connect.Response[v1alpha.GetNetTotalsResponse], error)
 	// Fetches in-wallet transactions
 	GetTransaction(context.Context, *connect.Request[v1alpha.GetTransactionRequest]) (*connect.Response[v1alpha.GetTransactionResponse], error)
 	ListSinceBlock(context.Context, *connect.Request[v1alpha.ListSinceBlockRequest]) (*connect.Response[v1alpha.ListSinceBlockResponse], error)
@@ -819,6 +853,18 @@ func NewBitcoinServiceHandler(svc BitcoinServiceHandler, opts ...connect.Handler
 		BitcoinServiceGetPeerInfoProcedure,
 		svc.GetPeerInfo,
 		connect.WithSchema(bitcoinServiceMethods.ByName("GetPeerInfo")),
+		connect.WithHandlerOptions(opts...),
+	)
+	bitcoinServiceGetNetworkInfoHandler := connect.NewUnaryHandler(
+		BitcoinServiceGetNetworkInfoProcedure,
+		svc.GetNetworkInfo,
+		connect.WithSchema(bitcoinServiceMethods.ByName("GetNetworkInfo")),
+		connect.WithHandlerOptions(opts...),
+	)
+	bitcoinServiceGetNetTotalsHandler := connect.NewUnaryHandler(
+		BitcoinServiceGetNetTotalsProcedure,
+		svc.GetNetTotals,
+		connect.WithSchema(bitcoinServiceMethods.ByName("GetNetTotals")),
 		connect.WithHandlerOptions(opts...),
 	)
 	bitcoinServiceGetTransactionHandler := connect.NewUnaryHandler(
@@ -1067,6 +1113,10 @@ func NewBitcoinServiceHandler(svc BitcoinServiceHandler, opts ...connect.Handler
 			bitcoinServiceGetBlockchainInfoHandler.ServeHTTP(w, r)
 		case BitcoinServiceGetPeerInfoProcedure:
 			bitcoinServiceGetPeerInfoHandler.ServeHTTP(w, r)
+		case BitcoinServiceGetNetworkInfoProcedure:
+			bitcoinServiceGetNetworkInfoHandler.ServeHTTP(w, r)
+		case BitcoinServiceGetNetTotalsProcedure:
+			bitcoinServiceGetNetTotalsHandler.ServeHTTP(w, r)
 		case BitcoinServiceGetTransactionProcedure:
 			bitcoinServiceGetTransactionHandler.ServeHTTP(w, r)
 		case BitcoinServiceListSinceBlockProcedure:
@@ -1162,6 +1212,14 @@ func (UnimplementedBitcoinServiceHandler) GetBlockchainInfo(context.Context, *co
 
 func (UnimplementedBitcoinServiceHandler) GetPeerInfo(context.Context, *connect.Request[v1alpha.GetPeerInfoRequest]) (*connect.Response[v1alpha.GetPeerInfoResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("bitcoin.bitcoind.v1alpha.BitcoinService.GetPeerInfo is not implemented"))
+}
+
+func (UnimplementedBitcoinServiceHandler) GetNetworkInfo(context.Context, *connect.Request[v1alpha.GetNetworkInfoRequest]) (*connect.Response[v1alpha.GetNetworkInfoResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("bitcoin.bitcoind.v1alpha.BitcoinService.GetNetworkInfo is not implemented"))
+}
+
+func (UnimplementedBitcoinServiceHandler) GetNetTotals(context.Context, *connect.Request[v1alpha.GetNetTotalsRequest]) (*connect.Response[v1alpha.GetNetTotalsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("bitcoin.bitcoind.v1alpha.BitcoinService.GetNetTotals is not implemented"))
 }
 
 func (UnimplementedBitcoinServiceHandler) GetTransaction(context.Context, *connect.Request[v1alpha.GetTransactionRequest]) (*connect.Response[v1alpha.GetTransactionResponse], error) {
