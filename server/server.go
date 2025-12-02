@@ -1709,6 +1709,56 @@ func (b *Bitcoind) SendRawTransaction(ctx context.Context, c *connect.Request[pb
 		})
 }
 
+// SignRawTransactionWithWallet implements bitcoindv1alphaconnect.BitcoinServiceHandler.
+func (b *Bitcoind) SignRawTransactionWithWallet(ctx context.Context, c *connect.Request[pb.SignRawTransactionWithWalletRequest]) (*connect.Response[pb.SignRawTransactionWithWalletResponse], error) {
+	if c.Msg.HexString == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("hex_string is required"))
+	}
+
+	rpc, err := b.rpcForWallet(ctx, c.Msg)
+	if err != nil {
+		return nil, err
+	}
+
+	return withCancel(
+		ctx, b.conf,
+		func(ctx context.Context) (btcjson.SignRawTransactionWithWalletResult, error) {
+			cmd, err := btcjson.NewCmd("signrawtransactionwithwallet", c.Msg.HexString)
+			if err != nil {
+				return btcjson.SignRawTransactionWithWalletResult{}, err
+			}
+
+			res, err := rpcclient.ReceiveFuture(rpc.SendCmd(ctx, cmd))
+			if err != nil {
+				return btcjson.SignRawTransactionWithWalletResult{}, fmt.Errorf("send signrawtransactionwithwallet: %w", err)
+			}
+
+			var result btcjson.SignRawTransactionWithWalletResult
+			if err := json.Unmarshal(res, &result); err != nil {
+				return btcjson.SignRawTransactionWithWalletResult{}, fmt.Errorf("unmarshal signrawtransactionwithwallet response: %w", err)
+			}
+
+			return result, nil
+		},
+		func(r btcjson.SignRawTransactionWithWalletResult) *pb.SignRawTransactionWithWalletResponse {
+			var errors []*pb.SignRawTransactionWithWalletResponse_Error
+			for _, e := range r.Errors {
+				errors = append(errors, &pb.SignRawTransactionWithWalletResponse_Error{
+					Txid:      e.TxID,
+					Vout:      e.Vout,
+					ScriptSig: e.ScriptSig,
+					Sequence:  e.Sequence,
+					Error:     e.Error,
+				})
+			}
+			return &pb.SignRawTransactionWithWalletResponse{
+				Hex:      r.Hex,
+				Complete: r.Complete,
+				Errors:   errors,
+			}
+		})
+}
+
 // DecodePsbt implements bitcoindv1alphaconnect.BitcoinServiceHandler.
 func (b *Bitcoind) DecodePsbt(ctx context.Context, c *connect.Request[pb.DecodePsbtRequest]) (*connect.Response[pb.DecodePsbtResponse], error) {
 	if c.Msg.Psbt == "" {
