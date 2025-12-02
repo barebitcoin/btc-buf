@@ -104,6 +104,9 @@ const (
 	// BitcoinServiceSendRawTransactionProcedure is the fully-qualified name of the BitcoinService's
 	// SendRawTransaction RPC.
 	BitcoinServiceSendRawTransactionProcedure = "/bitcoin.bitcoind.v1alpha.BitcoinService/SendRawTransaction"
+	// BitcoinServiceSignRawTransactionWithWalletProcedure is the fully-qualified name of the
+	// BitcoinService's SignRawTransactionWithWallet RPC.
+	BitcoinServiceSignRawTransactionWithWalletProcedure = "/bitcoin.bitcoind.v1alpha.BitcoinService/SignRawTransactionWithWallet"
 	// BitcoinServiceGetBlockProcedure is the fully-qualified name of the BitcoinService's GetBlock RPC.
 	BitcoinServiceGetBlockProcedure = "/bitcoin.bitcoind.v1alpha.BitcoinService/GetBlock"
 	// BitcoinServiceGetBlockHashProcedure is the fully-qualified name of the BitcoinService's
@@ -198,6 +201,7 @@ type BitcoinServiceClient interface {
 	DecodeRawTransaction(context.Context, *connect.Request[v1alpha.DecodeRawTransactionRequest]) (*connect.Response[v1alpha.DecodeRawTransactionResponse], error)
 	CreateRawTransaction(context.Context, *connect.Request[v1alpha.CreateRawTransactionRequest]) (*connect.Response[v1alpha.CreateRawTransactionResponse], error)
 	SendRawTransaction(context.Context, *connect.Request[v1alpha.SendRawTransactionRequest]) (*connect.Response[v1alpha.SendRawTransactionResponse], error)
+	SignRawTransactionWithWallet(context.Context, *connect.Request[v1alpha.SignRawTransactionWithWalletRequest]) (*connect.Response[v1alpha.SignRawTransactionWithWalletResponse], error)
 	GetBlock(context.Context, *connect.Request[v1alpha.GetBlockRequest]) (*connect.Response[v1alpha.GetBlockResponse], error)
 	GetBlockHash(context.Context, *connect.Request[v1alpha.GetBlockHashRequest]) (*connect.Response[v1alpha.GetBlockHashResponse], error)
 	// Wallet management
@@ -382,6 +386,12 @@ func NewBitcoinServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(bitcoinServiceMethods.ByName("SendRawTransaction")),
 			connect.WithClientOptions(opts...),
 		),
+		signRawTransactionWithWallet: connect.NewClient[v1alpha.SignRawTransactionWithWalletRequest, v1alpha.SignRawTransactionWithWalletResponse](
+			httpClient,
+			baseURL+BitcoinServiceSignRawTransactionWithWalletProcedure,
+			connect.WithSchema(bitcoinServiceMethods.ByName("SignRawTransactionWithWallet")),
+			connect.WithClientOptions(opts...),
+		),
 		getBlock: connect.NewClient[v1alpha.GetBlockRequest, v1alpha.GetBlockResponse](
 			httpClient,
 			baseURL+BitcoinServiceGetBlockProcedure,
@@ -507,50 +517,51 @@ func NewBitcoinServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 
 // bitcoinServiceClient implements BitcoinServiceClient.
 type bitcoinServiceClient struct {
-	getBlockchainInfo     *connect.Client[v1alpha.GetBlockchainInfoRequest, v1alpha.GetBlockchainInfoResponse]
-	getPeerInfo           *connect.Client[v1alpha.GetPeerInfoRequest, v1alpha.GetPeerInfoResponse]
-	getNetworkInfo        *connect.Client[v1alpha.GetNetworkInfoRequest, v1alpha.GetNetworkInfoResponse]
-	getNetTotals          *connect.Client[v1alpha.GetNetTotalsRequest, v1alpha.GetNetTotalsResponse]
-	getTransaction        *connect.Client[v1alpha.GetTransactionRequest, v1alpha.GetTransactionResponse]
-	listSinceBlock        *connect.Client[v1alpha.ListSinceBlockRequest, v1alpha.ListSinceBlockResponse]
-	getNewAddress         *connect.Client[v1alpha.GetNewAddressRequest, v1alpha.GetNewAddressResponse]
-	getWalletInfo         *connect.Client[v1alpha.GetWalletInfoRequest, v1alpha.GetWalletInfoResponse]
-	getBalances           *connect.Client[v1alpha.GetBalancesRequest, v1alpha.GetBalancesResponse]
-	send                  *connect.Client[v1alpha.SendRequest, v1alpha.SendResponse]
-	sendToAddress         *connect.Client[v1alpha.SendToAddressRequest, v1alpha.SendToAddressResponse]
-	bumpFee               *connect.Client[v1alpha.BumpFeeRequest, v1alpha.BumpFeeResponse]
-	estimateSmartFee      *connect.Client[v1alpha.EstimateSmartFeeRequest, v1alpha.EstimateSmartFeeResponse]
-	importDescriptors     *connect.Client[v1alpha.ImportDescriptorsRequest, v1alpha.ImportDescriptorsResponse]
-	listWallets           *connect.Client[emptypb.Empty, v1alpha.ListWalletsResponse]
-	listUnspent           *connect.Client[v1alpha.ListUnspentRequest, v1alpha.ListUnspentResponse]
-	listTransactions      *connect.Client[v1alpha.ListTransactionsRequest, v1alpha.ListTransactionsResponse]
-	getDescriptorInfo     *connect.Client[v1alpha.GetDescriptorInfoRequest, v1alpha.GetDescriptorInfoResponse]
-	getAddressInfo        *connect.Client[v1alpha.GetAddressInfoRequest, v1alpha.GetAddressInfoResponse]
-	getRawMempool         *connect.Client[v1alpha.GetRawMempoolRequest, v1alpha.GetRawMempoolResponse]
-	getRawTransaction     *connect.Client[v1alpha.GetRawTransactionRequest, v1alpha.GetRawTransactionResponse]
-	decodeRawTransaction  *connect.Client[v1alpha.DecodeRawTransactionRequest, v1alpha.DecodeRawTransactionResponse]
-	createRawTransaction  *connect.Client[v1alpha.CreateRawTransactionRequest, v1alpha.CreateRawTransactionResponse]
-	sendRawTransaction    *connect.Client[v1alpha.SendRawTransactionRequest, v1alpha.SendRawTransactionResponse]
-	getBlock              *connect.Client[v1alpha.GetBlockRequest, v1alpha.GetBlockResponse]
-	getBlockHash          *connect.Client[v1alpha.GetBlockHashRequest, v1alpha.GetBlockHashResponse]
-	createWallet          *connect.Client[v1alpha.CreateWalletRequest, v1alpha.CreateWalletResponse]
-	loadWallet            *connect.Client[v1alpha.LoadWalletRequest, v1alpha.LoadWalletResponse]
-	backupWallet          *connect.Client[v1alpha.BackupWalletRequest, v1alpha.BackupWalletResponse]
-	unloadWallet          *connect.Client[v1alpha.UnloadWalletRequest, v1alpha.UnloadWalletResponse]
-	keyPoolRefill         *connect.Client[v1alpha.KeyPoolRefillRequest, v1alpha.KeyPoolRefillResponse]
-	getAccount            *connect.Client[v1alpha.GetAccountRequest, v1alpha.GetAccountResponse]
-	setAccount            *connect.Client[v1alpha.SetAccountRequest, v1alpha.SetAccountResponse]
-	getAddressesByAccount *connect.Client[v1alpha.GetAddressesByAccountRequest, v1alpha.GetAddressesByAccountResponse]
-	listAccounts          *connect.Client[v1alpha.ListAccountsRequest, v1alpha.ListAccountsResponse]
-	createMultisig        *connect.Client[v1alpha.CreateMultisigRequest, v1alpha.CreateMultisigResponse]
-	createPsbt            *connect.Client[v1alpha.CreatePsbtRequest, v1alpha.CreatePsbtResponse]
-	decodePsbt            *connect.Client[v1alpha.DecodePsbtRequest, v1alpha.DecodePsbtResponse]
-	analyzePsbt           *connect.Client[v1alpha.AnalyzePsbtRequest, v1alpha.AnalyzePsbtResponse]
-	combinePsbt           *connect.Client[v1alpha.CombinePsbtRequest, v1alpha.CombinePsbtResponse]
-	utxoUpdatePsbt        *connect.Client[v1alpha.UtxoUpdatePsbtRequest, v1alpha.UtxoUpdatePsbtResponse]
-	joinPsbts             *connect.Client[v1alpha.JoinPsbtsRequest, v1alpha.JoinPsbtsResponse]
-	testMempoolAccept     *connect.Client[v1alpha.TestMempoolAcceptRequest, v1alpha.TestMempoolAcceptResponse]
-	getZmqNotifications   *connect.Client[emptypb.Empty, v1alpha.GetZmqNotificationsResponse]
+	getBlockchainInfo            *connect.Client[v1alpha.GetBlockchainInfoRequest, v1alpha.GetBlockchainInfoResponse]
+	getPeerInfo                  *connect.Client[v1alpha.GetPeerInfoRequest, v1alpha.GetPeerInfoResponse]
+	getNetworkInfo               *connect.Client[v1alpha.GetNetworkInfoRequest, v1alpha.GetNetworkInfoResponse]
+	getNetTotals                 *connect.Client[v1alpha.GetNetTotalsRequest, v1alpha.GetNetTotalsResponse]
+	getTransaction               *connect.Client[v1alpha.GetTransactionRequest, v1alpha.GetTransactionResponse]
+	listSinceBlock               *connect.Client[v1alpha.ListSinceBlockRequest, v1alpha.ListSinceBlockResponse]
+	getNewAddress                *connect.Client[v1alpha.GetNewAddressRequest, v1alpha.GetNewAddressResponse]
+	getWalletInfo                *connect.Client[v1alpha.GetWalletInfoRequest, v1alpha.GetWalletInfoResponse]
+	getBalances                  *connect.Client[v1alpha.GetBalancesRequest, v1alpha.GetBalancesResponse]
+	send                         *connect.Client[v1alpha.SendRequest, v1alpha.SendResponse]
+	sendToAddress                *connect.Client[v1alpha.SendToAddressRequest, v1alpha.SendToAddressResponse]
+	bumpFee                      *connect.Client[v1alpha.BumpFeeRequest, v1alpha.BumpFeeResponse]
+	estimateSmartFee             *connect.Client[v1alpha.EstimateSmartFeeRequest, v1alpha.EstimateSmartFeeResponse]
+	importDescriptors            *connect.Client[v1alpha.ImportDescriptorsRequest, v1alpha.ImportDescriptorsResponse]
+	listWallets                  *connect.Client[emptypb.Empty, v1alpha.ListWalletsResponse]
+	listUnspent                  *connect.Client[v1alpha.ListUnspentRequest, v1alpha.ListUnspentResponse]
+	listTransactions             *connect.Client[v1alpha.ListTransactionsRequest, v1alpha.ListTransactionsResponse]
+	getDescriptorInfo            *connect.Client[v1alpha.GetDescriptorInfoRequest, v1alpha.GetDescriptorInfoResponse]
+	getAddressInfo               *connect.Client[v1alpha.GetAddressInfoRequest, v1alpha.GetAddressInfoResponse]
+	getRawMempool                *connect.Client[v1alpha.GetRawMempoolRequest, v1alpha.GetRawMempoolResponse]
+	getRawTransaction            *connect.Client[v1alpha.GetRawTransactionRequest, v1alpha.GetRawTransactionResponse]
+	decodeRawTransaction         *connect.Client[v1alpha.DecodeRawTransactionRequest, v1alpha.DecodeRawTransactionResponse]
+	createRawTransaction         *connect.Client[v1alpha.CreateRawTransactionRequest, v1alpha.CreateRawTransactionResponse]
+	sendRawTransaction           *connect.Client[v1alpha.SendRawTransactionRequest, v1alpha.SendRawTransactionResponse]
+	signRawTransactionWithWallet *connect.Client[v1alpha.SignRawTransactionWithWalletRequest, v1alpha.SignRawTransactionWithWalletResponse]
+	getBlock                     *connect.Client[v1alpha.GetBlockRequest, v1alpha.GetBlockResponse]
+	getBlockHash                 *connect.Client[v1alpha.GetBlockHashRequest, v1alpha.GetBlockHashResponse]
+	createWallet                 *connect.Client[v1alpha.CreateWalletRequest, v1alpha.CreateWalletResponse]
+	loadWallet                   *connect.Client[v1alpha.LoadWalletRequest, v1alpha.LoadWalletResponse]
+	backupWallet                 *connect.Client[v1alpha.BackupWalletRequest, v1alpha.BackupWalletResponse]
+	unloadWallet                 *connect.Client[v1alpha.UnloadWalletRequest, v1alpha.UnloadWalletResponse]
+	keyPoolRefill                *connect.Client[v1alpha.KeyPoolRefillRequest, v1alpha.KeyPoolRefillResponse]
+	getAccount                   *connect.Client[v1alpha.GetAccountRequest, v1alpha.GetAccountResponse]
+	setAccount                   *connect.Client[v1alpha.SetAccountRequest, v1alpha.SetAccountResponse]
+	getAddressesByAccount        *connect.Client[v1alpha.GetAddressesByAccountRequest, v1alpha.GetAddressesByAccountResponse]
+	listAccounts                 *connect.Client[v1alpha.ListAccountsRequest, v1alpha.ListAccountsResponse]
+	createMultisig               *connect.Client[v1alpha.CreateMultisigRequest, v1alpha.CreateMultisigResponse]
+	createPsbt                   *connect.Client[v1alpha.CreatePsbtRequest, v1alpha.CreatePsbtResponse]
+	decodePsbt                   *connect.Client[v1alpha.DecodePsbtRequest, v1alpha.DecodePsbtResponse]
+	analyzePsbt                  *connect.Client[v1alpha.AnalyzePsbtRequest, v1alpha.AnalyzePsbtResponse]
+	combinePsbt                  *connect.Client[v1alpha.CombinePsbtRequest, v1alpha.CombinePsbtResponse]
+	utxoUpdatePsbt               *connect.Client[v1alpha.UtxoUpdatePsbtRequest, v1alpha.UtxoUpdatePsbtResponse]
+	joinPsbts                    *connect.Client[v1alpha.JoinPsbtsRequest, v1alpha.JoinPsbtsResponse]
+	testMempoolAccept            *connect.Client[v1alpha.TestMempoolAcceptRequest, v1alpha.TestMempoolAcceptResponse]
+	getZmqNotifications          *connect.Client[emptypb.Empty, v1alpha.GetZmqNotificationsResponse]
 }
 
 // GetBlockchainInfo calls bitcoin.bitcoind.v1alpha.BitcoinService.GetBlockchainInfo.
@@ -671,6 +682,12 @@ func (c *bitcoinServiceClient) CreateRawTransaction(ctx context.Context, req *co
 // SendRawTransaction calls bitcoin.bitcoind.v1alpha.BitcoinService.SendRawTransaction.
 func (c *bitcoinServiceClient) SendRawTransaction(ctx context.Context, req *connect.Request[v1alpha.SendRawTransactionRequest]) (*connect.Response[v1alpha.SendRawTransactionResponse], error) {
 	return c.sendRawTransaction.CallUnary(ctx, req)
+}
+
+// SignRawTransactionWithWallet calls
+// bitcoin.bitcoind.v1alpha.BitcoinService.SignRawTransactionWithWallet.
+func (c *bitcoinServiceClient) SignRawTransactionWithWallet(ctx context.Context, req *connect.Request[v1alpha.SignRawTransactionWithWalletRequest]) (*connect.Response[v1alpha.SignRawTransactionWithWalletResponse], error) {
+	return c.signRawTransactionWithWallet.CallUnary(ctx, req)
 }
 
 // GetBlock calls bitcoin.bitcoind.v1alpha.BitcoinService.GetBlock.
@@ -807,6 +824,7 @@ type BitcoinServiceHandler interface {
 	DecodeRawTransaction(context.Context, *connect.Request[v1alpha.DecodeRawTransactionRequest]) (*connect.Response[v1alpha.DecodeRawTransactionResponse], error)
 	CreateRawTransaction(context.Context, *connect.Request[v1alpha.CreateRawTransactionRequest]) (*connect.Response[v1alpha.CreateRawTransactionResponse], error)
 	SendRawTransaction(context.Context, *connect.Request[v1alpha.SendRawTransactionRequest]) (*connect.Response[v1alpha.SendRawTransactionResponse], error)
+	SignRawTransactionWithWallet(context.Context, *connect.Request[v1alpha.SignRawTransactionWithWalletRequest]) (*connect.Response[v1alpha.SignRawTransactionWithWalletResponse], error)
 	GetBlock(context.Context, *connect.Request[v1alpha.GetBlockRequest]) (*connect.Response[v1alpha.GetBlockResponse], error)
 	GetBlockHash(context.Context, *connect.Request[v1alpha.GetBlockHashRequest]) (*connect.Response[v1alpha.GetBlockHashResponse], error)
 	// Wallet management
@@ -987,6 +1005,12 @@ func NewBitcoinServiceHandler(svc BitcoinServiceHandler, opts ...connect.Handler
 		connect.WithSchema(bitcoinServiceMethods.ByName("SendRawTransaction")),
 		connect.WithHandlerOptions(opts...),
 	)
+	bitcoinServiceSignRawTransactionWithWalletHandler := connect.NewUnaryHandler(
+		BitcoinServiceSignRawTransactionWithWalletProcedure,
+		svc.SignRawTransactionWithWallet,
+		connect.WithSchema(bitcoinServiceMethods.ByName("SignRawTransactionWithWallet")),
+		connect.WithHandlerOptions(opts...),
+	)
 	bitcoinServiceGetBlockHandler := connect.NewUnaryHandler(
 		BitcoinServiceGetBlockProcedure,
 		svc.GetBlock,
@@ -1157,6 +1181,8 @@ func NewBitcoinServiceHandler(svc BitcoinServiceHandler, opts ...connect.Handler
 			bitcoinServiceCreateRawTransactionHandler.ServeHTTP(w, r)
 		case BitcoinServiceSendRawTransactionProcedure:
 			bitcoinServiceSendRawTransactionHandler.ServeHTTP(w, r)
+		case BitcoinServiceSignRawTransactionWithWalletProcedure:
+			bitcoinServiceSignRawTransactionWithWalletHandler.ServeHTTP(w, r)
 		case BitcoinServiceGetBlockProcedure:
 			bitcoinServiceGetBlockHandler.ServeHTTP(w, r)
 		case BitcoinServiceGetBlockHashProcedure:
@@ -1300,6 +1326,10 @@ func (UnimplementedBitcoinServiceHandler) CreateRawTransaction(context.Context, 
 
 func (UnimplementedBitcoinServiceHandler) SendRawTransaction(context.Context, *connect.Request[v1alpha.SendRawTransactionRequest]) (*connect.Response[v1alpha.SendRawTransactionResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("bitcoin.bitcoind.v1alpha.BitcoinService.SendRawTransaction is not implemented"))
+}
+
+func (UnimplementedBitcoinServiceHandler) SignRawTransactionWithWallet(context.Context, *connect.Request[v1alpha.SignRawTransactionWithWalletRequest]) (*connect.Response[v1alpha.SignRawTransactionWithWalletResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("bitcoin.bitcoind.v1alpha.BitcoinService.SignRawTransactionWithWallet is not implemented"))
 }
 
 func (UnimplementedBitcoinServiceHandler) GetBlock(context.Context, *connect.Request[v1alpha.GetBlockRequest]) (*connect.Response[v1alpha.GetBlockResponse], error) {

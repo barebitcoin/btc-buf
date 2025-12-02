@@ -45,6 +45,7 @@ service BitcoinService {
   rpc DecodeRawTransaction(DecodeRawTransactionRequest) returns (DecodeRawTransactionResponse);
   rpc CreateRawTransaction(CreateRawTransactionRequest) returns (CreateRawTransactionResponse);
   rpc SendRawTransaction(SendRawTransactionRequest) returns (SendRawTransactionResponse);
+  rpc SignRawTransactionWithWallet(SignRawTransactionWithWalletRequest) returns (SignRawTransactionWithWalletResponse);
 
   rpc GetBlock(GetBlockRequest) returns (GetBlockResponse);
   rpc GetBlockHash(GetBlockHashRequest) returns (GetBlockHashResponse);
@@ -1282,4 +1283,37 @@ message GetZmqNotificationsResponse {
     int64 high_water_mark = 3; // Outbound message high water mark
   }
   repeated Notification notifications = 1;
+}
+
+message SignRawTransactionWithWalletRequest {
+  // The transaction hex string
+  string hex_string = 1;
+
+  // Only needs to be set if dealing with multiple wallets at the same time.
+  string wallet = 2;
+}
+
+message SignRawTransactionWithWalletResponse {
+  // The hex-encoded raw transaction with signature(s)
+  string hex = 1;
+
+  // If the transaction has a complete set of signatures
+  bool complete = 2;
+
+  // Script verification errors (if there are any)
+  message Error {
+    // The hash of the referenced, previous transaction
+    string txid = 1;
+    // The index of the output to spent and used as input
+    uint32 vout = 2;
+    // The witness data
+    repeated string witness = 3;
+    // The hex-encoded signature script
+    string script_sig = 4;
+    // Script sequence number
+    uint32 sequence = 5;
+    // Verification or signing error related to the input
+    string error = 6;
+  }
+  repeated Error errors = 3;
 }
