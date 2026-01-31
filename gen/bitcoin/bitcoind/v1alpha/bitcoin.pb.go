@@ -7583,7 +7583,8 @@ func (x *ListDescriptorsResponse_Range) GetEnd() uint32 {
 }
 
 type ListDescriptorsResponse_Descriptor struct {
-	state       protoimpl.MessageState         `protogen:"open.v1"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Can contain private keys. Sensitive!
 	Descriptor_ string                         `protobuf:"bytes,1,opt,name=descriptor,proto3" json:"descriptor,omitempty"`
 	Timestamp   *timestamppb.Timestamp         `protobuf:"bytes,2,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
 	Active      bool                           `protobuf:"varint,3,opt,name=active,proto3" json:"active,omitempty"`
@@ -9115,29 +9116,29 @@ const file_bitcoin_bitcoind_v1alpha_bitcoin_proto_rawDesc = "" +
 	"\aoutputs\x18\t \x03(\v2 .bitcoin.bitcoind.v1alpha.OutputR\aoutputs\"p\n" +
 	"\x16ListDescriptorsRequest\x12\x16\n" +
 	"\x06wallet\x18\x01 \x01(\tR\x06wallet\x12>\n" +
-	"\x1binclude_private_descriptors\x18\x02 \x01(\bR\x19includePrivateDescriptors\"\xb5\x03\n" +
+	"\x1binclude_private_descriptors\x18\x02 \x01(\bR\x19includePrivateDescriptors\"\xba\x03\n" +
 	"\x17ListDescriptorsResponse\x12^\n" +
 	"\vdescriptors\x18\x01 \x03(\v2<.bitcoin.bitcoind.v1alpha.ListDescriptorsResponse.DescriptorR\vdescriptors\x1a/\n" +
 	"\x05Range\x12\x14\n" +
 	"\x05start\x18\x01 \x01(\rR\x05start\x12\x10\n" +
-	"\x03end\x18\x02 \x01(\rR\x03end\x1a\x88\x02\n" +
+	"\x03end\x18\x02 \x01(\rR\x03end\x1a\x8d\x02\n" +
 	"\n" +
-	"Descriptor\x12\x1e\n" +
+	"Descriptor\x12#\n" +
 	"\n" +
-	"descriptor\x18\x01 \x01(\tR\n" +
+	"descriptor\x18\x01 \x01(\tB\x03\x80\x01\x01R\n" +
 	"descriptor\x128\n" +
 	"\ttimestamp\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\x12\x16\n" +
 	"\x06active\x18\x03 \x01(\bR\x06active\x12\x1a\n" +
 	"\binternal\x18\x04 \x01(\bR\binternal\x12M\n" +
 	"\x05range\x18\x05 \x01(\v27.bitcoin.bitcoind.v1alpha.ListDescriptorsResponse.RangeR\x05range\x12\x1d\n" +
 	"\n" +
-	"next_index\x18\a \x01(\rR\tnextIndex\"\x97\x03\n" +
+	"next_index\x18\a \x01(\rR\tnextIndex\"\x9c\x03\n" +
 	"\x18ImportDescriptorsRequest\x12\x16\n" +
 	"\x06wallet\x18\x01 \x01(\tR\x06wallet\x12V\n" +
-	"\brequests\x18\x02 \x03(\v2:.bitcoin.bitcoind.v1alpha.ImportDescriptorsRequest.RequestR\brequests\x1a\x8a\x02\n" +
-	"\aRequest\x12\x1e\n" +
+	"\brequests\x18\x02 \x03(\v2:.bitcoin.bitcoind.v1alpha.ImportDescriptorsRequest.RequestR\brequests\x1a\x8f\x02\n" +
+	"\aRequest\x12#\n" +
 	"\n" +
-	"descriptor\x18\x01 \x01(\tR\n" +
+	"descriptor\x18\x01 \x01(\tB\x03\x80\x01\x01R\n" +
 	"descriptor\x12\x16\n" +
 	"\x06active\x18\x02 \x01(\bR\x06active\x12\x1f\n" +
 	"\vrange_start\x18\x03 \x01(\rR\n" +
@@ -9156,14 +9157,14 @@ const file_bitcoin_bitcoind_v1alpha_bitcoin_proto_rawDesc = "" +
 	"\bResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x1a\n" +
 	"\bwarnings\x18\x02 \x03(\tR\bwarnings\x12O\n" +
-	"\x05error\x18\x03 \x01(\v29.bitcoin.bitcoind.v1alpha.ImportDescriptorsResponse.ErrorR\x05error\":\n" +
-	"\x18GetDescriptorInfoRequest\x12\x1e\n" +
+	"\x05error\x18\x03 \x01(\v29.bitcoin.bitcoind.v1alpha.ImportDescriptorsResponse.ErrorR\x05error\"?\n" +
+	"\x18GetDescriptorInfoRequest\x12#\n" +
 	"\n" +
-	"descriptor\x18\x01 \x01(\tR\n" +
-	"descriptor\"\xbd\x01\n" +
-	"\x19GetDescriptorInfoResponse\x12\x1e\n" +
+	"descriptor\x18\x01 \x01(\tB\x03\x80\x01\x01R\n" +
+	"descriptor\"\xc2\x01\n" +
+	"\x19GetDescriptorInfoResponse\x12#\n" +
 	"\n" +
-	"descriptor\x18\x01 \x01(\tR\n" +
+	"descriptor\x18\x01 \x01(\tB\x03\x80\x01\x01R\n" +
 	"descriptor\x12\x1a\n" +
 	"\bchecksum\x18\x02 \x01(\tR\bchecksum\x12\x19\n" +
 	"\bis_range\x18\x03 \x01(\bR\aisRange\x12\x1f\n" +
@@ -9494,15 +9495,15 @@ const file_bitcoin_bitcoind_v1alpha_bitcoin_proto_rawDesc = "" +
 	"range_type\"/\n" +
 	"\x05Range\x12\x14\n" +
 	"\x05begin\x18\x01 \x01(\x05R\x05begin\x12\x10\n" +
-	"\x03end\x18\x02 \x01(\x05R\x03end\"\xa4\x01\n" +
+	"\x03end\x18\x02 \x01(\x05R\x03end\"\xa9\x01\n" +
 	"\n" +
-	"Descriptor\x12-\n" +
-	"\x11string_descriptor\x18\x01 \x01(\tH\x00R\x10stringDescriptor\x12Y\n" +
+	"Descriptor\x122\n" +
+	"\x11string_descriptor\x18\x01 \x01(\tB\x03\x80\x01\x01H\x00R\x10stringDescriptor\x12Y\n" +
 	"\x11object_descriptor\x18\x02 \x01(\v2*.bitcoin.bitcoind.v1alpha.DescriptorObjectH\x00R\x10objectDescriptorB\f\n" +
 	"\n" +
-	"descriptor\"g\n" +
-	"\x10DescriptorObject\x12\x12\n" +
-	"\x04desc\x18\x01 \x01(\tR\x04desc\x12?\n" +
+	"descriptor\"l\n" +
+	"\x10DescriptorObject\x12\x17\n" +
+	"\x04desc\x18\x01 \x01(\tB\x03\x80\x01\x01R\x04desc\x12?\n" +
 	"\x05range\x18\x02 \x01(\v2).bitcoin.bitcoind.v1alpha.DescriptorRangeR\x05range\"\xed\x01\n" +
 	"\x1bGetZmqNotificationsResponse\x12h\n" +
 	"\rnotifications\x18\x01 \x03(\v2B.bitcoin.bitcoind.v1alpha.GetZmqNotificationsResponse.NotificationR\rnotifications\x1ad\n" +

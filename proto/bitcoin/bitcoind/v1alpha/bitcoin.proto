@@ -674,7 +674,9 @@ message ListDescriptorsResponse {
   }
 
   message Descriptor {
-    string descriptor = 1;
+    // Can contain private keys. Sensitive!
+    string descriptor = 1 [debug_redact = true];
+
     google.protobuf.Timestamp timestamp = 2;
     bool active = 3;
     bool internal = 4;
@@ -690,7 +692,7 @@ message ListDescriptorsResponse {
 message ImportDescriptorsRequest {
   message Request {
     // Descriptor to import
-    string descriptor = 1;
+    string descriptor = 1 [debug_redact = true];
 
     // Set this descriptor to be the active descriptor for the corresponding type/externality.
     bool active = 2;
@@ -733,12 +735,12 @@ message ImportDescriptorsResponse {
 }
 
 message GetDescriptorInfoRequest {
-  string descriptor = 1;
+  string descriptor = 1 [debug_redact = true];
 }
 
 message GetDescriptorInfoResponse {
   // The descriptor in canonical form, without private keys.
-  string descriptor = 1;
+  string descriptor = 1 [debug_redact = true];
 
   // The checksum for the input descriptor
   string checksum = 2;
@@ -1292,14 +1294,14 @@ message Range {
 // Add a new message for descriptor
 message Descriptor {
   oneof descriptor {
-    string string_descriptor = 1; // Plain string descriptor
+    string string_descriptor = 1 [debug_redact = true]; // Plain string descriptor
     DescriptorObject object_descriptor = 2; // Descriptor object with range
   }
 }
 
 // Add a new message for descriptor objects
 message DescriptorObject {
-  string desc = 1; // The output descriptor
+  string desc = 1 [debug_redact = true]; // The output descriptor
   DescriptorRange range = 2; // Optional range, defaults to 1000 if not specified
 }
 
