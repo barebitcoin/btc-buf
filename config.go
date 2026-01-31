@@ -19,6 +19,8 @@ type config struct {
 	LogLevel string         `long:"logging.level" description:"log level" default:"debug"`
 	Bitcoind bitcoindConfig `group:"bitcoind" namespace:"bitcoind"`
 	SSH      sshConfig      `group:"ssh" namespace:"ssh"`
+
+	AllowPrivateDescriptorsExport bool `long:"allow-private-descriptors-export" description:"allow private descriptors to be exported via the 'listdescriptors' RPC command"`
 }
 
 type sshConfig struct {

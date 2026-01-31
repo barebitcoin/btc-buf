@@ -56,6 +56,7 @@ type Bitcoind struct {
 
 type config struct {
 	enableTLS                     bool
+	allowPrivateDescriptorsExport bool // default to the safe option, denying
 	logging                       func(ctx context.Context) *zerolog.Logger
 	withoutInitialConnectionCheck bool
 }
@@ -78,6 +79,12 @@ type Option func(*config)
 func WithTLS() Option {
 	return func(c *config) {
 		c.enableTLS = true
+	}
+}
+
+func WithAllowPrivateDescriptorsExport() Option {
+	return func(c *config) {
+		c.allowPrivateDescriptorsExport = true
 	}
 }
 
@@ -1196,6 +1203,10 @@ func (b *Bitcoind) GetBalances(ctx context.Context, c *connect.Request[pb.GetBal
 }
 
 func (b *Bitcoind) ListDescriptors(ctx context.Context, c *connect.Request[pb.ListDescriptorsRequest]) (*connect.Response[pb.ListDescriptorsResponse], error) {
+	if c.Msg.IncludePrivateDescriptors && !b.conf.allowPrivateDescriptorsExport {
+		return nil, connect.NewError(connect.CodePermissionDenied, errors.New("private descriptor export is not allowed"))
+	}
+
 	rpc, err := b.rpcForWallet(ctx, c.Msg)
 	if err != nil {
 		return nil, err
