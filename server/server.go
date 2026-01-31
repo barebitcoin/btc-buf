@@ -36,6 +36,7 @@ import (
 )
 
 func init() {
+	btcjson.MustRegisterCmd("listdescriptors", new(commands.ListDescriptorsCmd), btcjson.UFWalletOnly)
 	btcjson.MustRegisterCmd("importdescriptors", new(commands.ImportDescriptorsCmd), btcjson.UFWalletOnly)
 	btcjson.MustRegisterCmd("bumpfee", new(commands.BumpFee), btcjson.UFWalletOnly)
 	btcjson.MustRegisterCmd("analyzepsbt", new(commands.AnalyzePsbt), btcjson.UFWalletOnly)
@@ -1190,6 +1191,49 @@ func (b *Bitcoind) GetBalances(ctx context.Context, c *connect.Request[pb.GetBal
 					Immature:         r.Mine.Immature,
 				},
 				Watchonly: watchonly,
+			}
+		})
+}
+
+func (b *Bitcoind) ListDescriptors(ctx context.Context, c *connect.Request[pb.ListDescriptorsRequest]) (*connect.Response[pb.ListDescriptorsResponse], error) {
+	rpc, err := b.rpcForWallet(ctx, c.Msg)
+	if err != nil {
+		return nil, err
+	}
+
+	return withCancel(
+		ctx, b.conf, func(ctx context.Context) (commands.ListDescriptorsResponse, error) {
+			cmd := commands.ListDescriptorsCmd{
+				Private: c.Msg.IncludePrivateDescriptors,
+			}
+			// Make sure to NOT log the contents here. May include private keys!
+			res, err := rpcclient.ReceiveFuture(rpc.SendCmd(ctx, &cmd))
+			if err != nil {
+				return commands.ListDescriptorsResponse{}, err
+			}
+
+			var parsed commands.ListDescriptorsResponse
+			if err := json.Unmarshal(res, &parsed); err != nil {
+				return commands.ListDescriptorsResponse{}, fmt.Errorf("unmarshal listdescriptors response: %w", err)
+			}
+
+			return parsed, err
+		},
+		func(r commands.ListDescriptorsResponse) *pb.ListDescriptorsResponse {
+			return &pb.ListDescriptorsResponse{
+				Descriptors: lo.Map(r.Descriptors, func(r commands.ListDescriptorsResponseDescriptor, idx int) *pb.ListDescriptorsResponse_Descriptor {
+					return &pb.ListDescriptorsResponse_Descriptor{
+						Descriptor_: r.Descriptor,
+						Timestamp:   timestamppb.New(time.Unix(r.Timestamp, 0)),
+						Active:      r.Active,
+						Internal:    r.Internal,
+						Range: &pb.ListDescriptorsResponse_Range{
+							Start: uint32(r.Range[0]),
+							End:   uint32(r.Range[1]),
+						},
+						NextIndex: uint32(r.NextIndex),
+					}
+				}),
 			}
 		})
 }

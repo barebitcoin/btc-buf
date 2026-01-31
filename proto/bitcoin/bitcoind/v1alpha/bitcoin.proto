@@ -29,6 +29,7 @@ service BitcoinService {
   // to be watch-only as well. The descriptor also needs to be normalized, with a
   // checksum. This can be obtained by running it through GetDescriptorInfo.
   rpc ImportDescriptors(ImportDescriptorsRequest) returns (ImportDescriptorsResponse);
+  rpc ListDescriptors(ListDescriptorsRequest) returns (ListDescriptorsResponse);
   rpc ListWallets(google.protobuf.Empty) returns (ListWalletsResponse);
   rpc ListUnspent(ListUnspentRequest) returns (ListUnspentResponse);
 
@@ -659,6 +660,31 @@ message DecodeRawTransactionResponse {
   repeated Input inputs = 8;
 
   repeated Output outputs = 9;
+}
+
+message ListDescriptorsRequest {
+  string wallet = 1;
+  bool include_private_descriptors = 2;
+}
+
+message ListDescriptorsResponse {
+  message Range {
+    uint32 start = 1;
+    uint32 end = 2;
+  }
+
+  message Descriptor {
+    string descriptor = 1;
+    google.protobuf.Timestamp timestamp = 2;
+    bool active = 3;
+    bool internal = 4;
+
+    Range range = 5;
+    // Only present for ranged descriptors
+    uint32 next_index = 7;
+  }
+
+  repeated Descriptor descriptors = 1;
 }
 
 message ImportDescriptorsRequest {

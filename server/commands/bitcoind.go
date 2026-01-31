@@ -64,3 +64,21 @@ type ImportDescriptorsRequestItem struct {
 type ImportDescriptorsCmd struct {
 	Requests []ImportDescriptorsRequestItem `json:"requests"`
 }
+
+type ListDescriptorsCmd struct {
+	Private bool `json:"private"` // show private descriptors
+}
+
+type ListDescriptorsResponseDescriptor struct {
+	Descriptor string `json:"desc"`
+	Timestamp  int64  `json:"timestamp"`
+	Active     bool   `json:"active"`
+	Internal   bool   `json:"internal"`
+	Range      []int  `json:"range,omitempty"`
+	NextIndex  int    `json:"next_index,omitempty"`
+}
+
+type ListDescriptorsResponse struct {
+	Wallet      string                              `json:"wallet_name"`
+	Descriptors []ListDescriptorsResponseDescriptor `json:"descriptors"`
+}
