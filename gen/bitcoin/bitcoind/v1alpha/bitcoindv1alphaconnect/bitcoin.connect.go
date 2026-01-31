@@ -74,6 +74,9 @@ const (
 	// BitcoinServiceImportDescriptorsProcedure is the fully-qualified name of the BitcoinService's
 	// ImportDescriptors RPC.
 	BitcoinServiceImportDescriptorsProcedure = "/bitcoin.bitcoind.v1alpha.BitcoinService/ImportDescriptors"
+	// BitcoinServiceListDescriptorsProcedure is the fully-qualified name of the BitcoinService's
+	// ListDescriptors RPC.
+	BitcoinServiceListDescriptorsProcedure = "/bitcoin.bitcoind.v1alpha.BitcoinService/ListDescriptors"
 	// BitcoinServiceListWalletsProcedure is the fully-qualified name of the BitcoinService's
 	// ListWallets RPC.
 	BitcoinServiceListWalletsProcedure = "/bitcoin.bitcoind.v1alpha.BitcoinService/ListWallets"
@@ -189,6 +192,7 @@ type BitcoinServiceClient interface {
 	// to be watch-only as well. The descriptor also needs to be normalized, with a
 	// checksum. This can be obtained by running it through GetDescriptorInfo.
 	ImportDescriptors(context.Context, *connect.Request[v1alpha.ImportDescriptorsRequest]) (*connect.Response[v1alpha.ImportDescriptorsResponse], error)
+	ListDescriptors(context.Context, *connect.Request[v1alpha.ListDescriptorsRequest]) (*connect.Response[v1alpha.ListDescriptorsResponse], error)
 	ListWallets(context.Context, *connect.Request[emptypb.Empty]) (*connect.Response[v1alpha.ListWalletsResponse], error)
 	ListUnspent(context.Context, *connect.Request[v1alpha.ListUnspentRequest]) (*connect.Response[v1alpha.ListUnspentResponse], error)
 	ListTransactions(context.Context, *connect.Request[v1alpha.ListTransactionsRequest]) (*connect.Response[v1alpha.ListTransactionsResponse], error)
@@ -324,6 +328,12 @@ func NewBitcoinServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			httpClient,
 			baseURL+BitcoinServiceImportDescriptorsProcedure,
 			connect.WithSchema(bitcoinServiceMethods.ByName("ImportDescriptors")),
+			connect.WithClientOptions(opts...),
+		),
+		listDescriptors: connect.NewClient[v1alpha.ListDescriptorsRequest, v1alpha.ListDescriptorsResponse](
+			httpClient,
+			baseURL+BitcoinServiceListDescriptorsProcedure,
+			connect.WithSchema(bitcoinServiceMethods.ByName("ListDescriptors")),
 			connect.WithClientOptions(opts...),
 		),
 		listWallets: connect.NewClient[emptypb.Empty, v1alpha.ListWalletsResponse](
@@ -531,6 +541,7 @@ type bitcoinServiceClient struct {
 	bumpFee                      *connect.Client[v1alpha.BumpFeeRequest, v1alpha.BumpFeeResponse]
 	estimateSmartFee             *connect.Client[v1alpha.EstimateSmartFeeRequest, v1alpha.EstimateSmartFeeResponse]
 	importDescriptors            *connect.Client[v1alpha.ImportDescriptorsRequest, v1alpha.ImportDescriptorsResponse]
+	listDescriptors              *connect.Client[v1alpha.ListDescriptorsRequest, v1alpha.ListDescriptorsResponse]
 	listWallets                  *connect.Client[emptypb.Empty, v1alpha.ListWalletsResponse]
 	listUnspent                  *connect.Client[v1alpha.ListUnspentRequest, v1alpha.ListUnspentResponse]
 	listTransactions             *connect.Client[v1alpha.ListTransactionsRequest, v1alpha.ListTransactionsResponse]
@@ -632,6 +643,11 @@ func (c *bitcoinServiceClient) EstimateSmartFee(ctx context.Context, req *connec
 // ImportDescriptors calls bitcoin.bitcoind.v1alpha.BitcoinService.ImportDescriptors.
 func (c *bitcoinServiceClient) ImportDescriptors(ctx context.Context, req *connect.Request[v1alpha.ImportDescriptorsRequest]) (*connect.Response[v1alpha.ImportDescriptorsResponse], error) {
 	return c.importDescriptors.CallUnary(ctx, req)
+}
+
+// ListDescriptors calls bitcoin.bitcoind.v1alpha.BitcoinService.ListDescriptors.
+func (c *bitcoinServiceClient) ListDescriptors(ctx context.Context, req *connect.Request[v1alpha.ListDescriptorsRequest]) (*connect.Response[v1alpha.ListDescriptorsResponse], error) {
+	return c.listDescriptors.CallUnary(ctx, req)
 }
 
 // ListWallets calls bitcoin.bitcoind.v1alpha.BitcoinService.ListWallets.
@@ -812,6 +828,7 @@ type BitcoinServiceHandler interface {
 	// to be watch-only as well. The descriptor also needs to be normalized, with a
 	// checksum. This can be obtained by running it through GetDescriptorInfo.
 	ImportDescriptors(context.Context, *connect.Request[v1alpha.ImportDescriptorsRequest]) (*connect.Response[v1alpha.ImportDescriptorsResponse], error)
+	ListDescriptors(context.Context, *connect.Request[v1alpha.ListDescriptorsRequest]) (*connect.Response[v1alpha.ListDescriptorsResponse], error)
 	ListWallets(context.Context, *connect.Request[emptypb.Empty]) (*connect.Response[v1alpha.ListWalletsResponse], error)
 	ListUnspent(context.Context, *connect.Request[v1alpha.ListUnspentRequest]) (*connect.Response[v1alpha.ListUnspentResponse], error)
 	ListTransactions(context.Context, *connect.Request[v1alpha.ListTransactionsRequest]) (*connect.Response[v1alpha.ListTransactionsResponse], error)
@@ -943,6 +960,12 @@ func NewBitcoinServiceHandler(svc BitcoinServiceHandler, opts ...connect.Handler
 		BitcoinServiceImportDescriptorsProcedure,
 		svc.ImportDescriptors,
 		connect.WithSchema(bitcoinServiceMethods.ByName("ImportDescriptors")),
+		connect.WithHandlerOptions(opts...),
+	)
+	bitcoinServiceListDescriptorsHandler := connect.NewUnaryHandler(
+		BitcoinServiceListDescriptorsProcedure,
+		svc.ListDescriptors,
+		connect.WithSchema(bitcoinServiceMethods.ByName("ListDescriptors")),
 		connect.WithHandlerOptions(opts...),
 	)
 	bitcoinServiceListWalletsHandler := connect.NewUnaryHandler(
@@ -1161,6 +1184,8 @@ func NewBitcoinServiceHandler(svc BitcoinServiceHandler, opts ...connect.Handler
 			bitcoinServiceEstimateSmartFeeHandler.ServeHTTP(w, r)
 		case BitcoinServiceImportDescriptorsProcedure:
 			bitcoinServiceImportDescriptorsHandler.ServeHTTP(w, r)
+		case BitcoinServiceListDescriptorsProcedure:
+			bitcoinServiceListDescriptorsHandler.ServeHTTP(w, r)
 		case BitcoinServiceListWalletsProcedure:
 			bitcoinServiceListWalletsHandler.ServeHTTP(w, r)
 		case BitcoinServiceListUnspentProcedure:
@@ -1286,6 +1311,10 @@ func (UnimplementedBitcoinServiceHandler) EstimateSmartFee(context.Context, *con
 
 func (UnimplementedBitcoinServiceHandler) ImportDescriptors(context.Context, *connect.Request[v1alpha.ImportDescriptorsRequest]) (*connect.Response[v1alpha.ImportDescriptorsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("bitcoin.bitcoind.v1alpha.BitcoinService.ImportDescriptors is not implemented"))
+}
+
+func (UnimplementedBitcoinServiceHandler) ListDescriptors(context.Context, *connect.Request[v1alpha.ListDescriptorsRequest]) (*connect.Response[v1alpha.ListDescriptorsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("bitcoin.bitcoind.v1alpha.BitcoinService.ListDescriptors is not implemented"))
 }
 
 func (UnimplementedBitcoinServiceHandler) ListWallets(context.Context, *connect.Request[emptypb.Empty]) (*connect.Response[v1alpha.ListWalletsResponse], error) {
