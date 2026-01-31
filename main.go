@@ -45,8 +45,15 @@ func realMain(cfg *config) error {
 	clientCtx, clientCancel := context.WithTimeout(ctx, time.Second*10)
 	defer clientCancel()
 
+	var opts []server.Option
+	if cfg.AllowPrivateDescriptorsExport {
+		zerolog.Ctx(ctx).Info().Msg("allowing private descriptors export")
+		opts = append(opts, server.WithAllowPrivateDescriptorsExport())
+	}
+
 	bitcoind, err := server.NewBitcoind(
 		clientCtx, cfg.Bitcoind.Host, cfg.Bitcoind.User, cfg.Bitcoind.Pass,
+		opts...,
 	)
 	if err != nil {
 		return fmt.Errorf("new server: %w", err)
