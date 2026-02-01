@@ -82,3 +82,15 @@ type ListDescriptorsResponse struct {
 	Wallet      string                              `json:"wallet_name"`
 	Descriptors []ListDescriptorsResponseDescriptor `json:"descriptors"`
 }
+
+type RescanBlockchainCmd struct {
+	StartHeight *uint32 `json:"start_height"`
+	EndHeight   *uint32 `json:"end_height"`
+}
+
+type RescanBlockchainResponse struct {
+	StartHeight uint32 `json:"start_height"`
+	StopHeight  uint32 `json:"stop_height"`
+}
+
+type AbortRescanCmd struct{}
