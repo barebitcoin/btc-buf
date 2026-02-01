@@ -127,6 +127,12 @@ const (
 	// BitcoinServiceUnloadWalletProcedure is the fully-qualified name of the BitcoinService's
 	// UnloadWallet RPC.
 	BitcoinServiceUnloadWalletProcedure = "/bitcoin.bitcoind.v1alpha.BitcoinService/UnloadWallet"
+	// BitcoinServiceRescanBlockchainProcedure is the fully-qualified name of the BitcoinService's
+	// RescanBlockchain RPC.
+	BitcoinServiceRescanBlockchainProcedure = "/bitcoin.bitcoind.v1alpha.BitcoinService/RescanBlockchain"
+	// BitcoinServiceAbortRescanProcedure is the fully-qualified name of the BitcoinService's
+	// AbortRescan RPC.
+	BitcoinServiceAbortRescanProcedure = "/bitcoin.bitcoind.v1alpha.BitcoinService/AbortRescan"
 	// BitcoinServiceKeyPoolRefillProcedure is the fully-qualified name of the BitcoinService's
 	// KeyPoolRefill RPC.
 	BitcoinServiceKeyPoolRefillProcedure = "/bitcoin.bitcoind.v1alpha.BitcoinService/KeyPoolRefill"
@@ -213,6 +219,8 @@ type BitcoinServiceClient interface {
 	LoadWallet(context.Context, *connect.Request[v1alpha.LoadWalletRequest]) (*connect.Response[v1alpha.LoadWalletResponse], error)
 	BackupWallet(context.Context, *connect.Request[v1alpha.BackupWalletRequest]) (*connect.Response[v1alpha.BackupWalletResponse], error)
 	UnloadWallet(context.Context, *connect.Request[v1alpha.UnloadWalletRequest]) (*connect.Response[v1alpha.UnloadWalletResponse], error)
+	RescanBlockchain(context.Context, *connect.Request[v1alpha.RescanBlockchainRequest]) (*connect.Response[v1alpha.RescanBlockchainResponse], error)
+	AbortRescan(context.Context, *connect.Request[v1alpha.AbortRescanRequest]) (*connect.Response[v1alpha.AbortRescanResponse], error)
 	// Key/Address management
 	KeyPoolRefill(context.Context, *connect.Request[v1alpha.KeyPoolRefillRequest]) (*connect.Response[v1alpha.KeyPoolRefillResponse], error)
 	// Account operations
@@ -438,6 +446,18 @@ func NewBitcoinServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(bitcoinServiceMethods.ByName("UnloadWallet")),
 			connect.WithClientOptions(opts...),
 		),
+		rescanBlockchain: connect.NewClient[v1alpha.RescanBlockchainRequest, v1alpha.RescanBlockchainResponse](
+			httpClient,
+			baseURL+BitcoinServiceRescanBlockchainProcedure,
+			connect.WithSchema(bitcoinServiceMethods.ByName("RescanBlockchain")),
+			connect.WithClientOptions(opts...),
+		),
+		abortRescan: connect.NewClient[v1alpha.AbortRescanRequest, v1alpha.AbortRescanResponse](
+			httpClient,
+			baseURL+BitcoinServiceAbortRescanProcedure,
+			connect.WithSchema(bitcoinServiceMethods.ByName("AbortRescan")),
+			connect.WithClientOptions(opts...),
+		),
 		keyPoolRefill: connect.NewClient[v1alpha.KeyPoolRefillRequest, v1alpha.KeyPoolRefillResponse](
 			httpClient,
 			baseURL+BitcoinServiceKeyPoolRefillProcedure,
@@ -559,6 +579,8 @@ type bitcoinServiceClient struct {
 	loadWallet                   *connect.Client[v1alpha.LoadWalletRequest, v1alpha.LoadWalletResponse]
 	backupWallet                 *connect.Client[v1alpha.BackupWalletRequest, v1alpha.BackupWalletResponse]
 	unloadWallet                 *connect.Client[v1alpha.UnloadWalletRequest, v1alpha.UnloadWalletResponse]
+	rescanBlockchain             *connect.Client[v1alpha.RescanBlockchainRequest, v1alpha.RescanBlockchainResponse]
+	abortRescan                  *connect.Client[v1alpha.AbortRescanRequest, v1alpha.AbortRescanResponse]
 	keyPoolRefill                *connect.Client[v1alpha.KeyPoolRefillRequest, v1alpha.KeyPoolRefillResponse]
 	getAccount                   *connect.Client[v1alpha.GetAccountRequest, v1alpha.GetAccountResponse]
 	setAccount                   *connect.Client[v1alpha.SetAccountRequest, v1alpha.SetAccountResponse]
@@ -736,6 +758,16 @@ func (c *bitcoinServiceClient) UnloadWallet(ctx context.Context, req *connect.Re
 	return c.unloadWallet.CallUnary(ctx, req)
 }
 
+// RescanBlockchain calls bitcoin.bitcoind.v1alpha.BitcoinService.RescanBlockchain.
+func (c *bitcoinServiceClient) RescanBlockchain(ctx context.Context, req *connect.Request[v1alpha.RescanBlockchainRequest]) (*connect.Response[v1alpha.RescanBlockchainResponse], error) {
+	return c.rescanBlockchain.CallUnary(ctx, req)
+}
+
+// AbortRescan calls bitcoin.bitcoind.v1alpha.BitcoinService.AbortRescan.
+func (c *bitcoinServiceClient) AbortRescan(ctx context.Context, req *connect.Request[v1alpha.AbortRescanRequest]) (*connect.Response[v1alpha.AbortRescanResponse], error) {
+	return c.abortRescan.CallUnary(ctx, req)
+}
+
 // KeyPoolRefill calls bitcoin.bitcoind.v1alpha.BitcoinService.KeyPoolRefill.
 func (c *bitcoinServiceClient) KeyPoolRefill(ctx context.Context, req *connect.Request[v1alpha.KeyPoolRefillRequest]) (*connect.Response[v1alpha.KeyPoolRefillResponse], error) {
 	return c.keyPoolRefill.CallUnary(ctx, req)
@@ -849,6 +881,8 @@ type BitcoinServiceHandler interface {
 	LoadWallet(context.Context, *connect.Request[v1alpha.LoadWalletRequest]) (*connect.Response[v1alpha.LoadWalletResponse], error)
 	BackupWallet(context.Context, *connect.Request[v1alpha.BackupWalletRequest]) (*connect.Response[v1alpha.BackupWalletResponse], error)
 	UnloadWallet(context.Context, *connect.Request[v1alpha.UnloadWalletRequest]) (*connect.Response[v1alpha.UnloadWalletResponse], error)
+	RescanBlockchain(context.Context, *connect.Request[v1alpha.RescanBlockchainRequest]) (*connect.Response[v1alpha.RescanBlockchainResponse], error)
+	AbortRescan(context.Context, *connect.Request[v1alpha.AbortRescanRequest]) (*connect.Response[v1alpha.AbortRescanResponse], error)
 	// Key/Address management
 	KeyPoolRefill(context.Context, *connect.Request[v1alpha.KeyPoolRefillRequest]) (*connect.Response[v1alpha.KeyPoolRefillResponse], error)
 	// Account operations
@@ -1070,6 +1104,18 @@ func NewBitcoinServiceHandler(svc BitcoinServiceHandler, opts ...connect.Handler
 		connect.WithSchema(bitcoinServiceMethods.ByName("UnloadWallet")),
 		connect.WithHandlerOptions(opts...),
 	)
+	bitcoinServiceRescanBlockchainHandler := connect.NewUnaryHandler(
+		BitcoinServiceRescanBlockchainProcedure,
+		svc.RescanBlockchain,
+		connect.WithSchema(bitcoinServiceMethods.ByName("RescanBlockchain")),
+		connect.WithHandlerOptions(opts...),
+	)
+	bitcoinServiceAbortRescanHandler := connect.NewUnaryHandler(
+		BitcoinServiceAbortRescanProcedure,
+		svc.AbortRescan,
+		connect.WithSchema(bitcoinServiceMethods.ByName("AbortRescan")),
+		connect.WithHandlerOptions(opts...),
+	)
 	bitcoinServiceKeyPoolRefillHandler := connect.NewUnaryHandler(
 		BitcoinServiceKeyPoolRefillProcedure,
 		svc.KeyPoolRefill,
@@ -1220,6 +1266,10 @@ func NewBitcoinServiceHandler(svc BitcoinServiceHandler, opts ...connect.Handler
 			bitcoinServiceBackupWalletHandler.ServeHTTP(w, r)
 		case BitcoinServiceUnloadWalletProcedure:
 			bitcoinServiceUnloadWalletHandler.ServeHTTP(w, r)
+		case BitcoinServiceRescanBlockchainProcedure:
+			bitcoinServiceRescanBlockchainHandler.ServeHTTP(w, r)
+		case BitcoinServiceAbortRescanProcedure:
+			bitcoinServiceAbortRescanHandler.ServeHTTP(w, r)
 		case BitcoinServiceKeyPoolRefillProcedure:
 			bitcoinServiceKeyPoolRefillHandler.ServeHTTP(w, r)
 		case BitcoinServiceGetAccountProcedure:
@@ -1383,6 +1433,14 @@ func (UnimplementedBitcoinServiceHandler) BackupWallet(context.Context, *connect
 
 func (UnimplementedBitcoinServiceHandler) UnloadWallet(context.Context, *connect.Request[v1alpha.UnloadWalletRequest]) (*connect.Response[v1alpha.UnloadWalletResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("bitcoin.bitcoind.v1alpha.BitcoinService.UnloadWallet is not implemented"))
+}
+
+func (UnimplementedBitcoinServiceHandler) RescanBlockchain(context.Context, *connect.Request[v1alpha.RescanBlockchainRequest]) (*connect.Response[v1alpha.RescanBlockchainResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("bitcoin.bitcoind.v1alpha.BitcoinService.RescanBlockchain is not implemented"))
+}
+
+func (UnimplementedBitcoinServiceHandler) AbortRescan(context.Context, *connect.Request[v1alpha.AbortRescanRequest]) (*connect.Response[v1alpha.AbortRescanResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("bitcoin.bitcoind.v1alpha.BitcoinService.AbortRescan is not implemented"))
 }
 
 func (UnimplementedBitcoinServiceHandler) KeyPoolRefill(context.Context, *connect.Request[v1alpha.KeyPoolRefillRequest]) (*connect.Response[v1alpha.KeyPoolRefillResponse], error) {

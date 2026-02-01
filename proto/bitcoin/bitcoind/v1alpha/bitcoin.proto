@@ -56,6 +56,8 @@ service BitcoinService {
   rpc LoadWallet(LoadWalletRequest) returns (LoadWalletResponse);
   rpc BackupWallet(BackupWalletRequest) returns (BackupWalletResponse);
   rpc UnloadWallet(UnloadWalletRequest) returns (UnloadWalletResponse);
+  rpc RescanBlockchain(RescanBlockchainRequest) returns (RescanBlockchainResponse);
+  rpc AbortRescan(AbortRescanRequest) returns (AbortRescanResponse);
 
   // Key/Address management
   rpc KeyPoolRefill(KeyPoolRefillRequest) returns (KeyPoolRefillResponse);
@@ -1066,6 +1068,25 @@ message UnloadWalletRequest {
 }
 
 message UnloadWalletResponse {}
+
+message RescanBlockchainRequest {
+  string wallet = 1;
+  uint32 start_height = 2;
+  uint32 end_height = 3;
+}
+
+message RescanBlockchainResponse {
+  uint32 start_height = 1;
+  uint32 stop_height = 2;
+}
+
+message AbortRescanRequest {
+  string wallet = 1;
+}
+
+message AbortRescanResponse {
+  bool aborted = 1;
+}
 
 message KeyPoolRefillRequest {
   uint32 new_size = 1;

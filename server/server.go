@@ -36,6 +36,8 @@ import (
 )
 
 func init() {
+	btcjson.MustRegisterCmd("rescanblockchain", new(commands.RescanBlockchainCmd), btcjson.UFWalletOnly)
+	btcjson.MustRegisterCmd("abortrescan", new(commands.AbortRescanCmd), btcjson.UFWalletOnly)
 	btcjson.MustRegisterCmd("listdescriptors", new(commands.ListDescriptorsCmd), btcjson.UFWalletOnly)
 	btcjson.MustRegisterCmd("importdescriptors", new(commands.ImportDescriptorsCmd), btcjson.UFWalletOnly)
 	btcjson.MustRegisterCmd("bumpfee", new(commands.BumpFee), btcjson.UFWalletOnly)
@@ -2232,6 +2234,65 @@ func (b *Bitcoind) LoadWallet(ctx context.Context, c *connect.Request[pb.LoadWal
 		})
 }
 
+// AbortRescan implements bitcoindv1alphaconnect.BitcoinServiceHandler.
+func (b *Bitcoind) AbortRescan(ctx context.Context, c *connect.Request[pb.AbortRescanRequest]) (*connect.Response[pb.AbortRescanResponse], error) {
+	rpc, err := b.rpcForWallet(ctx, c.Msg)
+	if err != nil {
+		return nil, err
+	}
+
+	return withCancel(ctx, b.conf,
+		func(ctx context.Context) (bool, error) {
+			res, err := rpcclient.ReceiveFuture(rpc.SendCmd(ctx, &commands.AbortRescanCmd{}))
+			if err != nil {
+				return false, err
+			}
+
+			var parsed bool
+			if err := json.Unmarshal(res, &parsed); err != nil {
+				return false, fmt.Errorf("unmarshal abortrescan response: %w", err)
+			}
+			return parsed, nil
+		},
+		func(aborted bool) *pb.AbortRescanResponse {
+			return &pb.AbortRescanResponse{
+				Aborted: aborted,
+			}
+		})
+}
+
+// RescanBlockchain implements bitcoindv1alphaconnect.BitcoinServiceHandler.
+func (b *Bitcoind) RescanBlockchain(ctx context.Context, c *connect.Request[pb.RescanBlockchainRequest]) (*connect.Response[pb.RescanBlockchainResponse], error) {
+	rpc, err := b.rpcForWallet(ctx, c.Msg)
+	if err != nil {
+		return nil, err
+	}
+
+	return withCancel(ctx, b.conf,
+		func(ctx context.Context) (*commands.RescanBlockchainResponse, error) {
+			cmd := commands.RescanBlockchainCmd{
+				StartHeight: lo.EmptyableToPtr(c.Msg.StartHeight),
+				EndHeight:   lo.EmptyableToPtr(c.Msg.EndHeight),
+			}
+			res, err := rpcclient.ReceiveFuture(rpc.SendCmd(ctx, &cmd))
+			if err != nil {
+				return nil, err
+			}
+
+			var parsed commands.RescanBlockchainResponse
+			if err := json.Unmarshal(res, &parsed); err != nil {
+				return nil, fmt.Errorf("unmarshal rescanblockchain response: %w", err)
+			}
+			return &parsed, err
+		},
+		func(r *commands.RescanBlockchainResponse) *pb.RescanBlockchainResponse {
+			return &pb.RescanBlockchainResponse{
+				StartHeight: r.StartHeight,
+				StopHeight:  r.StopHeight,
+			}
+		})
+}
+
 // UnloadWallet implements bitcoindv1alphaconnect.BitcoinServiceHandler.
 func (b *Bitcoind) UnloadWallet(ctx context.Context, c *connect.Request[pb.UnloadWalletRequest]) (*connect.Response[pb.UnloadWalletResponse], error) {
 	if c.Msg.WalletName == "" {
@@ -2326,6 +2387,9 @@ func handleBtcJsonErrors() connect.Interceptor {
 				// This is a -4 in the btcd lib, but a -6 in Bitcoin Core...
 				case rpcErr.Message == "Insufficient funds":
 					err = connect.NewError(connect.CodeFailedPrecondition, errors.New(rpcErr.Message))
+
+				case rpcErr.Code == btcjson.ErrRPCWallet && strings.Contains(rpcErr.Message, "Wallet is currently rescanning"):
+					err = connect.NewError(connect.CodeAlreadyExists, errors.New(rpcErr.Message))
 
 				case rpcErr.Code == btcjson.ErrRPCWallet && rpcErr.Message == "Transaction amount too small":
 					err = connect.NewError(connect.CodeInvalidArgument, errors.New(rpcErr.Message))
