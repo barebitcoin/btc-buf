@@ -193,6 +193,10 @@ func NewBitcoind(
 
 				return nil, fmt.Errorf("wallet %q does not exist or is not loaded", wallet)
 
+			case bitcoindErrorCode(err) == btcjson.ErrRPCMethodNotFound.Code:
+				err := errors.New("Bitcoin Core is running without wallet functionality")
+				return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+
 			default:
 				return nil, fmt.Errorf("get wallet info: %w", err)
 			}
@@ -2505,6 +2509,13 @@ func handleBtcJsonErrors() connect.Interceptor {
 
 				case rpcErr.Code == btcjson.ErrRPCInWarmup:
 					err = connect.NewError(connect.CodeFailedPrecondition, errors.New(rpcErr.Message))
+
+				case rpcErr.Code == btcjson.ErrRPCMethodNotFound.Code:
+
+					err = connect.NewError(
+						connect.CodeFailedPrecondition,
+						errors.New("Bitcoin Core is running without wallet functionality"),
+					)
 
 				default:
 					zerolog.Ctx(ctx).Warn().Msgf("unknown btcjson error: %s", rpcErr)
