@@ -8,9 +8,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net"
+	"net/http"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"connectrpc.com/connect"
@@ -49,11 +52,15 @@ func init() {
 	btcjson.MustRegisterCmd("joinpsbts", new(commands.JoinPsbts), btcjson.UFWalletOnly)
 }
 
+type Client = rpc.BitcoinServiceClient
+
 type Bitcoind struct {
 	conf    config
 	rpcConf rpcclient.ConnConfig
 	rpc     *rpcclient.Client
 	server  *connectserver.Server
+
+	setupDone atomic.Bool
 }
 
 type config struct {
@@ -2347,19 +2354,93 @@ func (b *Bitcoind) Shutdown(ctx context.Context) {
 	b.server.Shutdown(ctx)
 }
 
-func (b *Bitcoind) Listen(ctx context.Context, address string) error {
+func (b *Bitcoind) setupServer() {
+	const (
+		oldValue = false
+		newValue = true
+	)
+	if !b.setupDone.CompareAndSwap(oldValue, newValue) {
+		panic("PROGRAMMER ERROR: setupServer called twice")
+	}
+
 	b.server = connectserver.New(
 		logging.InterceptorConf{},
 		handleBtcJsonErrors(),
 	)
-
 	connectserver.Register(b.server, rpc.NewBitcoinServiceHandler, rpc.BitcoinServiceHandler(b))
+}
+
+func (b *Bitcoind) Listen(ctx context.Context, address string) error {
+	b.setupServer()
 
 	zerolog.Ctx(ctx).Info().
 		Str("address", address).
 		Msg("connect: serving")
 
 	return b.server.Serve(ctx, address)
+}
+
+// InProcessClient returns a Connect client that communicates with the Bitcoind
+// handler directly in memory, without any network I/O. All interceptors
+// (including error transformation) are applied.
+//
+// Additional client-side interceptors can be passed as options.
+func (b *Bitcoind) InProcessClient(opts ...connect.ClientOption) Client {
+	b.setupServer()
+
+	httpClient := &http.Client{
+		Transport: &handlerTransport{handler: b.server.Handler()},
+	}
+
+	// The URL is not used for routing (requests go directly to the handler),
+	// but Connect requires a valid URL format.
+	return rpc.NewBitcoinServiceClient(httpClient, "http://in-memory", opts...)
+}
+
+// handlerTransport is an http.RoundTripper that routes requests directly
+// to an http.Handler without any network I/O.
+type handlerTransport struct {
+	handler http.Handler
+}
+
+func (t *handlerTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	rec := &responseRecorder{
+		header: make(http.Header),
+		body:   new(bytes.Buffer),
+		code:   http.StatusOK,
+	}
+	t.handler.ServeHTTP(rec, req)
+
+	return &http.Response{
+		Status:        http.StatusText(rec.code),
+		StatusCode:    rec.code,
+		Proto:         "HTTP/1.1",
+		ProtoMajor:    1,
+		ProtoMinor:    1,
+		Header:        rec.header,
+		Body:          io.NopCloser(rec.body),
+		ContentLength: int64(rec.body.Len()),
+		Request:       req,
+	}, nil
+}
+
+// responseRecorder captures HTTP responses for in-memory transport.
+type responseRecorder struct {
+	header http.Header
+	body   *bytes.Buffer
+	code   int
+}
+
+func (r *responseRecorder) Header() http.Header {
+	return r.header
+}
+
+func (r *responseRecorder) Write(b []byte) (int, error) {
+	return r.body.Write(b)
+}
+
+func (r *responseRecorder) WriteHeader(code int) {
+	r.code = code
 }
 
 var _ rpc.BitcoinServiceHandler = new(Bitcoind)
