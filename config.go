@@ -117,7 +117,7 @@ func readConfig(ctx context.Context) (*config, error) {
 
 	if cfg.Bitcoind.Host == "" {
 		log.Debug().Str("network", cfg.Bitcoind.Network).
-			Msg("config: empty bitcoind.host, inferring from network")
+			Msgf("config: empty bitcoind.host, inferring from network: %q", net.defaultRpcHost)
 
 		cfg.Bitcoind.Host = net.defaultRpcHost
 	}
