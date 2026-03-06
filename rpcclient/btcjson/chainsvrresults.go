@@ -65,58 +65,6 @@ type GetBlockStatsResult struct {
 	UTXOSizeIncrease   int64   `json:"utxo_size_inc"`
 }
 
-// GetBlockVerboseResult models the data from the getblock command when the
-// verbose flag is set to 1.  When the verbose flag is set to 0, getblock returns a
-// hex-encoded string. When the verbose flag is set to 1, getblock returns an object
-// whose tx field is an array of transaction hashes. When the verbose flag is set to 2,
-// getblock returns an object whose tx field is an array of raw transactions.
-// Use GetBlockVerboseTxResult to unmarshal data received from passing verbose=2 to getblock.
-type GetBlockVerboseResult struct {
-	Hash          string        `json:"hash"`
-	Confirmations int64         `json:"confirmations"`
-	StrippedSize  int32         `json:"strippedsize"`
-	Size          int32         `json:"size"`
-	Weight        int32         `json:"weight"`
-	Height        int64         `json:"height"`
-	Version       int32         `json:"version"`
-	VersionHex    string        `json:"versionHex"`
-	MerkleRoot    string        `json:"merkleroot"`
-	Tx            []string      `json:"tx,omitempty"`
-	RawTx         []TxRawResult `json:"rawtx,omitempty"` // Note: this field is always empty when verbose != 2.
-	Time          int64         `json:"time"`
-	Nonce         uint32        `json:"nonce"`
-	Bits          string        `json:"bits"`
-	Difficulty    float64       `json:"difficulty"`
-	PreviousHash  string        `json:"previousblockhash"`
-	NextHash      string        `json:"nextblockhash,omitempty"`
-}
-
-// GetBlockVerboseTxResult models the data from the getblock command when the
-// verbose flag is set to 2.  When the verbose flag is set to 0, getblock returns a
-// hex-encoded string. When the verbose flag is set to 1, getblock returns an object
-// whose tx field is an array of transaction hashes. When the verbose flag is set to 2,
-// getblock returns an object whose tx field is an array of raw transactions.
-// Use GetBlockVerboseResult to unmarshal data received from passing verbose=1 to getblock.
-type GetBlockVerboseTxResult struct {
-	Hash          string        `json:"hash"`
-	Confirmations int64         `json:"confirmations"`
-	StrippedSize  int32         `json:"strippedsize"`
-	Size          int32         `json:"size"`
-	Weight        int32         `json:"weight"`
-	Height        int64         `json:"height"`
-	Version       int32         `json:"version"`
-	VersionHex    string        `json:"versionHex"`
-	MerkleRoot    string        `json:"merkleroot"`
-	Tx            []TxRawResult `json:"tx,omitempty"`
-	RawTx         []TxRawResult `json:"rawtx,omitempty"` // Deprecated: removed in Bitcoin Core
-	Time          int64         `json:"time"`
-	Nonce         uint32        `json:"nonce"`
-	Bits          string        `json:"bits"`
-	Difficulty    float64       `json:"difficulty"`
-	PreviousHash  string        `json:"previousblockhash"`
-	NextHash      string        `json:"nextblockhash,omitempty"`
-}
-
 // GetChainTipsResult models the data from the getchaintips command.
 type GetChainTipsResult struct {
 	Height    int32  `json:"height"`
@@ -557,16 +505,33 @@ type ScriptSig struct {
 	Hex string `json:"hex"`
 }
 
+type ScriptPubKey struct {
+	Type      string   `json:"type"`
+	Address   string   `json:"address"`
+	Asm       string   `json:"asm"`
+	Hex       string   `json:"hex"`
+	Addresses []string `json:"addresses"`
+	ReqSigs   int32    `json:"reqSigs"`
+}
+
+type PreviousOutput struct {
+	Generated    bool          `json:"generated"`
+	Height       uint32        `json:"height"`
+	Value        float64       `json:"amount"`
+	ScriptPubKey *ScriptPubKey `json:"scriptPubKey"`
+}
+
 // Vin models parts of the tx data.  It is defined separately since
 // getrawtransaction, decoderawtransaction, and searchrawtransaction use the
 // same structure.
 type Vin struct {
-	Coinbase  string     `json:"coinbase"`
-	Txid      string     `json:"txid"`
-	Vout      uint32     `json:"vout"`
-	ScriptSig *ScriptSig `json:"scriptSig"`
-	Sequence  uint32     `json:"sequence"`
-	Witness   []string   `json:"txinwitness"`
+	Coinbase  string          `json:"coinbase"`
+	Txid      string          `json:"txid"`
+	Vout      uint32          `json:"vout"`
+	ScriptSig *ScriptSig      `json:"scriptSig"`
+	Sequence  uint32          `json:"sequence"`
+	Witness   []string        `json:"txinwitness"`
+	Prevout   *PreviousOutput `json:"prevout"`
 }
 
 // IsCoinBase returns a bool to show if a Vin is a Coinbase one or not.

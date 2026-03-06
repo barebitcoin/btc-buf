@@ -938,41 +938,6 @@ func (t *TimestampOrNow) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// ScriptPubKeyAddress represents an address, to be used in conjunction with
-// ScriptPubKey.
-type ScriptPubKeyAddress struct {
-	Address string `json:"address"`
-}
-
-// ScriptPubKey represents a script (as a string) or an address
-// (as a ScriptPubKeyAddress).
-type ScriptPubKey struct {
-	Value interface{}
-}
-
-// MarshalJSON implements the json.Marshaler interface for ScriptPubKey
-func (s ScriptPubKey) MarshalJSON() ([]byte, error) {
-	return json.Marshal(s.Value)
-}
-
-// UnmarshalJSON implements the json.Unmarshaler interface for ScriptPubKey
-func (s *ScriptPubKey) UnmarshalJSON(data []byte) error {
-	var unmarshalled interface{}
-	if err := json.Unmarshal(data, &unmarshalled); err != nil {
-		return err
-	}
-
-	switch v := unmarshalled.(type) {
-	case string:
-		s.Value = v
-	case map[string]interface{}:
-		s.Value = ScriptPubKeyAddress{Address: v["address"].(string)}
-	default:
-		return fmt.Errorf("invalid scriptPubKey value: %v", unmarshalled)
-	}
-	return nil
-}
-
 // DescriptorRange specifies the limits of a ranged Descriptor.
 //
 // Descriptors are typically ranged when specified in the form of generic HD
@@ -1026,9 +991,6 @@ type ImportMultiRequest struct {
 	// Descriptor to import, in canonical form. If using Descriptor, do not
 	// also provide ScriptPubKey, RedeemScript, WitnessScript, PubKeys, or Keys.
 	Descriptor *string `json:"desc,omitempty"`
-
-	// Script/address to import. Should not be provided if using Descriptor.
-	ScriptPubKey *ScriptPubKey `json:"scriptPubKey,omitempty"`
 
 	// Creation time of the key in seconds since epoch (Jan 1 1970 GMT), or
 	// the string "now" to substitute the current synced blockchain time.

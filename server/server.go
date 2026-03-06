@@ -23,6 +23,7 @@ import (
 	"github.com/btcsuite/btcd/wire"
 	"github.com/rs/zerolog"
 	"github.com/samber/lo"
+	"github.com/tidwall/gjson"
 	"golang.org/x/exp/slices"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -772,11 +773,55 @@ func (b *Bitcoind) GetBlock(ctx context.Context, c *connect.Request[pb.GetBlockR
 		c.Msg.Verbosity = pb.GetBlockRequest_VERBOSITY_BLOCK_INFO
 	}
 
+	// The Bitcoin Core `getblock` results has different types for the same fields
+	// depending on the verbosity level. Classic horrible API design.
+	type getBlockResult struct {
+		Hash         string
+		PreviousHash *string `json:"previousblockhash,omitempty"`
+		NextHash     *string `json:"nextblockhash,omitempty"`
+
+		Confirmations int32
+		Height        uint32
+		Version       int32
+		VersionHex    string
+		Bits          string
+		MerkleRoot    string
+		Time          int64
+		MedianTime    int64
+		Nonce         uint32
+		Difficulty    float64
+		Target        string
+		Chainwork     string
+		StrippedSize  int32 `json:"strippedsize"`
+		Size          int32
+		Weight        int32
+
+		// Only set for verbosity level 1
+		Txids        []string              `json:"-"`
+		Transactions []btcjson.TxRawResult `json:"-"`
+	}
 	switch c.Msg.Verbosity {
 	case pb.GetBlockRequest_VERBOSITY_RAW_DATA:
 		return withCancel(ctx, b.conf,
 			func(ctx context.Context) (*wire.MsgBlock, error) {
-				return b.rpc.GetBlock(ctx, hash)
+				res, err := rpcclient.ReceiveFuture(b.rpc.SendCmd(ctx, btcjson.NewGetBlockCmd(hash.String(), btcjson.Int(0))))
+				if err != nil {
+					return nil, err
+				}
+
+				// Decode the serialized block hex to raw bytes.
+				serializedBlock, err := hex.DecodeString(gjson.ParseBytes(res).String())
+				if err != nil {
+					return nil, err
+				}
+
+				// Deserialize the block and return it.
+				var msgBlock wire.MsgBlock
+				err = msgBlock.Deserialize(bytes.NewReader(serializedBlock))
+				if err != nil {
+					return nil, err
+				}
+				return &msgBlock, nil
 			},
 			func(block *wire.MsgBlock) *pb.GetBlockResponse {
 				var out bytes.Buffer
@@ -790,35 +835,90 @@ func (b *Bitcoind) GetBlock(ctx context.Context, c *connect.Request[pb.GetBlockR
 			},
 		)
 
-	case pb.GetBlockRequest_VERBOSITY_BLOCK_INFO, pb.GetBlockRequest_VERBOSITY_BLOCK_TX_INFO, pb.GetBlockRequest_VERBOSITY_BLOCK_TX_PREVOUT_INFO:
+	case pb.GetBlockRequest_VERBOSITY_BLOCK_INFO,
+		pb.GetBlockRequest_VERBOSITY_BLOCK_TX_INFO,
+		pb.GetBlockRequest_VERBOSITY_BLOCK_TX_PREVOUT_INFO:
 		return withCancel(ctx, b.conf,
-			func(ctx context.Context) (*btcjson.GetBlockVerboseResult, error) {
-				return b.rpc.GetBlockVerbose(ctx, hash)
+			func(ctx context.Context) (getBlockResult, error) {
+				coreVerbosities := map[pb.GetBlockRequest_Verbosity]int{
+					pb.GetBlockRequest_VERBOSITY_RAW_DATA:              0,
+					pb.GetBlockRequest_VERBOSITY_BLOCK_INFO:            1,
+					pb.GetBlockRequest_VERBOSITY_BLOCK_TX_INFO:         2,
+					pb.GetBlockRequest_VERBOSITY_BLOCK_TX_PREVOUT_INFO: 3,
+				}
+				rpcVerbosity, ok := coreVerbosities[c.Msg.Verbosity]
+				if !ok {
+					return getBlockResult{}, fmt.Errorf("invalid verbosity: %q", c.Msg.Verbosity)
+				}
+
+				cmd := btcjson.NewGetBlockCmd(hash.String(), btcjson.Int(rpcVerbosity))
+				res, err := rpcclient.ReceiveFuture(b.rpc.SendCmd(ctx, cmd))
+				if err != nil {
+					return getBlockResult{}, err
+				}
+
+				var blockResult getBlockResult
+				if err := json.Unmarshal(res, &blockResult); err != nil {
+					return getBlockResult{}, err
+				}
+
+				switch c.Msg.Verbosity {
+				case pb.GetBlockRequest_VERBOSITY_BLOCK_INFO:
+					rawTxids := gjson.GetBytes(res, "tx").Raw
+					if err := json.Unmarshal([]byte(rawTxids), &blockResult.Txids); err != nil {
+						return getBlockResult{}, fmt.Errorf("unmarshal txids: %w", err)
+					}
+				case pb.GetBlockRequest_VERBOSITY_BLOCK_TX_INFO,
+					pb.GetBlockRequest_VERBOSITY_BLOCK_TX_PREVOUT_INFO:
+
+					rawTransactions := gjson.GetBytes(res, "tx").Raw
+					if err := json.Unmarshal([]byte(rawTransactions), &blockResult.Transactions); err != nil {
+						return getBlockResult{}, fmt.Errorf("unmarshal transactions: %w", err)
+					}
+				}
+
+				return blockResult, nil
 			},
-			func(block *btcjson.GetBlockVerboseResult) *pb.GetBlockResponse {
+			func(block getBlockResult) *pb.GetBlockResponse {
 				return &pb.GetBlockResponse{
 					Hash:              block.Hash,
-					Confirmations:     int32(block.Confirmations),
-					Height:            uint32(block.Height),
+					Confirmations:     block.Confirmations,
+					Height:            block.Height,
 					Version:           block.Version,
 					VersionHex:        block.VersionHex,
-					Bits:              block.Bits,
 					MerkleRoot:        block.MerkleRoot,
 					Time:              newTimestamp(block.Time),
+					MedianTime:        newTimestamp(block.MedianTime),
 					Nonce:             block.Nonce,
-					Difficulty:        block.Difficulty,
-					PreviousBlockHash: block.PreviousHash,
-					NextBlockHash:     block.NextHash,
+					PreviousBlockHash: lo.FromPtr(block.PreviousHash),
+					NextBlockHash:     lo.FromPtr(block.NextHash),
+					Bits:              block.Bits,
+					Target:            block.Target,
 					StrippedSize:      block.StrippedSize,
 					Size:              block.Size,
 					Weight:            block.Weight,
-					Txids:             block.Tx,
+					Difficulty:        block.Difficulty,
+					Chainwork:         block.Chainwork,
+					Txids:             block.Txids,
+					Transactions: lo.Map(block.Transactions, func(tx btcjson.TxRawResult, idx int) *pb.GetBlockResponse_Transaction {
+						return &pb.GetBlockResponse_Transaction{
+							Txid:     tx.Txid,
+							Hash:     tx.Hash,
+							Size:     tx.Size,
+							Vsize:    tx.Vsize,
+							Weight:   tx.Weight,
+							Version:  tx.Version,
+							Locktime: tx.LockTime,
+							Inputs:   lo.Map(tx.Vin, inputProto),
+							Outputs:  lo.Map(tx.Vout, outputProto),
+						}
+					}),
 				}
 			},
 		)
 
 	default:
-		return nil, connect.NewError(connect.CodeUnimplemented, fmt.Errorf("bad verbosity: %s", c.Msg.Verbosity))
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid verbosity: %q", c.Msg.Verbosity))
 	}
 }
 
@@ -849,12 +949,16 @@ func (b *Bitcoind) GetRawTransaction(ctx context.Context, c *connect.Request[pb.
 		)
 	}
 
-	verbosity := 1
-	if c.Msg.Verbosity == pb.GetRawTransactionRequest_VERBOSITY_TX_INFO {
-		verbosity = 2
+	coreVerbosities := map[pb.GetRawTransactionRequest_Verbosity]int{
+		pb.GetRawTransactionRequest_VERBOSITY_TX_INFO:         1,
+		pb.GetRawTransactionRequest_VERBOSITY_TX_PREVOUT_INFO: 2,
+	}
+	rpcVerbosity, ok := coreVerbosities[c.Msg.Verbosity]
+	if !ok {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid verbosity: %q", c.Msg.Verbosity))
 	}
 
-	cmd := btcjson.NewGetRawTransactionCmd(hash.String(), btcjson.Int(verbosity))
+	cmd := btcjson.NewGetRawTransactionCmd(hash.String(), btcjson.Int(rpcVerbosity))
 
 	return withCancel(ctx, b.conf,
 		func(ctx context.Context) (*btcjson.TxRawResult, error) {
@@ -906,13 +1010,32 @@ func inputProto(input btcjson.Vin, _ int) *pb.Input {
 		}
 	}
 
+	var previousOutput *pb.PreviousOutput
+	if input.Prevout != nil {
+		previousOutput = &pb.PreviousOutput{
+			Generated: input.Prevout.Generated,
+			Height:    input.Prevout.Height,
+			Amount:    input.Prevout.Value,
+		}
+
+		if input.Prevout.ScriptPubKey != nil {
+			previousOutput.ScriptPubKey = &pb.ScriptPubKey{
+				Type:    input.Prevout.ScriptPubKey.Type,
+				Address: input.Prevout.ScriptPubKey.Address,
+				Asm:     input.Prevout.ScriptPubKey.Asm,
+				Hex:     input.Prevout.ScriptPubKey.Hex,
+			}
+		}
+	}
+
 	return &pb.Input{
-		Txid:      input.Txid,
-		Vout:      input.Vout,
-		Coinbase:  input.Coinbase,
-		ScriptSig: scriptSig,
-		Sequence:  input.Sequence,
-		Witness:   input.Witness,
+		Txid:           input.Txid,
+		Vout:           input.Vout,
+		Coinbase:       input.Coinbase,
+		ScriptSig:      scriptSig,
+		Sequence:       input.Sequence,
+		Witness:        input.Witness,
+		PreviousOutput: previousOutput,
 	}
 }
 
@@ -1876,12 +1999,11 @@ func (b *Bitcoind) DecodePsbt(ctx context.Context, c *connect.Request[pb.DecodeP
 								Amount: out.Value,
 								Vout:   out.N,
 								ScriptPubKey: &pb.ScriptPubKey{
-									Asm:       out.ScriptPubKey.Asm,
-									Hex:       out.ScriptPubKey.Hex,
-									Type:      out.ScriptPubKey.Type,
-									Address:   out.ScriptPubKey.Address,
-									Addresses: out.ScriptPubKey.Addresses,
-									ReqSigs:   out.ScriptPubKey.ReqSigs,
+									Asm:     out.ScriptPubKey.Asm,
+									Hex:     out.ScriptPubKey.Hex,
+									Type:    out.ScriptPubKey.Type,
+									Address: out.ScriptPubKey.Address,
+									ReqSigs: lo.EmptyableToPtr(out.ScriptPubKey.ReqSigs),
 								},
 							}
 						}),
@@ -2509,6 +2631,9 @@ func handleBtcJsonErrors() connect.Interceptor {
 
 				case rpcErr.Code == btcjson.ErrRPCInWarmup:
 					err = connect.NewError(connect.CodeFailedPrecondition, errors.New(rpcErr.Message))
+
+				case rpcErr.Code == btcjson.ErrRPCMisc && strings.Contains(rpcErr.Message, "Block not available (not fully downloaded)"):
+					err = connect.NewError(connect.CodeUnavailable, errors.New(rpcErr.Message))
 
 				case rpcErr.Code == btcjson.ErrRPCMethodNotFound.Code:
 
