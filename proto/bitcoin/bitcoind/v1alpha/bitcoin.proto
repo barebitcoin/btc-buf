@@ -482,6 +482,11 @@ message GetRawTransactionRequest {
     VERBOSITY_TX_PREVOUT_INFO = 3;
   }
 
+  // Note: this does NOT map to the Bitcoin Core verbosity parameter.
+  // Core 0 -> VERBOSITY_RAW_DATA
+  // Core 1 -> VERBOSITY_UNSPECIFIED
+  // Core 2 -> VERBOSITY_TX_INFO
+  // Core 3 -> VERBOSITY_TX_PREVOUT_INFO
   Verbosity verbosity = 2;
 
   // The block in which to look for the transaction
@@ -493,6 +498,18 @@ message ScriptSig {
   string hex = 2;
 }
 
+message PreviousOutput {
+  // Indicates the previous output was a coinbase output.
+  bool generated = 1;
+
+  uint32 height = 2;
+
+  // BTC amount of the previous output.
+  double amount = 3;
+
+  ScriptPubKey script_pub_key = 4;
+}
+
 message Input {
   string txid = 1;
   uint32 vout = 2;
@@ -500,6 +517,8 @@ message Input {
   ScriptSig script_sig = 4;
   uint32 sequence = 5;
   repeated string witness = 6;
+
+  PreviousOutput previous_output = 7;
 }
 
 message ScriptPubKey {
@@ -507,8 +526,12 @@ message ScriptPubKey {
   string address = 2;
   string asm = 3;
   string hex = 4;
-  repeated string addresses = 5;
-  uint32 req_sigs = 6;
+
+  // Legacy, Core only sends a single address.
+  reserved 5;
+  reserved "addresses";
+
+  optional uint32 req_sigs = 6;
 }
 
 message Output {
@@ -780,6 +803,19 @@ message GetBlockRequest {
 }
 
 message GetBlockResponse {
+  message Transaction {
+    string txid = 1;
+    string hash = 2;
+    int32 size = 3;
+    int32 vsize = 4;
+    int32 weight = 5;
+    uint32 version = 6;
+    uint32 locktime = 7;
+
+    repeated Input inputs = 8;
+    repeated Output outputs = 9;
+  }
+
   string hex = 1;
 
   string hash = 2;
@@ -789,14 +825,15 @@ message GetBlockResponse {
   string version_hex = 6;
   string merkle_root = 7;
   google.protobuf.Timestamp time = 8;
-  // google.protobuf.Timestamp median_time = 8; // not in rpcclient
+  google.protobuf.Timestamp median_time = 18;
 
   uint32 nonce = 9;
   string bits = 10;
+  string target = 19;
   double difficulty = 11;
 
   // Expected number of hashes required to produce the chain up to this block (in hex)
-  // string chainwork = 12; // not in rpcclient
+  string chainwork = 20;
   string previous_block_hash = 12;
   string next_block_hash = 13;
   int32 stripped_size = 14;
@@ -804,7 +841,11 @@ message GetBlockResponse {
   int32 weight = 16;
 
   // List of transactions in the block, by TXID.
+  // Only set for verbosity level VERBOSITY_BLOCK_INFO
   repeated string txids = 17;
+
+  // Only set for verbosity levels VERBOSITY_BLOCK_TX_INFO and VERBOSITY_BLOCK_TX_PREVOUT_INFO
+  repeated Transaction transactions = 21;
 }
 
 message BumpFeeRequest {
