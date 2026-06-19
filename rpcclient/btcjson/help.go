@@ -100,7 +100,7 @@ func resultStructHelp(xT descLookupFunc, rt reflect.Type, indentLevel int) []str
 
 		// Deference pointer if needed.
 		rtfType := rtf.Type
-		if rtfType.Kind() == reflect.Ptr {
+		if rtfType.Kind() == reflect.Ptr { // nolint:govet
 			rtfType = rtf.Type.Elem()
 		}
 
@@ -142,7 +142,7 @@ func resultStructHelp(xT descLookupFunc, rt reflect.Type, indentLevel int) []str
 // differently.
 func reflectTypeToJSONExample(xT descLookupFunc, rt reflect.Type, indentLevel int, fieldDescKey string) ([]string, bool) {
 	// Indirect pointer if needed.
-	if rt.Kind() == reflect.Ptr {
+	if rt.Kind() == reflect.Ptr { // nolint:govet
 		rt = rt.Elem()
 	}
 	kind := rt.Kind()
@@ -286,7 +286,7 @@ func argTypeHelp(xT descLookupFunc, structField reflect.StructField, defaultVal 
 	// Indirect the pointer if needed and track if it's an optional field.
 	fieldType := structField.Type
 	var isOptional bool
-	if fieldType.Kind() == reflect.Ptr {
+	if fieldType.Kind() == reflect.Ptr { // nolint:govet
 		fieldType = fieldType.Elem()
 		isOptional = true
 	}
@@ -353,7 +353,7 @@ func argHelp(xT descLookupFunc, rtp reflect.Type, defaults map[int]reflect.Value
 		// For types which require a JSON object, or an array of JSON
 		// objects, generate the full syntax for the argument.
 		fieldType := rtf.Type
-		if fieldType.Kind() == reflect.Ptr {
+		if fieldType.Kind() == reflect.Ptr { // nolint:govet
 			fieldType = fieldType.Elem()
 		}
 		kind := fieldType.Kind()
@@ -523,7 +523,7 @@ func GenerateHelp(method string, descs map[string]string, resultTypes ...interfa
 		}
 
 		rtp := reflect.TypeOf(resultType)
-		if rtp.Kind() != reflect.Ptr {
+		if rtp.Kind() != reflect.Ptr { //nolint:govet
 			str := fmt.Sprintf("result #%d (%v) is not a pointer",
 				i, rtp.Kind())
 			return "", makeError(ErrInvalidType, str)

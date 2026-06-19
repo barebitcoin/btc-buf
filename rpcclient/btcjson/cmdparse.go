@@ -21,7 +21,7 @@ func makeParams(rt reflect.Type, rv reflect.Value) []interface{} {
 		rtf := rt.Field(i)
 		rvf := rv.Field(i)
 		params = append(params, rvf.Interface())
-		if rtf.Type.Kind() == reflect.Ptr {
+		if rtf.Type.Kind() == reflect.Ptr { // nolint:govet
 			if rvf.IsNil() {
 				// Omit optional null params unless a non-null param follows
 				continue
@@ -222,7 +222,7 @@ func typesMaybeCompatible(dest reflect.Type, src reflect.Type) bool {
 // pointers along with how many indirections were necessary.
 func baseType(arg reflect.Type) (reflect.Type, int) {
 	var numIndirects int
-	for arg.Kind() == reflect.Ptr {
+	for arg.Kind() == reflect.Ptr { // nolint:govet
 		arg = arg.Elem()
 		numIndirects++
 	}
@@ -289,7 +289,7 @@ func assignField(paramNum int, fieldName string, dest reflect.Value, src reflect
 	}
 
 	// Indirect through to the base source value.
-	for src.Kind() == reflect.Ptr {
+	for src.Kind() == reflect.Ptr { // nolint:govet
 		src = src.Elem()
 	}
 

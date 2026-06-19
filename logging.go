@@ -90,7 +90,7 @@ func (m messageEnhancerWriter) Write(p []byte) (int, error) {
 		}
 
 		// Skip all the boring fields.
-		if slices.Contains(uninterestingFields, key) {
+		if slices.Contains(uninterestingFields, key) { // nolint:govet
 			continue
 		}
 

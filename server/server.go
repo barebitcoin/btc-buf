@@ -196,7 +196,8 @@ func NewBitcoind(
 				return nil, fmt.Errorf("wallet %q does not exist or is not loaded", wallet)
 
 			case bitcoindErrorCode(err) == btcjson.ErrRPCMethodNotFound.Code:
-				err := errors.New("Bitcoin Core is running without wallet functionality")
+
+				err := errors.New("Bitcoin Core is running without wallet functionality") // nolint:staticcheck
 				return nil, connect.NewError(connect.CodeFailedPrecondition, err)
 
 			default:
@@ -227,7 +228,7 @@ func loadPendingRequests() []string {
 	pendingRequestsMu.RLock()
 	defer pendingRequestsMu.RUnlock()
 
-	return slices.Clone(pendingRequests)
+	return slices.Clone(pendingRequests) // nolint:govet
 }
 
 func addPendingRequest(id string) {
@@ -241,7 +242,7 @@ func removePendingRequest(id string) {
 	pendingRequestsMu.Lock()
 	defer pendingRequestsMu.Unlock()
 
-	pendingRequests = slices.DeleteFunc(pendingRequests, func(maybe string) bool {
+	pendingRequests = slices.DeleteFunc(pendingRequests, func(maybe string) bool { // nolint:govet
 		return maybe == id
 	})
 }
@@ -2640,7 +2641,7 @@ func handleBtcJsonErrors() connect.Interceptor {
 
 					err = connect.NewError(
 						connect.CodeFailedPrecondition,
-						errors.New("Bitcoin Core is running without wallet functionality"),
+						errors.New("Bitcoin Core is running without wallet functionality"), // nolint:staticcheck
 					)
 
 				default:
