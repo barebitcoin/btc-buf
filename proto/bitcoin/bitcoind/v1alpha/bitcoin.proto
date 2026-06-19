@@ -1004,19 +1004,15 @@ message UnspentOutput {
 
   // Whether we have the private keys to spend this output
   bool spendable = 13;
-
   // Whether we know how to spend this output, ignoring the lack of keys
   // not in rpcclient
   // bool solvable = 14;
-
   //  Whether this output is reused/dirty (sent to an address that was previously spent from) (optional)
   // not in rpcclient
   // bool reused = 15;
-
   // (only when solvable) A descriptor for spending this output (optional)
   // not in rpcclient
   // string desc = 16;
-
   // List of parent descriptors for the output script of this coin
   // not in rpcclient
   // repeated string parent_descs = 17;
