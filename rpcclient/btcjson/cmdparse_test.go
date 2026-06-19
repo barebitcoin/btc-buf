@@ -188,7 +188,7 @@ func TestAssignField(t *testing.T) {
 		}
 
 		// Check case where null string is used on optional field
-		if dst.Kind() == reflect.Ptr && test.src == "null" {
+		if dst.Kind() == reflect.Ptr && test.src == "null" { //nolint:govet
 			if !dst.IsNil() {
 				t.Errorf("Test #%d (%s) unexpected value - got %v, "+
 					"want nil", i, test.name, dst.Interface())
@@ -198,7 +198,7 @@ func TestAssignField(t *testing.T) {
 
 		// Inidirect through to the base types to ensure their values
 		// are the same.
-		for dst.Kind() == reflect.Ptr {
+		for dst.Kind() == reflect.Ptr { //nolint:govet
 			dst = dst.Elem()
 		}
 		if !reflect.DeepEqual(dst.Interface(), test.expected) {

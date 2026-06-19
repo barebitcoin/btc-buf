@@ -844,7 +844,7 @@ func (a AllowHighFeesOrMaxFeeRate) String() string {
 func (a AllowHighFeesOrMaxFeeRate) MarshalJSON() ([]byte, error) {
 	// The default value is false which only works with the legacy versions.
 	if a.Value == nil ||
-		(reflect.ValueOf(a.Value).Kind() == reflect.Ptr &&
+		(reflect.ValueOf(a.Value).Kind() == reflect.Ptr && // nolint:govet
 			reflect.ValueOf(a.Value).IsNil()) {
 
 		return json.Marshal(false)
