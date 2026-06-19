@@ -7,8 +7,6 @@ package btcjson
 import (
 	"encoding/json"
 	"fmt"
-
-	"github.com/btcsuite/btcd/txscript"
 )
 
 // CreateWalletResult models the result of the createwallet command.
@@ -23,23 +21,23 @@ type CreateWalletResult struct {
 // It represents the non-metadata/non-wallet fields for GetAddressInfo, as well
 // as the precise fields for an embedded P2SH or P2WSH address.
 type embeddedAddressInfo struct {
-	Address             string                `json:"address"`
-	ScriptPubKey        string                `json:"scriptPubKey"`
-	Solvable            bool                  `json:"solvable"`
-	Descriptor          *string               `json:"desc,omitempty"`
-	IsScript            bool                  `json:"isscript"`
-	IsChange            bool                  `json:"ischange"`
-	IsWitness           bool                  `json:"iswitness"`
-	WitnessVersion      int                   `json:"witness_version,omitempty"`
-	WitnessProgram      *string               `json:"witness_program,omitempty"`
-	ScriptType          *txscript.ScriptClass `json:"script,omitempty"`
-	Hex                 *string               `json:"hex,omitempty"`
-	PubKeys             *[]string             `json:"pubkeys,omitempty"`
-	SignaturesRequired  *int                  `json:"sigsrequired,omitempty"`
-	PubKey              *string               `json:"pubkey,omitempty"`
-	IsCompressed        *bool                 `json:"iscompressed,omitempty"`
-	HDMasterFingerprint *string               `json:"hdmasterfingerprint,omitempty"`
-	Labels              []string              `json:"labels"`
+	Address             string    `json:"address"`
+	ScriptPubKey        string    `json:"scriptPubKey"`
+	Solvable            bool      `json:"solvable"`
+	Descriptor          *string   `json:"desc,omitempty"`
+	IsScript            bool      `json:"isscript"`
+	IsChange            bool      `json:"ischange"`
+	IsWitness           bool      `json:"iswitness"`
+	WitnessVersion      int       `json:"witness_version,omitempty"`
+	WitnessProgram      *string   `json:"witness_program,omitempty"`
+	ScriptType          *string   `json:"script,omitempty"`
+	Hex                 *string   `json:"hex,omitempty"`
+	PubKeys             *[]string `json:"pubkeys,omitempty"`
+	SignaturesRequired  *int      `json:"sigsrequired,omitempty"`
+	PubKey              *string   `json:"pubkey,omitempty"`
+	IsCompressed        *bool     `json:"iscompressed,omitempty"`
+	HDMasterFingerprint *string   `json:"hdmasterfingerprint,omitempty"`
+	Labels              []string  `json:"labels"`
 }
 
 // GetAddressInfoResult models the result of the getaddressinfo command. It
@@ -61,70 +59,6 @@ type GetAddressInfoResult struct {
 	HDKeyPath   *string              `json:"hdkeypath,omitempty"`
 	HDSeedID    *string              `json:"hdseedid,omitempty"`
 	Embedded    *embeddedAddressInfo `json:"embedded,omitempty"`
-}
-
-// UnmarshalJSON provides a custom unmarshaller for GetAddressInfoResult.
-// It is adapted to avoid creating a duplicate raw struct for unmarshalling
-// the JSON bytes into.
-//
-// Reference: http://choly.ca/post/go-json-marshalling
-func (e *GetAddressInfoResult) UnmarshalJSON(data []byte) error {
-	// Step 1: Create type aliases of the original struct, including the
-	// embedded one.
-	type Alias GetAddressInfoResult
-	type EmbeddedAlias embeddedAddressInfo
-
-	// Step 2: Create an anonymous struct with raw replacements for the special
-	// fields.
-	aux := &struct {
-		ScriptType *string `json:"script,omitempty"`
-		Embedded   *struct {
-			ScriptType *string `json:"script,omitempty"`
-			*EmbeddedAlias
-		} `json:"embedded,omitempty"`
-		*Alias
-	}{
-		Alias: (*Alias)(e),
-	}
-
-	// Step 3: Unmarshal the data into the anonymous struct.
-	if err := json.Unmarshal(data, &aux); err != nil {
-		return err
-	}
-
-	// Step 4: Convert the raw fields to the desired types
-	var (
-		sc  *txscript.ScriptClass
-		err error
-	)
-
-	if aux.ScriptType != nil {
-		sc, err = txscript.NewScriptClass(*aux.ScriptType)
-		if err != nil {
-			return err
-		}
-	}
-
-	e.ScriptType = sc
-
-	if aux.Embedded != nil {
-		var (
-			embeddedSc *txscript.ScriptClass
-			err        error
-		)
-
-		if aux.Embedded.ScriptType != nil {
-			embeddedSc, err = txscript.NewScriptClass(*aux.Embedded.ScriptType)
-			if err != nil {
-				return err
-			}
-		}
-
-		e.Embedded = (*embeddedAddressInfo)(aux.Embedded.EmbeddedAlias)
-		e.Embedded.ScriptType = embeddedSc
-	}
-
-	return nil
 }
 
 // GetTransactionDetailsResult models the details data from the gettransaction command.

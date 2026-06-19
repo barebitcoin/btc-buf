@@ -9,10 +9,11 @@ import (
 	"encoding/json"
 	"strconv"
 
-	"github.com/btcsuite/btcd/btcutil"
-	"github.com/btcsuite/btcd/chaincfg"
-	"github.com/btcsuite/btcd/chaincfg/chainhash"
-	"github.com/btcsuite/btcd/wire"
+	"github.com/btcsuite/btcd/address/v2"
+	"github.com/btcsuite/btcd/btcutil/v2"
+	"github.com/btcsuite/btcd/chaincfg/v2"
+	"github.com/btcsuite/btcd/chainhash/v2"
+	"github.com/btcsuite/btcd/wire/v2"
 
 	"github.com/barebitcoin/btc-buf/rpcclient/btcjson"
 )
@@ -246,7 +247,7 @@ func (c *Client) ListUnspentMinMaxAsync(ctx context.Context, minConf, maxConf in
 // function on the returned instance.
 //
 // See ListUnspentMinMaxAddresses for the blocking version and more details.
-func (c *Client) ListUnspentMinMaxAddressesAsync(ctx context.Context, minConf, maxConf int, addrs []btcutil.Address) FutureListUnspentResult {
+func (c *Client) ListUnspentMinMaxAddressesAsync(ctx context.Context, minConf, maxConf int, addrs []address.Address) FutureListUnspentResult {
 	addrStrs := make([]string, 0, len(addrs))
 	for _, a := range addrs {
 		addrStrs = append(addrStrs, a.EncodeAddress())
@@ -280,7 +281,7 @@ func (c *Client) ListUnspentMinMax(ctx context.Context, minConf, maxConf int) ([
 // ListUnspentMinMaxAddresses returns all unspent transaction outputs that pay
 // to any of specified addresses in a wallet using the specified number of
 // minimum and maximum number of confirmations as a filter.
-func (c *Client) ListUnspentMinMaxAddresses(ctx context.Context, minConf, maxConf int, addrs []btcutil.Address) ([]btcjson.ListUnspentResult, error) {
+func (c *Client) ListUnspentMinMaxAddresses(ctx context.Context, minConf, maxConf int, addrs []address.Address) ([]btcjson.ListUnspentResult, error) {
 	return c.ListUnspentMinMaxAddressesAsync(ctx, minConf, maxConf, addrs).Receive()
 }
 
@@ -633,7 +634,7 @@ func (r FutureSendToAddressResult) Receive() (*chainhash.Hash, error) {
 // returned instance.
 //
 // See SendToAddress for the blocking version and more details.
-func (c *Client) SendToAddressAsync(ctx context.Context, address btcutil.Address, amount btcutil.Amount) FutureSendToAddressResult {
+func (c *Client) SendToAddressAsync(ctx context.Context, address address.Address, amount btcutil.Amount) FutureSendToAddressResult {
 	addr := address.EncodeAddress()
 	cmd := btcjson.NewSendToAddressCmd(addr, amount.ToBTC(), nil, nil)
 	return c.SendCmd(ctx, cmd)
@@ -647,7 +648,7 @@ func (c *Client) SendToAddressAsync(ctx context.Context, address btcutil.Address
 //
 // NOTE: This function requires to the wallet to be unlocked.  See the
 // WalletPassphrase function for more details.
-func (c *Client) SendToAddress(ctx context.Context, address btcutil.Address, amount btcutil.Amount) (*chainhash.Hash, error) {
+func (c *Client) SendToAddress(ctx context.Context, address address.Address, amount btcutil.Amount) (*chainhash.Hash, error) {
 	return c.SendToAddressAsync(ctx, address, amount).Receive()
 }
 
@@ -656,7 +657,7 @@ func (c *Client) SendToAddress(ctx context.Context, address btcutil.Address, amo
 // function on the returned instance.
 //
 // See SendToAddressComment for the blocking version and more details.
-func (c *Client) SendToAddressCommentAsync(ctx context.Context, address btcutil.Address,
+func (c *Client) SendToAddressCommentAsync(ctx context.Context, address address.Address,
 	amount btcutil.Amount, comment,
 	commentTo string,
 ) FutureSendToAddressResult {
@@ -678,7 +679,7 @@ func (c *Client) SendToAddressCommentAsync(ctx context.Context, address btcutil.
 //
 // NOTE: This function requires to the wallet to be unlocked.  See the
 // WalletPassphrase function for more details.
-func (c *Client) SendToAddressComment(ctx context.Context, address btcutil.Address, amount btcutil.Amount, comment, commentTo string) (*chainhash.Hash, error) {
+func (c *Client) SendToAddressComment(ctx context.Context, address address.Address, amount btcutil.Amount, comment, commentTo string) (*chainhash.Hash, error) {
 	return c.SendToAddressCommentAsync(ctx, address, amount, comment,
 		commentTo).Receive()
 }
@@ -712,7 +713,7 @@ func (r FutureSendFromResult) Receive() (*chainhash.Hash, error) {
 // returned instance.
 //
 // See SendFrom for the blocking version and more details.
-func (c *Client) SendFromAsync(ctx context.Context, fromAccount string, toAddress btcutil.Address, amount btcutil.Amount) FutureSendFromResult {
+func (c *Client) SendFromAsync(ctx context.Context, fromAccount string, toAddress address.Address, amount btcutil.Amount) FutureSendFromResult {
 	addr := toAddress.EncodeAddress()
 	cmd := btcjson.NewSendFromCmd(fromAccount, addr, amount.ToBTC(), nil,
 		nil, nil)
@@ -727,7 +728,7 @@ func (c *Client) SendFromAsync(ctx context.Context, fromAccount string, toAddres
 //
 // NOTE: This function requires to the wallet to be unlocked.  See the
 // WalletPassphrase function for more details.
-func (c *Client) SendFrom(ctx context.Context, fromAccount string, toAddress btcutil.Address, amount btcutil.Amount) (*chainhash.Hash, error) {
+func (c *Client) SendFrom(ctx context.Context, fromAccount string, toAddress address.Address, amount btcutil.Amount) (*chainhash.Hash, error) {
 	return c.SendFromAsync(ctx, fromAccount, toAddress, amount).Receive()
 }
 
@@ -736,7 +737,7 @@ func (c *Client) SendFrom(ctx context.Context, fromAccount string, toAddress btc
 // the returned instance.
 //
 // See SendFromMinConf for the blocking version and more details.
-func (c *Client) SendFromMinConfAsync(ctx context.Context, fromAccount string, toAddress btcutil.Address, amount btcutil.Amount, minConfirms int) FutureSendFromResult {
+func (c *Client) SendFromMinConfAsync(ctx context.Context, fromAccount string, toAddress address.Address, amount btcutil.Amount, minConfirms int) FutureSendFromResult {
 	addr := toAddress.EncodeAddress()
 	cmd := btcjson.NewSendFromCmd(fromAccount, addr, amount.ToBTC(),
 		&minConfirms, nil, nil)
@@ -752,7 +753,7 @@ func (c *Client) SendFromMinConfAsync(ctx context.Context, fromAccount string, t
 //
 // NOTE: This function requires to the wallet to be unlocked.  See the
 // WalletPassphrase function for more details.
-func (c *Client) SendFromMinConf(ctx context.Context, fromAccount string, toAddress btcutil.Address, amount btcutil.Amount, minConfirms int) (*chainhash.Hash, error) {
+func (c *Client) SendFromMinConf(ctx context.Context, fromAccount string, toAddress address.Address, amount btcutil.Amount, minConfirms int) (*chainhash.Hash, error) {
 	return c.SendFromMinConfAsync(ctx, fromAccount, toAddress, amount,
 		minConfirms).Receive()
 }
@@ -763,7 +764,7 @@ func (c *Client) SendFromMinConf(ctx context.Context, fromAccount string, toAddr
 //
 // See SendFromComment for the blocking version and more details.
 func (c *Client) SendFromCommentAsync(ctx context.Context, fromAccount string,
-	toAddress btcutil.Address, amount btcutil.Amount, minConfirms int,
+	toAddress address.Address, amount btcutil.Amount, minConfirms int,
 	comment, commentTo string,
 ) FutureSendFromResult {
 	addr := toAddress.EncodeAddress()
@@ -783,7 +784,7 @@ func (c *Client) SendFromCommentAsync(ctx context.Context, fromAccount string,
 //
 // NOTE: This function requires to the wallet to be unlocked.  See the
 // WalletPassphrase function for more details.
-func (c *Client) SendFromComment(ctx context.Context, fromAccount string, toAddress btcutil.Address,
+func (c *Client) SendFromComment(ctx context.Context, fromAccount string, toAddress address.Address,
 	amount btcutil.Amount, minConfirms int,
 	comment, commentTo string,
 ) (*chainhash.Hash, error) {
@@ -820,7 +821,7 @@ func (r FutureSendManyResult) Receive() (*chainhash.Hash, error) {
 // returned instance.
 //
 // See SendMany for the blocking version and more details.
-func (c *Client) SendManyAsync(ctx context.Context, fromAccount string, amounts map[btcutil.Address]btcutil.Amount) FutureSendManyResult {
+func (c *Client) SendManyAsync(ctx context.Context, fromAccount string, amounts map[address.Address]btcutil.Amount) FutureSendManyResult {
 	convertedAmounts := make(map[string]float64, len(amounts))
 	for addr, amount := range amounts {
 		convertedAmounts[addr.EncodeAddress()] = amount.ToBTC()
@@ -837,7 +838,7 @@ func (c *Client) SendManyAsync(ctx context.Context, fromAccount string, amounts 
 //
 // NOTE: This function requires to the wallet to be unlocked.  See the
 // WalletPassphrase function for more details.
-func (c *Client) SendMany(ctx context.Context, fromAccount string, amounts map[btcutil.Address]btcutil.Amount) (*chainhash.Hash, error) {
+func (c *Client) SendMany(ctx context.Context, fromAccount string, amounts map[address.Address]btcutil.Amount) (*chainhash.Hash, error) {
 	return c.SendManyAsync(ctx, fromAccount, amounts).Receive()
 }
 
@@ -847,7 +848,7 @@ func (c *Client) SendMany(ctx context.Context, fromAccount string, amounts map[b
 //
 // See SendManyMinConf for the blocking version and more details.
 func (c *Client) SendManyMinConfAsync(ctx context.Context, fromAccount string,
-	amounts map[btcutil.Address]btcutil.Amount,
+	amounts map[address.Address]btcutil.Amount,
 	minConfirms int,
 ) FutureSendManyResult {
 	convertedAmounts := make(map[string]float64, len(amounts))
@@ -869,7 +870,7 @@ func (c *Client) SendManyMinConfAsync(ctx context.Context, fromAccount string,
 // NOTE: This function requires to the wallet to be unlocked.  See the
 // WalletPassphrase function for more details.
 func (c *Client) SendManyMinConf(ctx context.Context, fromAccount string,
-	amounts map[btcutil.Address]btcutil.Amount,
+	amounts map[address.Address]btcutil.Amount,
 	minConfirms int,
 ) (*chainhash.Hash, error) {
 	return c.SendManyMinConfAsync(ctx, fromAccount, amounts, minConfirms).Receive()
@@ -881,7 +882,7 @@ func (c *Client) SendManyMinConf(ctx context.Context, fromAccount string,
 //
 // See SendManyComment for the blocking version and more details.
 func (c *Client) SendManyCommentAsync(ctx context.Context, fromAccount string,
-	amounts map[btcutil.Address]btcutil.Amount, minConfirms int,
+	amounts map[address.Address]btcutil.Amount, minConfirms int,
 	comment string,
 ) FutureSendManyResult {
 	convertedAmounts := make(map[string]float64, len(amounts))
@@ -904,7 +905,7 @@ func (c *Client) SendManyCommentAsync(ctx context.Context, fromAccount string,
 // NOTE: This function requires to the wallet to be unlocked.  See the
 // WalletPassphrase function for more details.
 func (c *Client) SendManyComment(ctx context.Context, fromAccount string,
-	amounts map[btcutil.Address]btcutil.Amount, minConfirms int,
+	amounts map[address.Address]btcutil.Amount, minConfirms int,
 	comment string,
 ) (*chainhash.Hash, error) {
 	return c.SendManyCommentAsync(ctx, fromAccount, amounts, minConfirms,
@@ -925,7 +926,7 @@ type FutureAddMultisigAddressResult struct {
 // Receive waits for the Response promised by the future and returns the
 // multisignature address that requires the specified number of signatures for
 // the provided addresses.
-func (r FutureAddMultisigAddressResult) Receive() (btcutil.Address, error) {
+func (r FutureAddMultisigAddressResult) Receive() (address.Address, error) {
 	res, err := ReceiveFuture(r.responseChannel)
 	if err != nil {
 		return nil, err
@@ -938,7 +939,7 @@ func (r FutureAddMultisigAddressResult) Receive() (btcutil.Address, error) {
 		return nil, err
 	}
 
-	return btcutil.DecodeAddress(addr, r.network)
+	return address.DecodeAddress(addr, r.network)
 }
 
 // AddMultisigAddressAsync returns an instance of a type that can be used to get
@@ -946,7 +947,7 @@ func (r FutureAddMultisigAddressResult) Receive() (btcutil.Address, error) {
 // the returned instance.
 //
 // See AddMultisigAddress for the blocking version and more details.
-func (c *Client) AddMultisigAddressAsync(ctx context.Context, requiredSigs int, addresses []btcutil.Address, account string) FutureAddMultisigAddressResult {
+func (c *Client) AddMultisigAddressAsync(ctx context.Context, requiredSigs int, addresses []address.Address, account string) FutureAddMultisigAddressResult {
 	addrs := make([]string, 0, len(addresses))
 	for _, addr := range addresses {
 		addrs = append(addrs, addr.String())
@@ -962,7 +963,7 @@ func (c *Client) AddMultisigAddressAsync(ctx context.Context, requiredSigs int, 
 
 // AddMultisigAddress adds a multisignature address that requires the specified
 // number of signatures for the provided addresses to the wallet.
-func (c *Client) AddMultisigAddress(ctx context.Context, requiredSigs int, addresses []btcutil.Address, account string) (btcutil.Address, error) {
+func (c *Client) AddMultisigAddress(ctx context.Context, requiredSigs int, addresses []address.Address, account string) (address.Address, error) {
 	return c.AddMultisigAddressAsync(ctx, requiredSigs, addresses, account).Receive()
 }
 
@@ -993,7 +994,7 @@ func (r FutureCreateMultisigResult) Receive() (*btcjson.CreateMultiSigResult, er
 // the returned instance.
 //
 // See CreateMultisig for the blocking version and more details.
-func (c *Client) CreateMultisigAsync(ctx context.Context, requiredSigs int, addresses []btcutil.Address) FutureCreateMultisigResult {
+func (c *Client) CreateMultisigAsync(ctx context.Context, requiredSigs int, addresses []address.Address) FutureCreateMultisigResult {
 	addrs := make([]string, 0, len(addresses))
 	for _, addr := range addresses {
 		addrs = append(addrs, addr.String())
@@ -1006,7 +1007,7 @@ func (c *Client) CreateMultisigAsync(ctx context.Context, requiredSigs int, addr
 // CreateMultisig creates a multisignature address that requires the specified
 // number of signatures for the provided addresses and returns the
 // multisignature address and script needed to redeem it.
-func (c *Client) CreateMultisig(ctx context.Context, requiredSigs int, addresses []btcutil.Address) (*btcjson.CreateMultiSigResult, error) {
+func (c *Client) CreateMultisig(ctx context.Context, requiredSigs int, addresses []address.Address) (*btcjson.CreateMultiSigResult, error) {
 	return c.CreateMultisigAsync(ctx, requiredSigs, addresses).Receive()
 }
 
@@ -1165,7 +1166,7 @@ type FutureGetNewAddressResult struct {
 
 // Receive waits for the Response promised by the future and returns a new
 // address.
-func (r FutureGetNewAddressResult) Receive() (btcutil.Address, error) {
+func (r FutureGetNewAddressResult) Receive() (address.Address, error) {
 	res, err := ReceiveFuture(r.responseChannel)
 	if err != nil {
 		return nil, err
@@ -1178,7 +1179,7 @@ func (r FutureGetNewAddressResult) Receive() (btcutil.Address, error) {
 		return nil, err
 	}
 
-	return btcutil.DecodeAddress(addr, r.network)
+	return address.DecodeAddress(addr, r.network)
 }
 
 // GetNewAddressAsync returns an instance of a type that can be used to get the
@@ -1197,7 +1198,7 @@ func (c *Client) GetNewAddressAsync(ctx context.Context, account string) FutureG
 
 // GetNewAddress returns a new address, and decodes based on the client's
 // chain params.
-func (c *Client) GetNewAddress(ctx context.Context, account string) (btcutil.Address, error) {
+func (c *Client) GetNewAddress(ctx context.Context, account string) (address.Address, error) {
 	return c.GetNewAddressAsync(ctx, account).Receive()
 }
 
@@ -1217,7 +1218,7 @@ func (c *Client) GetNewAddressTypeAsync(ctx context.Context, account, addrType s
 
 // GetNewAddressType returns a new address, and decodes based on the client's
 // chain params.
-func (c *Client) GetNewAddressType(ctx context.Context, account, addrType string) (btcutil.Address, error) {
+func (c *Client) GetNewAddressType(ctx context.Context, account, addrType string) (address.Address, error) {
 	return c.GetNewAddressTypeAsync(ctx, account, addrType).Receive()
 }
 
@@ -1231,7 +1232,7 @@ type FutureGetRawChangeAddressResult struct {
 // Receive waits for the Response promised by the future and returns a new
 // address for receiving change that will be associated with the provided
 // account.  Note that this is only for raw transactions and NOT for normal use.
-func (r FutureGetRawChangeAddressResult) Receive() (btcutil.Address, error) {
+func (r FutureGetRawChangeAddressResult) Receive() (address.Address, error) {
 	res, err := ReceiveFuture(r.responseChannel)
 	if err != nil {
 		return nil, err
@@ -1244,7 +1245,7 @@ func (r FutureGetRawChangeAddressResult) Receive() (btcutil.Address, error) {
 		return nil, err
 	}
 
-	return btcutil.DecodeAddress(addr, r.network)
+	return address.DecodeAddress(addr, r.network)
 }
 
 // GetRawChangeAddressAsync returns an instance of a type that can be used to
@@ -1264,7 +1265,7 @@ func (c *Client) GetRawChangeAddressAsync(ctx context.Context, account string) F
 // GetRawChangeAddress returns a new address for receiving change that will be
 // associated with the provided account.  Note that this is only for raw
 // transactions and NOT for normal use.
-func (c *Client) GetRawChangeAddress(ctx context.Context, account string) (btcutil.Address, error) {
+func (c *Client) GetRawChangeAddress(ctx context.Context, account string) (address.Address, error) {
 	return c.GetRawChangeAddressAsync(ctx, account).Receive()
 }
 
@@ -1285,7 +1286,7 @@ func (c *Client) GetRawChangeAddressTypeAsync(ctx context.Context, account, addr
 // GetRawChangeAddressType returns a new address for receiving change that will
 // be associated with the provided account.  Note that this is only for raw
 // transactions and NOT for normal use.
-func (c *Client) GetRawChangeAddressType(ctx context.Context, account, addrType string) (btcutil.Address, error) {
+func (c *Client) GetRawChangeAddressType(ctx context.Context, account, addrType string) (address.Address, error) {
 	return c.GetRawChangeAddressTypeAsync(ctx, account, addrType).Receive()
 }
 
@@ -1298,7 +1299,7 @@ type FutureAddWitnessAddressResult struct {
 
 // Receive waits for the Response promised by the future and returns the new
 // address.
-func (r FutureAddWitnessAddressResult) Receive() (btcutil.Address, error) {
+func (r FutureAddWitnessAddressResult) Receive() (address.Address, error) {
 	res, err := ReceiveFuture(r.responseChannel)
 	if err != nil {
 		return nil, err
@@ -1311,7 +1312,7 @@ func (r FutureAddWitnessAddressResult) Receive() (btcutil.Address, error) {
 		return nil, err
 	}
 
-	return btcutil.DecodeAddress(addr, r.network)
+	return address.DecodeAddress(addr, r.network)
 }
 
 // AddWitnessAddressAsync returns an instance of a type that can be used to get
@@ -1330,7 +1331,7 @@ func (c *Client) AddWitnessAddressAsync(ctx context.Context, address string) Fut
 
 // AddWitnessAddress adds a witness address for a script and returns the new
 // address (P2SH of the witness script).
-func (c *Client) AddWitnessAddress(ctx context.Context, address string) (btcutil.Address, error) {
+func (c *Client) AddWitnessAddress(ctx context.Context, address string) (address.Address, error) {
 	return c.AddWitnessAddressAsync(ctx, address).Receive()
 }
 
@@ -1343,7 +1344,7 @@ type FutureGetAccountAddressResult struct {
 
 // Receive waits for the Response promised by the future and returns the current
 // Bitcoin address for receiving payments to the specified account.
-func (r FutureGetAccountAddressResult) Receive() (btcutil.Address, error) {
+func (r FutureGetAccountAddressResult) Receive() (address.Address, error) {
 	res, err := ReceiveFuture(r.responseChannel)
 	if err != nil {
 		return nil, err
@@ -1356,7 +1357,7 @@ func (r FutureGetAccountAddressResult) Receive() (btcutil.Address, error) {
 		return nil, err
 	}
 
-	return btcutil.DecodeAddress(addr, r.network)
+	return address.DecodeAddress(addr, r.network)
 }
 
 // GetAccountAddressAsync returns an instance of a type that can be used to get
@@ -1375,7 +1376,7 @@ func (c *Client) GetAccountAddressAsync(ctx context.Context, account string) Fut
 
 // GetAccountAddress returns the current Bitcoin address for receiving payments
 // to the specified account.
-func (c *Client) GetAccountAddress(ctx context.Context, account string) (btcutil.Address, error) {
+func (c *Client) GetAccountAddress(ctx context.Context, account string) (address.Address, error) {
 	return c.GetAccountAddressAsync(ctx, account).Receive()
 }
 
@@ -1406,14 +1407,14 @@ func (r FutureGetAccountResult) Receive() (string, error) {
 // returned instance.
 //
 // See GetAccount for the blocking version and more details.
-func (c *Client) GetAccountAsync(ctx context.Context, address btcutil.Address) FutureGetAccountResult {
+func (c *Client) GetAccountAsync(ctx context.Context, address address.Address) FutureGetAccountResult {
 	addr := address.EncodeAddress()
 	cmd := btcjson.NewGetAccountCmd(addr)
 	return c.SendCmd(ctx, cmd)
 }
 
 // GetAccount returns the account associated with the passed address.
-func (c *Client) GetAccount(ctx context.Context, address btcutil.Address) (string, error) {
+func (c *Client) GetAccount(ctx context.Context, address address.Address) (string, error) {
 	return c.GetAccountAsync(ctx, address).Receive()
 }
 
@@ -1433,14 +1434,14 @@ func (r FutureSetAccountResult) Receive() error {
 // returned instance.
 //
 // See SetAccount for the blocking version and more details.
-func (c *Client) SetAccountAsync(ctx context.Context, address btcutil.Address, account string) FutureSetAccountResult {
+func (c *Client) SetAccountAsync(ctx context.Context, address address.Address, account string) FutureSetAccountResult {
 	addr := address.EncodeAddress()
 	cmd := btcjson.NewSetAccountCmd(addr, account)
 	return c.SendCmd(ctx, cmd)
 }
 
 // SetAccount sets the account associated with the passed address.
-func (c *Client) SetAccount(ctx context.Context, address btcutil.Address, account string) error {
+func (c *Client) SetAccount(ctx context.Context, address address.Address, account string) error {
 	return c.SetAccountAsync(ctx, address, account).Receive()
 }
 
@@ -1453,7 +1454,7 @@ type FutureGetAddressesByAccountResult struct {
 
 // Receive waits for the Response promised by the future and returns the list of
 // addresses associated with the passed account.
-func (r FutureGetAddressesByAccountResult) Receive() ([]btcutil.Address, error) {
+func (r FutureGetAddressesByAccountResult) Receive() ([]address.Address, error) {
 	res, err := ReceiveFuture(r.responseChannel)
 	if err != nil {
 		return nil, err
@@ -1466,9 +1467,9 @@ func (r FutureGetAddressesByAccountResult) Receive() ([]btcutil.Address, error) 
 		return nil, err
 	}
 
-	addresses := make([]btcutil.Address, len(addrStrings))
+	addresses := make([]address.Address, len(addrStrings))
 	for i, addrString := range addrStrings {
-		addresses[i], err = btcutil.DecodeAddress(addrString, r.network)
+		addresses[i], err = address.DecodeAddress(addrString, r.network)
 		if err != nil {
 			return nil, err
 		}
@@ -1493,7 +1494,7 @@ func (c *Client) GetAddressesByAccountAsync(ctx context.Context, account string)
 
 // GetAddressesByAccount returns the list of addresses associated with the
 // passed account.
-func (c *Client) GetAddressesByAccount(ctx context.Context, account string) ([]btcutil.Address, error) {
+func (c *Client) GetAddressesByAccount(ctx context.Context, account string) ([]address.Address, error) {
 	return c.GetAddressesByAccountAsync(ctx, account).Receive()
 }
 
@@ -1641,14 +1642,14 @@ func (r FutureValidateAddressResult) Receive() (*btcjson.ValidateAddressWalletRe
 // the returned instance.
 //
 // See ValidateAddress for the blocking version and more details.
-func (c *Client) ValidateAddressAsync(ctx context.Context, address btcutil.Address) FutureValidateAddressResult {
+func (c *Client) ValidateAddressAsync(ctx context.Context, address address.Address) FutureValidateAddressResult {
 	addr := address.EncodeAddress()
 	cmd := btcjson.NewValidateAddressCmd(addr)
 	return c.SendCmd(ctx, cmd)
 }
 
 // ValidateAddress returns information about the given bitcoin address.
-func (c *Client) ValidateAddress(ctx context.Context, address btcutil.Address) (*btcjson.ValidateAddressWalletResult, error) {
+func (c *Client) ValidateAddress(ctx context.Context, address address.Address) (*btcjson.ValidateAddressWalletResult, error) {
 	return c.ValidateAddressAsync(ctx, address).Receive()
 }
 
@@ -2051,7 +2052,7 @@ func (r FutureGetReceivedByAddressResult) Receive() (btcutil.Amount, error) {
 // function on the returned instance.
 //
 // See GetReceivedByAddress for the blocking version and more details.
-func (c *Client) GetReceivedByAddressAsync(ctx context.Context, address btcutil.Address) FutureGetReceivedByAddressResult {
+func (c *Client) GetReceivedByAddressAsync(ctx context.Context, address address.Address) FutureGetReceivedByAddressResult {
 	addr := address.EncodeAddress()
 	cmd := btcjson.NewGetReceivedByAddressCmd(addr, nil)
 	return c.SendCmd(ctx, cmd)
@@ -2062,7 +2063,7 @@ func (c *Client) GetReceivedByAddressAsync(ctx context.Context, address btcutil.
 //
 // See GetReceivedByAddressMinConf to override the minimum number of
 // confirmations.
-func (c *Client) GetReceivedByAddress(ctx context.Context, address btcutil.Address) (btcutil.Amount, error) {
+func (c *Client) GetReceivedByAddress(ctx context.Context, address address.Address) (btcutil.Amount, error) {
 	return c.GetReceivedByAddressAsync(ctx, address).Receive()
 }
 
@@ -2071,7 +2072,7 @@ func (c *Client) GetReceivedByAddress(ctx context.Context, address btcutil.Addre
 // function on the returned instance.
 //
 // See GetReceivedByAddressMinConf for the blocking version and more details.
-func (c *Client) GetReceivedByAddressMinConfAsync(ctx context.Context, address btcutil.Address, minConfirms int) FutureGetReceivedByAddressResult {
+func (c *Client) GetReceivedByAddressMinConfAsync(ctx context.Context, address address.Address, minConfirms int) FutureGetReceivedByAddressResult {
 	addr := address.EncodeAddress()
 	cmd := btcjson.NewGetReceivedByAddressCmd(addr, &minConfirms)
 	return c.SendCmd(ctx, cmd)
@@ -2081,7 +2082,7 @@ func (c *Client) GetReceivedByAddressMinConfAsync(ctx context.Context, address b
 // address with at least the specified number of minimum confirmations.
 //
 // See GetReceivedByAddress to use the default minimum number of confirmations.
-func (c *Client) GetReceivedByAddressMinConf(ctx context.Context, address btcutil.Address, minConfirms int) (btcutil.Amount, error) {
+func (c *Client) GetReceivedByAddressMinConf(ctx context.Context, address address.Address, minConfirms int) (btcutil.Amount, error) {
 	return c.GetReceivedByAddressMinConfAsync(ctx, address, minConfirms).Receive()
 }
 
@@ -2360,7 +2361,7 @@ func (r FutureSignMessageResult) Receive() (string, error) {
 // returned instance.
 //
 // See SignMessage for the blocking version and more details.
-func (c *Client) SignMessageAsync(ctx context.Context, address btcutil.Address, message string) FutureSignMessageResult {
+func (c *Client) SignMessageAsync(ctx context.Context, address address.Address, message string) FutureSignMessageResult {
 	addr := address.EncodeAddress()
 	cmd := btcjson.NewSignMessageCmd(addr, message)
 	return c.SendCmd(ctx, cmd)
@@ -2370,7 +2371,7 @@ func (c *Client) SignMessageAsync(ctx context.Context, address btcutil.Address, 
 //
 // NOTE: This function requires to the wallet to be unlocked.  See the
 // WalletPassphrase function for more details.
-func (c *Client) SignMessage(ctx context.Context, address btcutil.Address, message string) (string, error) {
+func (c *Client) SignMessage(ctx context.Context, address address.Address, message string) (string, error) {
 	return c.SignMessageAsync(ctx, address, message).Receive()
 }
 
@@ -2401,7 +2402,7 @@ func (r FutureVerifyMessageResult) Receive() (bool, error) {
 // returned instance.
 //
 // See VerifyMessage for the blocking version and more details.
-func (c *Client) VerifyMessageAsync(ctx context.Context, address btcutil.Address, signature, message string) FutureVerifyMessageResult {
+func (c *Client) VerifyMessageAsync(ctx context.Context, address address.Address, signature, message string) FutureVerifyMessageResult {
 	addr := address.EncodeAddress()
 	cmd := btcjson.NewVerifyMessageCmd(addr, signature, message)
 	return c.SendCmd(ctx, cmd)
@@ -2411,7 +2412,7 @@ func (c *Client) VerifyMessageAsync(ctx context.Context, address btcutil.Address
 //
 // NOTE: This function requires to the wallet to be unlocked.  See the
 // WalletPassphrase function for more details.
-func (c *Client) VerifyMessage(ctx context.Context, address btcutil.Address, signature, message string) (bool, error) {
+func (c *Client) VerifyMessage(ctx context.Context, address address.Address, signature, message string) (bool, error) {
 	return c.VerifyMessageAsync(ctx, address, signature, message).Receive()
 }
 
@@ -2447,7 +2448,7 @@ func (r FutureDumpPrivKeyResult) Receive() (*btcutil.WIF, error) {
 // returned instance.
 //
 // See DumpPrivKey for the blocking version and more details.
-func (c *Client) DumpPrivKeyAsync(ctx context.Context, address btcutil.Address) FutureDumpPrivKeyResult {
+func (c *Client) DumpPrivKeyAsync(ctx context.Context, address address.Address) FutureDumpPrivKeyResult {
 	addr := address.EncodeAddress()
 	cmd := btcjson.NewDumpPrivKeyCmd(addr)
 	return c.SendCmd(ctx, cmd)
@@ -2458,7 +2459,7 @@ func (c *Client) DumpPrivKeyAsync(ctx context.Context, address btcutil.Address) 
 //
 // NOTE: This function requires to the wallet to be unlocked.  See the
 // WalletPassphrase function for more details.
-func (c *Client) DumpPrivKey(ctx context.Context, address btcutil.Address) (*btcutil.WIF, error) {
+func (c *Client) DumpPrivKey(ctx context.Context, address address.Address) (*btcutil.WIF, error) {
 	return c.DumpPrivKeyAsync(ctx, address).Receive()
 }
 

@@ -17,10 +17,11 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	"github.com/btcsuite/btcd/btcutil"
-	"github.com/btcsuite/btcd/chaincfg"
-	"github.com/btcsuite/btcd/chaincfg/chainhash"
-	"github.com/btcsuite/btcd/wire"
+	"github.com/btcsuite/btcd/address/v2"
+	"github.com/btcsuite/btcd/btcutil/v2"
+	"github.com/btcsuite/btcd/chaincfg/v2"
+	"github.com/btcsuite/btcd/chainhash/v2"
+	"github.com/btcsuite/btcd/wire/v2"
 	"github.com/rs/zerolog"
 	"github.com/samber/lo"
 	"github.com/tidwall/gjson"
@@ -552,14 +553,14 @@ func (b *Bitcoind) GetNewAddress(ctx context.Context, req *connect.Request[pb.Ge
 	}
 
 	return withCancel(ctx, b.conf,
-		func(ctx context.Context) (btcutil.Address, error) {
+		func(ctx context.Context) (address.Address, error) {
 			if req.Msg.AddressType != "" {
 				return rpc.GetNewAddressType(ctx, req.Msg.Label, req.Msg.AddressType)
 			}
 
 			return rpc.GetNewAddress(ctx, req.Msg.Label)
 		},
-		func(r btcutil.Address) *pb.GetNewAddressResponse {
+		func(r address.Address) *pb.GetNewAddressResponse {
 			return &pb.GetNewAddressResponse{Address: r.EncodeAddress()}
 		})
 }
@@ -1222,7 +1223,7 @@ func (b *Bitcoind) SendToAddress(ctx context.Context, c *connect.Request[pb.Send
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("address is a required argument"))
 	}
 
-	address, err := btcutil.DecodeAddress(c.Msg.Address, &chaincfg.MainNetParams)
+	address, err := address.DecodeAddress(c.Msg.Address, &chaincfg.MainNetParams)
 	if err != nil {
 		return nil, fmt.Errorf("address has invalid format: %w", err)
 	}
@@ -1514,7 +1515,7 @@ func (b *Bitcoind) GetAddressInfo(ctx context.Context, c *connect.Request[pb.Get
 				IsWitness:      r.IsWitness,
 				WitnessVersion: uint32(r.WitnessVersion),
 				WitnessProgram: lo.FromPtr(r.WitnessProgram),
-				ScriptType:     lo.FromPtr(r.ScriptType).String(),
+				ScriptType:     lo.FromPtr(r.ScriptType),
 				IsCompressed:   lo.FromPtr(r.IsCompressed),
 			}
 		},
@@ -1621,10 +1622,10 @@ func (b *Bitcoind) BackupWallet(ctx context.Context, c *connect.Request[pb.Backu
 
 // CreateMultisig implements bitcoindv1alphaconnect.BitcoinServiceHandler.
 func (b *Bitcoind) CreateMultisig(ctx context.Context, c *connect.Request[pb.CreateMultisigRequest]) (*connect.Response[pb.CreateMultisigResponse], error) {
-	// Convert string keys to btcutil.Address
-	addresses := make([]btcutil.Address, len(c.Msg.Keys))
+	// Convert string keys to address.Address
+	addresses := make([]address.Address, len(c.Msg.Keys))
 	for i, key := range c.Msg.Keys {
-		addr, err := btcutil.DecodeAddress(key, &chaincfg.MainNetParams)
+		addr, err := address.DecodeAddress(key, &chaincfg.MainNetParams)
 		if err != nil {
 			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid address %s: %w", key, err))
 		}

@@ -10,17 +10,17 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/btcsuite/btcd/txscript"
 	"github.com/davecgh/go-spew/spew"
 )
 
-// TestGetAddressInfoResult ensures that custom unmarshalling of
-// GetAddressInfoResult works as intended.
+// TestGetAddressInfoResult ensures that unmarshalling of GetAddressInfoResult
+// works as intended.
 func TestGetAddressInfoResult(t *testing.T) {
 	t.Parallel()
 
-	// arbitrary script class to use in tests
-	nonStandard, _ := txscript.NewScriptClass("nonstandard")
+	// arbitrary script type strings to use in tests
+	nonStandard := "nonstandard"
+	foo := "foo"
 
 	tests := []struct {
 		name    string
@@ -39,7 +39,7 @@ func TestGetAddressInfoResult(t *testing.T) {
 			want: GetAddressInfoResult{
 				embeddedAddressInfo: embeddedAddressInfo{
 					Address:    "1abc",
-					ScriptType: nonStandard,
+					ScriptType: &nonStandard,
 				},
 			},
 		},
@@ -49,14 +49,19 @@ func TestGetAddressInfoResult(t *testing.T) {
 			want: GetAddressInfoResult{
 				Embedded: &embeddedAddressInfo{
 					Address:    "121313",
-					ScriptType: nonStandard,
+					ScriptType: &nonStandard,
 				},
 			},
 		},
 		{
-			name:    "GetAddressInfoResult - invalid ScriptType",
-			result:  `{"embedded": {"script":"foo","address":"121313"}}`,
-			wantErr: txscript.ErrUnsupportedScriptType,
+			name:   "GetAddressInfoResult - arbitrary ScriptType string",
+			result: `{"embedded": {"script":"foo","address":"121313"}}`,
+			want: GetAddressInfoResult{
+				Embedded: &embeddedAddressInfo{
+					Address:    "121313",
+					ScriptType: &foo,
+				},
+			},
 		},
 	}
 
