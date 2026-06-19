@@ -21,7 +21,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/btcsuite/btcd/chaincfg"
+	"github.com/btcsuite/btcd/chaincfg/v2"
 	"github.com/rs/zerolog"
 
 	"github.com/barebitcoin/btc-buf/rpcclient/btcjson"
