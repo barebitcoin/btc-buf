@@ -46,7 +46,7 @@ func (c *Client) RawRequestAsync(ctx context.Context, method string, params []js
 	id := c.NextID()
 	rawRequest := &btcjson.Request{
 		Jsonrpc: btcjson.RpcVersion1,
-		ID:      id,
+		ID:      c.jsonID(ctx, id),
 		Method:  method,
 		Params:  params,
 	}

@@ -122,6 +122,15 @@ func (c *Client) NextID() uint64 {
 	return atomic.AddUint64(&c.id, 1)
 }
 
+func (c *Client) jsonID(ctx context.Context, numericID uint64) any {
+	if !c.batch && c.config.RequestID != nil {
+		if id := c.config.RequestID(ctx); id != "" {
+			return id
+		}
+	}
+	return numericID
+}
+
 // addRequest associates the passed jsonRequest with its id.  This allows the
 // response from the remote server to be unmarshalled to the appropriate type
 // and sent to the specified channel when it is received.
@@ -450,7 +459,7 @@ func (c *Client) SendCmd(ctx context.Context, cmd interface{}) chan *Response {
 
 	// Marshal the command.
 	id := c.NextID()
-	marshalledJSON, err := btcjson.MarshalCmd(rpcVersion, id, cmd)
+	marshalledJSON, err := btcjson.MarshalCmd(rpcVersion, c.jsonID(ctx, id), cmd)
 	if err != nil {
 		return newFutureError(err)
 	}
@@ -618,6 +627,10 @@ type ConnConfig struct {
 	// EnableBCInfoHacks is an option provided to enable compatibility hacks
 	// when connecting to blockchain.info RPC server
 	EnableBCInfoHacks bool
+
+	// RequestID, if set, derives the JSON-RPC request "id" sent to the
+	// server from the request context.
+	RequestID func(ctx context.Context) string
 }
 
 // getAuth returns the username and passphrase that will actually be used for
