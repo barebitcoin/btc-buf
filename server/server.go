@@ -137,6 +137,11 @@ func NewBitcoind(
 		Pass:       pass,
 		DisableTLS: !conf.enableTLS,
 		Host:       host,
+
+		// Forward our per-request Connect ID as the JSON-RPC id, so a
+		// request can be correlated all the way into bitcoind's debug
+		// log
+		RequestID: connectserver.RequestID,
 	}
 
 	client, err := rpcclient.New(ctx, &rpcConf)
