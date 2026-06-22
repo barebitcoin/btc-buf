@@ -20,8 +20,6 @@ import (
 	"github.com/oklog/ulid/v2"
 	"github.com/rs/zerolog"
 	"github.com/samber/lo"
-	"golang.org/x/net/http2"
-	"golang.org/x/net/http2/h2c"
 
 	"github.com/barebitcoin/btc-buf/connectserver/logging"
 )
@@ -148,7 +146,7 @@ func (s *Server) WithPprof(ctx context.Context) *Server {
 }
 
 func (s *Server) Handler() http.Handler {
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// If the body is completely empty, replace it with the
 		// empty object. This makes it possible to send requests
 		// without a body, without getting a cryptic error.
@@ -158,9 +156,6 @@ func (s *Server) Handler() http.Handler {
 
 		s.mux.ServeHTTP(w, r)
 	})
-
-	// Use h2c, so we can serve HTTP/2 without TLS.
-	return h2c.NewHandler(handler, &http2.Server{})
 }
 
 func (s *Server) Serve(ctx context.Context, address string) error {
@@ -208,9 +203,15 @@ func (s *Server) Serve(ctx context.Context, address string) error {
 			Msg("could not close listener")
 	}()
 
+	// Serve HTTP/2 without TLS (h2c), in addition to HTTP/1.
+	protocols := new(http.Protocols)
+	protocols.SetHTTP1(true)
+	protocols.SetUnencryptedHTTP2(true)
+
 	s.server = &http.Server{
 		Handler:           s.Handler(),
 		ReadHeaderTimeout: time.Minute,
+		Protocols:         protocols,
 	}
 
 	if err := s.server.Serve(lis); err != nil && !errors.Is(err, http.ErrServerClosed) {
