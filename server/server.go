@@ -70,6 +70,7 @@ type config struct {
 	allowPrivateDescriptorsExport bool // default to the safe option, denying
 	logging                       func(ctx context.Context) *zerolog.Logger
 	withoutInitialConnectionCheck bool
+	cookiePath                    string
 }
 
 func newConfig(opts []Option) config {
@@ -96,6 +97,16 @@ func WithTLS() Option {
 func WithAllowPrivateDescriptorsExport() Option {
 	return func(c *config) {
 		c.allowPrivateDescriptorsExport = true
+	}
+}
+
+// WithCookiePath authenticates via Core's cookie file instead of a static
+// user/pass. The cookie is re-read when it changes, so callers survive a Core
+// restart (which rewrites the cookie) without reconnecting. Ignored when a
+// non-empty pass is also supplied.
+func WithCookiePath(path string) Option {
+	return func(c *config) {
+		c.cookiePath = path
 	}
 }
 
@@ -135,6 +146,7 @@ func NewBitcoind(
 	rpcConf := rpcclient.ConnConfig{
 		User:       user,
 		Pass:       pass,
+		CookiePath: conf.cookiePath,
 		DisableTLS: !conf.enableTLS,
 		Host:       host,
 
