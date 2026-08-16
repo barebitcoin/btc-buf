@@ -19,7 +19,7 @@ require (
 	github.com/samber/lo v1.53.0
 	github.com/tidwall/gjson v1.19.0
 	golang.org/x/exp v0.0.0-20260112195511-716be5621a96
-	google.golang.org/protobuf v1.36.11
+	google.golang.org/protobuf v1.36.12
 )
 
 require (
