@@ -1,6 +1,6 @@
 module github.com/barebitcoin/btc-buf
 
-go 1.25.0
+go 1.27.0
 
 require (
 	connectrpc.com/connect v1.20.0
@@ -18,19 +18,19 @@ require (
 	github.com/rs/zerolog v1.35.1
 	github.com/samber/lo v1.53.0
 	github.com/tidwall/gjson v1.19.0
-	golang.org/x/exp v0.0.0-20260112195511-716be5621a96
-	google.golang.org/protobuf v1.36.11
+	golang.org/x/exp v0.0.0-20260820142414-ca536658362e
+	google.golang.org/protobuf v1.36.12
 )
 
 require (
 	github.com/btcsuite/btcd/btcec/v2 v2.5.0 // indirect
-	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.0 // indirect
+	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.1 // indirect
 	github.com/kcalvinalvin/anet v0.0.0-20251112173137-d8ddc1f6dbee // indirect
-	github.com/mattn/go-colorable v0.1.14 // indirect
-	github.com/mattn/go-isatty v0.0.20 // indirect
-	github.com/tidwall/match v1.1.1 // indirect
-	github.com/tidwall/pretty v1.2.0 // indirect
-	golang.org/x/crypto v0.53.0 // indirect
-	golang.org/x/sys v0.46.0 // indirect
-	golang.org/x/text v0.38.0 // indirect
+	github.com/mattn/go-colorable v0.1.15 // indirect
+	github.com/mattn/go-isatty v0.0.24 // indirect
+	github.com/tidwall/match v1.2.0 // indirect
+	github.com/tidwall/pretty v1.2.1 // indirect
+	golang.org/x/crypto v0.55.0 // indirect
+	golang.org/x/sys v0.47.0 // indirect
+	golang.org/x/text v0.41.0 // indirect
 )

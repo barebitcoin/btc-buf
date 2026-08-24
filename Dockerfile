@@ -3,7 +3,7 @@ FROM golang:1.27-alpine AS builder
 WORKDIR /work
 
 ## We install grpc-health-probe tool for internal healtch checks
-RUN GRPC_HEALTH_PROBE_VERSION=v0.4.18 && \
+RUN GRPC_HEALTH_PROBE_VERSION=v0.4.56 && \
     wget -qO/work/grpc-health-probe https://github.com/grpc-ecosystem/grpc-health-probe/releases/download/${GRPC_HEALTH_PROBE_VERSION}/grpc_health_probe-linux-amd64 && \
     chmod +x /work/grpc-health-probe
 
@@ -14,7 +14,7 @@ COPY . .
 
 RUN go build -v -o ./btc-buf .
 
-FROM debian:bullseye-slim
+FROM debian:trixie-slim
 RUN apt-get update && \
     apt-get install -y openssh-client && \
     rm -rf /var/lib/apt/lists/*
