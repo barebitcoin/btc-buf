@@ -259,7 +259,7 @@ func TestWalletSvrWsCmds(t *testing.T) {
 					},
 					(*int)(nil),
 					(*btcjson.EstimateSmartFeeMode)(nil),
-					(btcjson.Float64(69.2)),
+					btcjson.Float64(69.2),
 					(*btcjson.SendOptions)(nil),
 				)
 			},
