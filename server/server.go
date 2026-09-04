@@ -62,6 +62,10 @@ type Bitcoind struct {
 	rpc     *rpcclient.Client
 	server  *connectserver.Server
 
+	// One client per wallet, created on first use. See rpcForWallet.
+	walletClientsMu sync.Mutex
+	walletClients   map[string]*rpcclient.Client
+
 	setupDone atomic.Bool
 }
 
@@ -273,8 +277,11 @@ func withCancel[R any, M any](
 ) (*connect.Response[M], error) {
 	log := conf.logging(ctx)
 
-	ch := make(chan R)
-	errs := make(chan error)
+	// Buffered: if the caller has already given up (ctx done), the fetch
+	// goroutine must still be able to deliver and exit. Unbuffered channels
+	// would park it forever, holding the result.
+	ch := make(chan R, 1)
+	errs := make(chan error, 1)
 	requestID := connectserver.RequestID(ctx)
 
 	if requestID != "" {
@@ -354,23 +361,40 @@ type walletRequest interface {
 	GetWallet() string
 }
 
+// rpcForWallet returns the client for the request's wallet, creating it on
+// first use and reusing it after that. Not reusing is a source for memory leaks
 func (b *Bitcoind) rpcForWallet(ctx context.Context, req walletRequest) (*rpcclient.Client, error) {
-	if req.GetWallet() == "" {
+	wallet := req.GetWallet()
+	if wallet == "" {
 		return b.rpc, nil
+	}
+
+	b.walletClientsMu.Lock()
+	defer b.walletClientsMu.Unlock()
+
+	if rpc, ok := b.walletClients[wallet]; ok {
+		return rpc, nil
 	}
 
 	rpcConf := b.rpcConf // make sure to not copy the original conf
 	hostWithoutWallet, _, _ := strings.Cut(rpcConf.Host, "/wallet")
-	rpcConf.Host = fmt.Sprintf("%s/wallet/%s", hostWithoutWallet, req.GetWallet())
+	rpcConf.Host = fmt.Sprintf("%s/wallet/%s", hostWithoutWallet, wallet)
 
-	zerolog.Ctx(ctx).Debug().
-		Str("wallet", req.GetWallet()).
-		Msgf("making wallet-specific call: %q", rpcConf.Host)
+	zerolog.Ctx(ctx).Info().
+		Str("wallet", wallet).
+		Msgf("creating wallet-specific client: %q", rpcConf.Host)
 
-	rpc, err := rpcclient.New(ctx, &rpcConf)
+	// The client outlives this request, so it must not inherit its
+	// cancellation. The logger on the context is kept.
+	rpc, err := rpcclient.New(context.WithoutCancel(ctx), &rpcConf)
 	if err != nil {
 		return nil, err
 	}
+
+	if b.walletClients == nil {
+		b.walletClients = make(map[string]*rpcclient.Client)
+	}
+	b.walletClients[wallet] = rpc
 
 	return rpc, nil
 }
@@ -2497,6 +2521,14 @@ func (b *Bitcoind) Shutdown(ctx context.Context) {
 
 	log.Info().Msg("stopping server")
 	b.server.Shutdown(ctx)
+
+	b.walletClientsMu.Lock()
+	defer b.walletClientsMu.Unlock()
+	for wallet, rpc := range b.walletClients {
+		log.Debug().Str("wallet", wallet).Msg("stopping wallet client")
+		rpc.Shutdown(ctx)
+	}
+	b.walletClients = nil
 }
 
 func (b *Bitcoind) setupServer() {
