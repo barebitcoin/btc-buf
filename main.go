@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"os/exec"
@@ -37,7 +38,7 @@ func realMain(cfg *config) error {
 			Msgf("setting up SSH tunnel: %d:localhost:%d -> %s",
 				cfg.SSH.LocalPort, cfg.SSH.RemotePort, cfg.SSH.Host,
 			)
-		if err := setupSSHTunnel(ctx, cfg.SSH, errs); err != nil {
+		if err := setupSSHTunnel(ctx, cfg.SSH); err != nil {
 			return fmt.Errorf("setup SSH tunnel: %w", err)
 		}
 	}
@@ -110,8 +111,10 @@ func findSetting(key string, settings []debug.BuildSetting) string {
 	return "unknown"
 }
 
-// setupSSHTunnel creates an SSH tunnel by running the ssh command
-func setupSSHTunnel(ctx context.Context, conf sshConfig, out chan error) error {
+// setupSSHTunnel starts an ssh port forward and keeps it running until ctx is
+// done. Only the initial connection can fail the call. Later exits are
+// handled by superviseSSHTunnel.
+func setupSSHTunnel(ctx context.Context, conf sshConfig) error {
 	if conf.KeyFile == "" {
 		return fmt.Errorf("ssh: key file is required")
 	}
@@ -125,6 +128,8 @@ func setupSSHTunnel(ctx context.Context, conf sshConfig, out chan error) error {
 		"-o", "ServerAliveInterval=60", // send keep-alive every 60 seconds
 		"-o", "ServerAliveCountMax=3", // allow 3 missed keep-alive responses before disconnecting
 		"-o", "TCPKeepAlive=yes", // enable TCP keep-alive
+		"-o", "ConnectTimeout=10", // never hang in connect, so the supervisor can retry
+		"-o", "ExitOnForwardFailure=yes", // a tunnel that can't bind the local port is useless, exit and retry
 		"-i", conf.KeyFile, // specify the key file to use
 		"-L", fmt.Sprintf("%d:localhost:%d", conf.LocalPort, conf.RemotePort),
 		conf.Host,
@@ -147,58 +152,65 @@ func setupSSHTunnel(ctx context.Context, conf sshConfig, out chan error) error {
 
 		args = append(args, "-o", "UserKnownHostsFile="+tempFile.Name())
 	}
-	// Build SSH command with port forwarding
-	// -N: Don't execute remote command (forward only)
-	// -L: Local port forwarding
+	tunnel, err := startSSHTunnel(ctx, args)
+	if err != nil {
+		return err
+	}
+	if err := waitForSSHTunnel(ctx, conf.LocalPort, tunnel); err != nil {
+		return err
+	}
+
+	go superviseSSHTunnel(ctx, conf.LocalPort, args, tunnel)
+
+	return nil
+}
+
+type sshTunnel struct {
+	done chan struct{} // closed once ssh has exited
+	err  error         // exit error, set before done is closed
+}
+
+func startSSHTunnel(ctx context.Context, args []string) (*sshTunnel, error) {
 	cmd := exec.CommandContext(ctx, "ssh", args...)
 
-	// Capture stdout and stderr
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		return fmt.Errorf("create stdout pipe: %w", err)
+		return nil, fmt.Errorf("create stdout pipe: %w", err)
 	}
 
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
-		return fmt.Errorf("create stderr pipe: %w", err)
+		return nil, fmt.Errorf("create stderr pipe: %w", err)
 	}
 
-	// Start the SSH tunnel
 	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("starting SSH tunnel: %w", err)
+		return nil, fmt.Errorf("starting SSH tunnel: %w", err)
 	}
 
-	// Monitor the tunnel process in background
+	go logSSHOutput(ctx, "stdout", stdout)
+	go logSSHOutput(ctx, "stderr", stderr)
+
+	tunnel := &sshTunnel{done: make(chan struct{})}
 	go func() {
-		if err := cmd.Wait(); err != nil {
-			zerolog.Ctx(ctx).Error().
-				Err(err).
-				Msg("SSH tunnel exited unexpectedly")
-			out <- fmt.Errorf("SSH tunnel exited unexpectedly: %w", err)
-		}
+		tunnel.err = cmd.Wait()
+		close(tunnel.done)
 	}()
 
-	// Log stdout in background
-	go func() {
-		scanner := bufio.NewScanner(stdout)
-		for scanner.Scan() {
-			zerolog.Ctx(ctx).Debug().
-				Msgf("SSH tunnel stdout: %s", scanner.Text())
-		}
-	}()
+	return tunnel, nil
+}
 
-	// Log stderr in background
-	go func() {
-		scanner := bufio.NewScanner(stderr)
-		for scanner.Scan() {
-			zerolog.Ctx(ctx).Debug().
-				Msgf("SSH tunnel stderr: %s", scanner.Text())
-		}
-	}()
+func logSSHOutput(ctx context.Context, name string, r io.Reader) {
+	scanner := bufio.NewScanner(r)
+	for scanner.Scan() {
+		zerolog.Ctx(ctx).Debug().
+			Msgf("SSH tunnel %s: %s", name, scanner.Text())
+	}
+}
 
-	// Wait for the tunnel to be established
-	for i := 0; i < 10; i++ {
-		if conn, err := net.Dial("tcp", fmt.Sprintf("localhost:%d", conf.LocalPort)); err == nil {
+// waitForSSHTunnel blocks until the local port accepts connections.
+func waitForSSHTunnel(ctx context.Context, localPort int, tunnel *sshTunnel) error {
+	for range 10 {
+		if conn, err := net.Dial("tcp", fmt.Sprintf("localhost:%d", localPort)); err == nil {
 			if err := conn.Close(); err != nil {
 				return fmt.Errorf("close connection: %w", err)
 			}
@@ -207,12 +219,59 @@ func setupSSHTunnel(ctx context.Context, conf sshConfig, out chan error) error {
 		select {
 		case <-ctx.Done():
 			return fmt.Errorf("wait for SSH tunnel: %w", ctx.Err())
-		case err := <-out:
-			return fmt.Errorf("setup SSH tunnel: %w", err)
-
+		case <-tunnel.done:
+			return fmt.Errorf("SSH tunnel exited: %w", tunnel.err)
 		case <-time.After(time.Second):
 		}
 	}
 
 	return fmt.Errorf("timeout waiting for SSH tunnel")
+}
+
+// superviseSSHTunnel restarts ssh with backoff whenever it exits, until ctx
+// is done.
+func superviseSSHTunnel(ctx context.Context, localPort int, args []string, tunnel *sshTunnel) {
+	log := zerolog.Ctx(ctx)
+
+	const minBackoff, maxBackoff = time.Second, 30 * time.Second
+	backoff := minBackoff
+	started := time.Now()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-tunnel.done:
+		}
+		if ctx.Err() != nil {
+			return
+		}
+
+		// A tunnel that held for a while earns a fresh backoff.
+		if time.Since(started) > time.Minute {
+			backoff = minBackoff
+		}
+		log.Error().Err(tunnel.err).
+			Dur("backoff", backoff).
+			Msg("SSH tunnel exited, restarting")
+
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(backoff):
+		}
+		backoff = min(backoff*2, maxBackoff)
+
+		next, err := startSSHTunnel(ctx, args)
+		if err != nil {
+			log.Err(err).Msg("restart SSH tunnel")
+			continue
+		}
+		tunnel, started = next, time.Now()
+
+		if err := waitForSSHTunnel(ctx, localPort, tunnel); err != nil {
+			// Either ssh already exited (done is closed, the loop restarts it)
+			// or it is still connecting, which ConnectTimeout bounds.
+			log.Err(err).Msg("restart SSH tunnel")
+		}
+	}
 }
