@@ -814,6 +814,10 @@ message GetBlockResponse {
 
     repeated Input inputs = 8;
     repeated Output outputs = 9;
+
+    // What this transaction pays the miner, in BTC. Zero on a coinbase, and
+    // zero on a block whose spent outputs Core no longer holds.
+    double fee = 10;
   }
 
   string hex = 1;
