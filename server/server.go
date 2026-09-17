@@ -943,19 +943,7 @@ func (b *Bitcoind) GetBlock(ctx context.Context, c *connect.Request[pb.GetBlockR
 					Difficulty:        block.Difficulty,
 					Chainwork:         block.Chainwork,
 					Txids:             block.Txids,
-					Transactions: lo.Map(block.Transactions, func(tx btcjson.TxRawResult, idx int) *pb.GetBlockResponse_Transaction {
-						return &pb.GetBlockResponse_Transaction{
-							Txid:     tx.Txid,
-							Hash:     tx.Hash,
-							Size:     tx.Size,
-							Vsize:    tx.Vsize,
-							Weight:   tx.Weight,
-							Version:  tx.Version,
-							Locktime: tx.LockTime,
-							Inputs:   lo.Map(tx.Vin, inputProto),
-							Outputs:  lo.Map(tx.Vout, outputProto),
-						}
-					}),
+					Transactions:      lo.Map(block.Transactions, blockTransactionProto),
 				}
 			},
 		)
@@ -1041,6 +1029,21 @@ func rawTransaction(bytes []byte) *pb.RawTransaction {
 	return &pb.RawTransaction{
 		Data: bytes,
 		Hex:  hex.EncodeToString(bytes),
+	}
+}
+
+func blockTransactionProto(tx btcjson.TxRawResult, _ int) *pb.GetBlockResponse_Transaction {
+	return &pb.GetBlockResponse_Transaction{
+		Txid:     tx.Txid,
+		Hash:     tx.Hash,
+		Size:     tx.Size,
+		Vsize:    tx.Vsize,
+		Weight:   tx.Weight,
+		Version:  tx.Version,
+		Locktime: tx.LockTime,
+		Inputs:   lo.Map(tx.Vin, inputProto),
+		Outputs:  lo.Map(tx.Vout, outputProto),
+		Fee:      tx.Fee,
 	}
 }
 

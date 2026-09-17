@@ -8195,16 +8195,19 @@ func (x *ImportDescriptorsResponse_Response) GetError() *ImportDescriptorsRespon
 }
 
 type GetBlockResponse_Transaction struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Txid          string                 `protobuf:"bytes,1,opt,name=txid,proto3" json:"txid,omitempty"`
-	Hash          string                 `protobuf:"bytes,2,opt,name=hash,proto3" json:"hash,omitempty"`
-	Size          int32                  `protobuf:"varint,3,opt,name=size,proto3" json:"size,omitempty"`
-	Vsize         int32                  `protobuf:"varint,4,opt,name=vsize,proto3" json:"vsize,omitempty"`
-	Weight        int32                  `protobuf:"varint,5,opt,name=weight,proto3" json:"weight,omitempty"`
-	Version       uint32                 `protobuf:"varint,6,opt,name=version,proto3" json:"version,omitempty"`
-	Locktime      uint32                 `protobuf:"varint,7,opt,name=locktime,proto3" json:"locktime,omitempty"`
-	Inputs        []*Input               `protobuf:"bytes,8,rep,name=inputs,proto3" json:"inputs,omitempty"`
-	Outputs       []*Output              `protobuf:"bytes,9,rep,name=outputs,proto3" json:"outputs,omitempty"`
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Txid     string                 `protobuf:"bytes,1,opt,name=txid,proto3" json:"txid,omitempty"`
+	Hash     string                 `protobuf:"bytes,2,opt,name=hash,proto3" json:"hash,omitempty"`
+	Size     int32                  `protobuf:"varint,3,opt,name=size,proto3" json:"size,omitempty"`
+	Vsize    int32                  `protobuf:"varint,4,opt,name=vsize,proto3" json:"vsize,omitempty"`
+	Weight   int32                  `protobuf:"varint,5,opt,name=weight,proto3" json:"weight,omitempty"`
+	Version  uint32                 `protobuf:"varint,6,opt,name=version,proto3" json:"version,omitempty"`
+	Locktime uint32                 `protobuf:"varint,7,opt,name=locktime,proto3" json:"locktime,omitempty"`
+	Inputs   []*Input               `protobuf:"bytes,8,rep,name=inputs,proto3" json:"inputs,omitempty"`
+	Outputs  []*Output              `protobuf:"bytes,9,rep,name=outputs,proto3" json:"outputs,omitempty"`
+	// What this transaction pays the miner, in BTC. Zero on a coinbase, and
+	// zero on a block whose spent outputs Core no longer holds.
+	Fee           float64 `protobuf:"fixed64,10,opt,name=fee,proto3" json:"fee,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -8300,6 +8303,13 @@ func (x *GetBlockResponse_Transaction) GetOutputs() []*Output {
 		return x.Outputs
 	}
 	return nil
+}
+
+func (x *GetBlockResponse_Transaction) GetFee() float64 {
+	if x != nil {
+		return x.Fee
+	}
+	return 0
 }
 
 // All values are in whole bitcoins
@@ -9603,7 +9613,7 @@ const file_bitcoin_bitcoind_v1alpha_bitcoin_proto_rawDesc = "" +
 	"\x14VERBOSITY_BLOCK_INFO\x10\x02\x12\x1b\n" +
 	"\x17VERBOSITY_BLOCK_TX_INFO\x10\x03\x12#\n" +
 	"\x1fVERBOSITY_BLOCK_TX_PREVOUT_INFO\x10\x04B\t\n" +
-	"\a_height\"\xff\a\n" +
+	"\a_height\"\x91\b\n" +
 	"\x10GetBlockResponse\x12\x10\n" +
 	"\x03hex\x18\x01 \x01(\tR\x03hex\x12\x12\n" +
 	"\x04hash\x18\x02 \x01(\tR\x04hash\x12$\n" +
@@ -9631,7 +9641,7 @@ const file_bitcoin_bitcoind_v1alpha_bitcoin_proto_rawDesc = "" +
 	"\x04size\x18\x0f \x01(\x05R\x04size\x12\x16\n" +
 	"\x06weight\x18\x10 \x01(\x05R\x06weight\x12\x14\n" +
 	"\x05txids\x18\x11 \x03(\tR\x05txids\x12Z\n" +
-	"\ftransactions\x18\x15 \x03(\v26.bitcoin.bitcoind.v1alpha.GetBlockResponse.TransactionR\ftransactions\x1a\xa2\x02\n" +
+	"\ftransactions\x18\x15 \x03(\v26.bitcoin.bitcoind.v1alpha.GetBlockResponse.TransactionR\ftransactions\x1a\xb4\x02\n" +
 	"\vTransaction\x12\x12\n" +
 	"\x04txid\x18\x01 \x01(\tR\x04txid\x12\x12\n" +
 	"\x04hash\x18\x02 \x01(\tR\x04hash\x12\x12\n" +
@@ -9641,7 +9651,9 @@ const file_bitcoin_bitcoind_v1alpha_bitcoin_proto_rawDesc = "" +
 	"\aversion\x18\x06 \x01(\rR\aversion\x12\x1a\n" +
 	"\blocktime\x18\a \x01(\rR\blocktime\x127\n" +
 	"\x06inputs\x18\b \x03(\v2\x1f.bitcoin.bitcoind.v1alpha.InputR\x06inputs\x12:\n" +
-	"\aoutputs\x18\t \x03(\v2 .bitcoin.bitcoind.v1alpha.OutputR\aoutputs\"<\n" +
+	"\aoutputs\x18\t \x03(\v2 .bitcoin.bitcoind.v1alpha.OutputR\aoutputs\x12\x10\n" +
+	"\x03fee\x18\n" +
+	" \x01(\x01R\x03fee\"<\n" +
 	"\x0eBumpFeeRequest\x12\x16\n" +
 	"\x06wallet\x18\x01 \x01(\tR\x06wallet\x12\x12\n" +
 	"\x04txid\x18\x02 \x01(\tR\x04txid\"y\n" +
