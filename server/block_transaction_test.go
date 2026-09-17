@@ -70,6 +70,9 @@ func TestBlockTransactionProto(t *testing.T) {
 	if len(tx.Inputs) != 1 {
 		t.Fatalf("inputs: got %d, want 1", len(tx.Inputs))
 	}
+	if got := tx.Inputs[0].PreviousOutput.GetAmount(); got != 0.5 {
+		t.Errorf("prevout amount: got %v, want 0.5", got)
+	}
 }
 
 // A coinbase carries no fee, and Core leaves the field out.

@@ -517,7 +517,7 @@ type ScriptPubKey struct {
 type PreviousOutput struct {
 	Generated    bool          `json:"generated"`
 	Height       uint32        `json:"height"`
-	Value        float64       `json:"amount"`
+	Value        float64       `json:"value"`
 	ScriptPubKey *ScriptPubKey `json:"scriptPubKey"`
 }
 
