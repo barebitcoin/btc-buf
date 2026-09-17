@@ -60,6 +60,13 @@ func TestBlockTransactionProto(t *testing.T) {
 	if len(tx.Outputs) != 1 {
 		t.Fatalf("outputs: got %d, want 1", len(tx.Outputs))
 	}
+	// An OP_RETURN reader takes the script off the output itself.
+	if got := tx.Outputs[0].ScriptPubKey.Hex; got != "6a4c0568656c6c6f" {
+		t.Errorf("output script hex: got %q", got)
+	}
+	if got := tx.Outputs[0].ScriptPubKey.Type; got != "nulldata" {
+		t.Errorf("output script type: got %q", got)
+	}
 	if len(tx.Inputs) != 1 {
 		t.Fatalf("inputs: got %d, want 1", len(tx.Inputs))
 	}

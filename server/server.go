@@ -1105,6 +1105,8 @@ func outputProto(output btcjson.Vout, _ int) *pb.Output {
 		ScriptPubKey: &pb.ScriptPubKey{
 			Type:    output.ScriptPubKey.Type,
 			Address: output.ScriptPubKey.Address,
+			Asm:     output.ScriptPubKey.Asm,
+			Hex:     output.ScriptPubKey.Hex,
 		},
 	}
 }
