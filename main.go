@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -10,8 +11,10 @@ import (
 	"os/exec"
 	"os/signal"
 	"runtime/debug"
+	"sync"
 	"time"
 
+	"connectrpc.com/connect"
 	"github.com/rs/zerolog"
 
 	"github.com/barebitcoin/btc-buf/server"
@@ -33,20 +36,22 @@ func realMain(cfg *config) error {
 	}()
 
 	errs := make(chan error)
+	var opts []server.Option
 	if cfg.SSH.Host != "" {
 		zerolog.Ctx(ctx).Info().
 			Msgf("setting up SSH tunnel: %d:localhost:%d -> %s",
 				cfg.SSH.LocalPort, cfg.SSH.RemotePort, cfg.SSH.Host,
 			)
-		if err := setupSSHTunnel(ctx, cfg.SSH); err != nil {
+		gate := newTunnelGate()
+		if err := setupSSHTunnel(ctx, cfg.SSH, gate); err != nil {
 			return fmt.Errorf("setup SSH tunnel: %w", err)
 		}
+		opts = append(opts, server.WithInterceptors(gate.interceptor(tunnelRepairWait)))
 	}
 
 	clientCtx, clientCancel := context.WithTimeout(ctx, time.Second*10)
 	defer clientCancel()
 
-	var opts []server.Option
 	if cfg.AllowPrivateDescriptorsExport {
 		zerolog.Ctx(ctx).Info().Msg("allowing private descriptors export")
 		opts = append(opts, server.WithAllowPrivateDescriptorsExport())
@@ -114,7 +119,7 @@ func findSetting(key string, settings []debug.BuildSetting) string {
 // setupSSHTunnel starts an ssh port forward and keeps it running until ctx is
 // done. Only the initial connection can fail the call. Later exits are
 // handled by superviseSSHTunnel.
-func setupSSHTunnel(ctx context.Context, conf sshConfig) error {
+func setupSSHTunnel(ctx context.Context, conf sshConfig, gate *tunnelGate) error {
 	if conf.KeyFile == "" {
 		return fmt.Errorf("ssh: key file is required")
 	}
@@ -156,22 +161,127 @@ func setupSSHTunnel(ctx context.Context, conf sshConfig) error {
 	if err != nil {
 		return err
 	}
-	if err := waitForSSHTunnel(ctx, conf.LocalPort, tunnel); err != nil {
+	waitCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	if err := waitForSSHTunnel(waitCtx, conf.LocalPort, tunnel); err != nil {
 		return err
 	}
+	gate.set(true)
 
-	go superviseSSHTunnel(ctx, conf.LocalPort, args, tunnel)
+	go superviseSSHTunnel(ctx, conf.LocalPort, args, tunnel, gate, tunnelReadyTimeout)
 
 	return nil
 }
 
+// sshBinary is a variable so tests can substitute a script.
+var sshBinary = "ssh"
+
 type sshTunnel struct {
 	done chan struct{} // closed once ssh has exited
 	err  error         // exit error, set before done is closed
+	kill func() error
+}
+
+const (
+	// tunnelRepairWait bounds how long a request waits for the supervisor to
+	// bring the tunnel back before failing with Unavailable.
+	tunnelRepairWait = 15 * time.Second
+
+	// tunnelReadyTimeout bounds how long the supervisor lets a restarted ssh
+	// take to bind the local port before killing it. ConnectTimeout only
+	// covers the TCP connect and key exchange, not authentication.
+	tunnelReadyTimeout = 30 * time.Second
+)
+
+// tunnelGate tracks whether the local ssh port forward accepts connections.
+// It says nothing about the remote end of the forward. The tunnel code flips
+// it; requests only wait on it.
+type tunnelGate struct {
+	mu      sync.Mutex
+	up      bool
+	gen     uint64        // incremented each time the tunnel comes up
+	changed chan struct{} // closed and replaced on every transition
+}
+
+func newTunnelGate() *tunnelGate {
+	return &tunnelGate{changed: make(chan struct{})}
+}
+
+func (g *tunnelGate) set(up bool) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	if g.up == up {
+		return
+	}
+	g.up = up
+	if up {
+		g.gen++
+	}
+	close(g.changed)
+	g.changed = make(chan struct{})
+}
+
+// waitUp blocks until the tunnel is up with a generation newer than after,
+// and returns that generation.
+func (g *tunnelGate) waitUp(ctx context.Context, after uint64) (uint64, error) {
+	for {
+		g.mu.Lock()
+		up, gen, changed := g.up, g.gen, g.changed
+		g.mu.Unlock()
+
+		if up && gen > after {
+			return gen, nil
+		}
+		select {
+		case <-changed:
+		case <-ctx.Done():
+			return 0, ctx.Err()
+		}
+	}
+}
+
+// interceptor holds requests while the tunnel is down, for at most wait. A
+// request refused by a tunnel that died under it never reached Bitcoin Core,
+// and is retried once on the next tunnel generation.
+func (g *tunnelGate) interceptor(wait time.Duration) connect.Interceptor {
+	return connect.UnaryInterceptorFunc(func(next connect.UnaryFunc) connect.UnaryFunc {
+		return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
+			waitCtx, cancel := context.WithTimeout(ctx, wait)
+			defer cancel()
+
+			var seen uint64
+			retried := false
+			for {
+				gen, err := g.waitUp(waitCtx, seen)
+				if err != nil {
+					// The caller gave up; connect maps this to Canceled or
+					// DeadlineExceeded.
+					if ctx.Err() != nil {
+						return nil, err
+					}
+					zerolog.Ctx(ctx).Warn().
+						Dur("waited", wait).
+						Msg("SSH tunnel still down, giving up on request")
+					return nil, connect.NewError(connect.CodeUnavailable,
+						fmt.Errorf("SSH tunnel to Bitcoin Core is down: %w", err))
+				}
+
+				res, err := next(ctx, req)
+				if !errors.Is(err, server.ErrUnreachable) || retried {
+					return res, err
+				}
+
+				zerolog.Ctx(ctx).Warn().Err(err).
+					Msg("request hit a dead SSH tunnel, waiting for repair")
+				seen, retried = gen, true
+			}
+		}
+	})
 }
 
 func startSSHTunnel(ctx context.Context, args []string) (*sshTunnel, error) {
-	cmd := exec.CommandContext(ctx, "ssh", args...)
+	cmd := exec.CommandContext(ctx, sshBinary, args...)
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -190,7 +300,7 @@ func startSSHTunnel(ctx context.Context, args []string) (*sshTunnel, error) {
 	go logSSHOutput(ctx, "stdout", stdout)
 	go logSSHOutput(ctx, "stderr", stderr)
 
-	tunnel := &sshTunnel{done: make(chan struct{})}
+	tunnel := &sshTunnel{done: make(chan struct{}), kill: cmd.Process.Kill}
 	go func() {
 		tunnel.err = cmd.Wait()
 		close(tunnel.done)
@@ -207,9 +317,10 @@ func logSSHOutput(ctx context.Context, name string, r io.Reader) {
 	}
 }
 
-// waitForSSHTunnel blocks until the local port accepts connections.
+// waitForSSHTunnel blocks until the local port accepts connections, ssh
+// exits, or ctx is done.
 func waitForSSHTunnel(ctx context.Context, localPort int, tunnel *sshTunnel) error {
-	for range 10 {
+	for {
 		if conn, err := net.Dial("tcp", fmt.Sprintf("localhost:%d", localPort)); err == nil {
 			if err := conn.Close(); err != nil {
 				return fmt.Errorf("close connection: %w", err)
@@ -224,16 +335,20 @@ func waitForSSHTunnel(ctx context.Context, localPort int, tunnel *sshTunnel) err
 		case <-time.After(time.Second):
 		}
 	}
-
-	return fmt.Errorf("timeout waiting for SSH tunnel")
 }
 
 // superviseSSHTunnel restarts ssh with backoff whenever it exits, until ctx
-// is done.
-func superviseSSHTunnel(ctx context.Context, localPort int, args []string, tunnel *sshTunnel) {
+// is done. A restarted ssh that has not bound the local port within
+// readyTimeout is killed and restarted.
+func superviseSSHTunnel(
+	ctx context.Context, localPort int, args []string,
+	tunnel *sshTunnel, gate *tunnelGate, readyTimeout time.Duration,
+) {
 	log := zerolog.Ctx(ctx)
 
-	const minBackoff, maxBackoff = time.Second, 30 * time.Second
+	// maxBackoff stays below tunnelRepairWait so a held request sees at
+	// least one reconnect attempt.
+	const minBackoff, maxBackoff = time.Second, 10 * time.Second
 	backoff := minBackoff
 	started := time.Now()
 	for {
@@ -245,6 +360,7 @@ func superviseSSHTunnel(ctx context.Context, localPort int, args []string, tunne
 		if ctx.Err() != nil {
 			return
 		}
+		gate.set(false)
 
 		// A tunnel that held for a while earns a fresh backoff.
 		if time.Since(started) > time.Minute {
@@ -268,10 +384,18 @@ func superviseSSHTunnel(ctx context.Context, localPort int, args []string, tunne
 		}
 		tunnel, started = next, time.Now()
 
-		if err := waitForSSHTunnel(ctx, localPort, tunnel); err != nil {
-			// Either ssh already exited (done is closed, the loop restarts it)
-			// or it is still connecting, which ConnectTimeout bounds.
-			log.Err(err).Msg("restart SSH tunnel")
+		readyCtx, cancel := context.WithTimeout(ctx, readyTimeout)
+		err = waitForSSHTunnel(readyCtx, localPort, tunnel)
+		cancel()
+		if err != nil {
+			if errors.Is(err, context.DeadlineExceeded) {
+				log.Err(err).Msg("SSH tunnel not ready in time, killing it")
+				if err := tunnel.kill(); err != nil {
+					log.Err(err).Msg("kill SSH tunnel")
+				}
+			}
+			continue
 		}
+		gate.set(true)
 	}
 }
