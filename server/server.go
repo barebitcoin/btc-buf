@@ -75,6 +75,7 @@ type config struct {
 	logging                       func(ctx context.Context) *zerolog.Logger
 	withoutInitialConnectionCheck bool
 	cookiePath                    string
+	interceptors                  []connect.Interceptor
 }
 
 func newConfig(opts []Option) config {
@@ -120,6 +121,14 @@ func WithCookiePath(path string) Option {
 func WithoutInitialConnectionCheck() Option {
 	return func(c *config) {
 		c.withoutInitialConnectionCheck = true
+	}
+}
+
+// WithInterceptors runs the given interceptors innermost, after logging and
+// error mapping, so they see the handler's errors as-is.
+func WithInterceptors(interceptors ...connect.Interceptor) Option {
+	return func(c *config) {
+		c.interceptors = append(c.interceptors, interceptors...)
 	}
 }
 
@@ -328,6 +337,12 @@ func withCancel[R any, M any](
 	}
 }
 
+// ErrUnreachable is the cause of CodeUnavailable when the dial to Bitcoin Core
+// is refused. It only comes from a failed dial, and rpcclient sends every
+// request on a fresh connection, so a request with this error never reached
+// Core and is safe to retry.
+var ErrUnreachable = errors.New("unable to connect to Bitcoin Core")
+
 func transformError(ctx context.Context, err error) error {
 	if err == nil {
 		panic("PROGRAMMER ERROR: transformError called with nil")
@@ -339,10 +354,7 @@ func transformError(ctx context.Context, err error) error {
 		zerolog.Ctx(ctx).Debug().Err(err).
 			Msgf("transform error: returning connect.CodeUnavailable")
 
-		cErr := connect.NewError(
-			connect.CodeUnavailable,
-			errors.New("unable to connect to Bitcoin Core"),
-		)
+		cErr := connect.NewError(connect.CodeUnavailable, ErrUnreachable)
 
 		if detail, detaiLErr := connect.NewErrorDetail(
 			wrapperspb.String(err.Error()),
@@ -448,7 +460,7 @@ func (b *Bitcoind) ListUnspent(ctx context.Context, c *connect.Request[pb.ListUn
 
 	res, err := rpcclient.ReceiveFuture(rpc.SendCmd(ctx, &cmd))
 	if err != nil {
-		return nil, err
+		return nil, transformError(ctx, err)
 	}
 
 	var parsed []btcjson.ListUnspentResult
@@ -478,7 +490,7 @@ func (b *Bitcoind) ListUnspent(ctx context.Context, c *connect.Request[pb.ListUn
 func (b *Bitcoind) ListWallets(ctx context.Context, _ *connect.Request[emptypb.Empty]) (*connect.Response[pb.ListWalletsResponse], error) {
 	wallets, err := b.rpc.ListWallets(ctx)
 	if err != nil {
-		return nil, err
+		return nil, transformError(ctx, err)
 	}
 
 	return connect.NewResponse(&pb.ListWalletsResponse{
@@ -807,7 +819,7 @@ func (b *Bitcoind) GetBlock(ctx context.Context, c *connect.Request[pb.GetBlockR
 	if c.Msg.Height != nil {
 		hash, err = b.rpc.GetBlockHash(ctx, int64(*c.Msg.Height))
 		if err != nil {
-			return nil, fmt.Errorf("get block hash from height: %w", err)
+			return nil, fmt.Errorf("get block hash from height: %w", transformError(ctx, err))
 		}
 	}
 
@@ -2547,7 +2559,7 @@ func (b *Bitcoind) setupServer() {
 
 	b.server = connectserver.New(
 		logging.InterceptorConf{},
-		handleBtcJsonErrors(),
+		append([]connect.Interceptor{handleBtcJsonErrors()}, b.conf.interceptors...)...,
 	)
 	connectserver.Register(b.server, rpc.NewBitcoinServiceHandler, rpc.BitcoinServiceHandler(b))
 }
