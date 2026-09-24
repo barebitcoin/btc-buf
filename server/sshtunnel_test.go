@@ -1,4 +1,4 @@
-package main
+package server
 
 import (
 	"context"
@@ -14,8 +14,6 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/rs/zerolog"
-
-	"github.com/barebitcoin/btc-buf/server"
 )
 
 type fakeNext struct {
@@ -49,7 +47,7 @@ func callThroughGate(ctx context.Context, gate *tunnelGate, wait time.Duration, 
 }
 
 func refused() error {
-	return connect.NewError(connect.CodeUnavailable, server.ErrUnreachable)
+	return connect.NewError(connect.CodeUnavailable, ErrUnreachable)
 }
 
 func isUp(gate *tunnelGate) bool {
@@ -208,7 +206,7 @@ func TestTunnelGate_RetriesRefusedOnlyOnce(t *testing.T) {
 	}}
 
 	err := callThroughGate(context.Background(), gate, time.Second, next)
-	if !errors.Is(err, server.ErrUnreachable) {
+	if !errors.Is(err, ErrUnreachable) {
 		t.Fatalf("expected refused error, got %v", err)
 	}
 	if next.count() != 2 {
@@ -353,7 +351,10 @@ func TestSuperviseSSHTunnel(t *testing.T) {
 	waitFor(t, 10*time.Second, "second spawn", func() bool { return spawnCount(t, counter) >= 2 })
 
 	// Nothing binds the port, so the replacement is killed after readyTimeout
-	// and a third one is spawned after the 2s backoff.
+	// and a third one is spawned after the 2s backoff. Bind only once that
+	// kill is certain, or the replacement would find the port and count as
+	// ready.
+	time.Sleep(2 * readyTimeout)
 	if isUp(gate) {
 		t.Fatal("gate came up without anything listening on the port")
 	}
@@ -385,5 +386,52 @@ func TestSuperviseSSHTunnel(t *testing.T) {
 	case <-supervisorDone:
 	case <-time.After(2 * time.Second):
 		t.Fatal("supervisor did not stop after ctx cancel")
+	}
+}
+
+func TestStartTunnel_RefusesBusyPort(t *testing.T) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = listener.Close() })
+
+	// Anything that starts would do; the port check comes first.
+	sshBinary = "false"
+	t.Cleanup(func() { sshBinary = "ssh" })
+
+	err = startTunnel(context.Background(), context.Background(), SSHTunnel{
+		Host: "example.com", KeyFile: "key",
+		LocalPort: listener.Addr().(*net.TCPAddr).Port, RemotePort: 8332,
+	}, newTunnelGate())
+	if err == nil || !strings.Contains(err.Error(), "already in use") {
+		t.Fatalf("expected a port in use error, got %v", err)
+	}
+}
+
+func TestStartSSHTunnel_KeepsStderrTail(t *testing.T) {
+	sshBinary = "sh"
+	t.Cleanup(func() { sshBinary = "ssh" })
+
+	// More lines than are kept, ending in the reason, as ssh -v would.
+	script := `for i in $(seq 1 30); do echo "debug1: line $i" >&2; done
+echo "root@example.com: Permission denied (publickey)." >&2
+exit 255`
+	tunnel, err := startSSHTunnel(context.Background(), []string{"-c", script})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = waitForSSHTunnel(context.Background(), freePort(t), tunnel)
+	if err == nil || !strings.Contains(err.Error(), "Permission denied (publickey)") {
+		t.Fatalf("expected the reason in the error, got %v", err)
+	}
+
+	lines := strings.Split(tunnel.stderr, "\n")
+	if len(lines) != stderrTailLines {
+		t.Fatalf("expected %d lines kept, got %d: %q", stderrTailLines, len(lines), tunnel.stderr)
+	}
+	if strings.Contains(tunnel.stderr, "line 1\n") {
+		t.Fatalf("expected only the last lines, got %q", tunnel.stderr)
 	}
 }
