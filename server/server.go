@@ -67,6 +67,14 @@ type Bitcoind struct {
 	walletClients   map[string]*rpcclient.Client
 
 	setupDone atomic.Bool
+
+	// stop ends the SSH tunnel and any background startup. Called by
+	// Shutdown.
+	stop context.CancelFunc
+	// started is closed once startup has finished. startErr is its outcome,
+	// written before started is closed and read only after.
+	started  chan struct{}
+	startErr error
 }
 
 type config struct {
@@ -76,6 +84,9 @@ type config struct {
 	withoutInitialConnectionCheck bool
 	cookiePath                    string
 	interceptors                  []connect.Interceptor
+	sshTunnel                     *SSHTunnel
+	requireNoPrivateKeys          bool
+	backgroundStartup             bool
 }
 
 func newConfig(opts []Option) config {
@@ -176,67 +187,57 @@ func NewBitcoind(
 
 	log.Debug().Msg("created RPC client")
 
+	// The SSH tunnel and a background startup outlive ctx, which may only
+	// bound construction. Shutdown ends them. The logger on ctx is kept.
+	lifetime, stop := context.WithCancel(context.WithoutCancel(ctx))
+
 	server := &Bitcoind{
 		conf:    conf,
 		rpcConf: rpcConf,
 		rpc:     client,
+		stop:    stop,
+		started: make(chan struct{}),
 	}
 
-	if conf.withoutInitialConnectionCheck {
-		log.Info().Msg("initial connection check disabled")
-	} else {
-		// Do a request, to verify we can reach Bitcoin Core
-		info, err := server.GetBlockchainInfo(
-			ctx, connect.NewRequest(&pb.GetBlockchainInfoRequest{}),
-		)
+	// Requests wait for startup first, then for the tunnel, and only then
+	// reach the caller's interceptors and the handler.
+	gates := []connect.Interceptor{server.startupInterceptor()}
+	var tunnel *tunnelGate
+	if conf.sshTunnel != nil {
+		tunnel = newTunnelGate()
+		gates = append(gates, tunnel.interceptor(tunnelRepairWait))
+	}
+	server.conf.interceptors = append(gates, conf.interceptors...)
+
+	go func() {
+		// Bounded on its own, so a caller without a deadline can't be held
+		// forever by, say, an ssh stuck in authentication.
+		startCtx, cancel := context.WithTimeout(lifetime, startupTimeout)
+		defer cancel()
+
+		err := server.startup(lifetime, startCtx, tunnel)
 		switch {
-		case connect.CodeOf(err) == connect.CodePermissionDenied:
-			return nil, errors.New("invalid RPC client credentials")
-
-		case err != nil:
-			return nil, fmt.Errorf("get initial blockchain info: %w", err)
+		case err == nil:
+		case lifetime.Err() != nil:
+			log.Debug().Err(err).Msg("shut down during startup")
+		default:
+			log.Err(err).Msg("Bitcoin Core proxy failed to start")
+			// Nothing can use the tunnel once startup has failed.
+			stop()
 		}
 
-		log.Debug().
-			Stringer("info", info.Msg).
-			Msg("got bitcoind info")
+		server.startErr = err
+		close(server.started)
+	}()
 
-		// Means a specific wallet was specified in the config. Verify
-		// that it exists and is loaded.
-		if strings.Contains(host, "/wallet") {
-			_, wallet, _ := strings.Cut(host, "/wallet/")
-			log.Debug().
-				Str("host", host).
-				Str("wallet", wallet).
-				Msg("bitcoind host contains wallet, verifying wallet exists")
-
-			_, err := server.GetWalletInfo(ctx, connect.NewRequest(&pb.GetWalletInfoRequest{}))
-			switch {
-			// Great stuff, wallet exists
-			case err == nil:
-
-			case bitcoindErrorCode(err) == btcjson.ErrRPCWalletNotFound:
-				log.Debug().Err(err).Msg("could not get wallet, trying loading")
-
-				if _, err := server.rpc.LoadWallet(ctx, wallet, nil); err == nil {
-					log.Info().Msgf("loaded wallet: %s", wallet)
-					break
-				}
-
-				return nil, fmt.Errorf("wallet %q does not exist or is not loaded", wallet)
-
-			case bitcoindErrorCode(err) == btcjson.ErrRPCMethodNotFound.Code:
-
-				err := errors.New("Bitcoin Core is running without wallet functionality") // nolint:staticcheck
-				return nil, connect.NewError(connect.CodeFailedPrecondition, err)
-
-			default:
-				return nil, fmt.Errorf("get wallet info: %w", err)
-			}
-		}
-
+	if conf.backgroundStartup {
+		return server, nil
 	}
 
+	if err := server.Ready(ctx); err != nil {
+		stop()
+		return nil, err
+	}
 	return server, nil
 }
 
@@ -2530,6 +2531,8 @@ func (b *Bitcoind) GetZmqNotifications(ctx context.Context, c *connect.Request[e
 
 func (b *Bitcoind) Shutdown(ctx context.Context) {
 	log := zerolog.Ctx(ctx)
+
+	b.stop()
 
 	if b.server == nil {
 		log.Warn().Msg("shutdown called on empty server")
