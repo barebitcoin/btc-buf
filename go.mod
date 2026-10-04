@@ -5,7 +5,7 @@ go 1.27.0
 require (
 	connectrpc.com/connect v1.21.0
 	connectrpc.com/grpchealth v1.5.0
-	connectrpc.com/grpcreflect v1.3.0
+	connectrpc.com/grpcreflect v1.3.1
 	github.com/btcsuite/btcd/address/v2 v2.0.0
 	github.com/btcsuite/btcd/btcutil/v2 v2.0.1
 	github.com/btcsuite/btcd/chaincfg/v2 v2.0.0
