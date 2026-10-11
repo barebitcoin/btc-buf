@@ -5,7 +5,7 @@ go 1.27.0
 require (
 	connectrpc.com/connect v1.21.0
 	connectrpc.com/grpchealth v1.5.0
-	connectrpc.com/grpcreflect v1.3.0
+	connectrpc.com/grpcreflect v1.3.1
 	github.com/btcsuite/btcd/address/v2 v2.0.0
 	github.com/btcsuite/btcd/btcutil/v2 v2.0.1
 	github.com/btcsuite/btcd/chaincfg/v2 v2.0.0
@@ -17,7 +17,7 @@ require (
 	github.com/oklog/ulid/v2 v2.1.2
 	github.com/rs/zerolog v1.35.1
 	github.com/samber/lo v1.53.0
-	github.com/tidwall/gjson v1.19.0
+	github.com/tidwall/gjson v1.20.0
 	golang.org/x/exp v0.0.0-20260820142414-ca536658362e
 	google.golang.org/protobuf v1.36.12
 )
