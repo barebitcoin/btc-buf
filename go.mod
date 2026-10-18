@@ -3,7 +3,7 @@ module github.com/barebitcoin/btc-buf
 go 1.27.0
 
 require (
-	connectrpc.com/connect v1.21.0
+	connectrpc.com/connect v1.21.1
 	connectrpc.com/grpchealth v1.5.0
 	connectrpc.com/grpcreflect v1.3.1
 	github.com/btcsuite/btcd/address/v2 v2.0.0
