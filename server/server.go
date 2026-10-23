@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"net/http"
 	"reflect"
 	"slices"
 	"strings"
@@ -76,6 +77,7 @@ type config struct {
 	requireNoPrivateKeys          bool
 	backgroundStartup             bool
 	requestID                     func(ctx context.Context) string
+	requestHeaders                func(ctx context.Context, header http.Header) error
 }
 
 func newConfig(opts []Option) config {
@@ -148,6 +150,16 @@ func WithRequestID(fn func(ctx context.Context) string) Option {
 	}
 }
 
+// WithRequestHeaders calls fn before every request to Bitcoin Core, so it can
+// add headers that change over time, such as a token a proxy in front of Core
+// checks. An error fails that request. Authorization is set afterwards, to
+// Core's basic auth, so use another header.
+func WithRequestHeaders(fn func(ctx context.Context, header http.Header) error) Option {
+	return func(c *config) {
+		c.requestHeaders = fn
+	}
+}
+
 // WithLogging sets the logger to use. fn is called with the context passed to
 // NewBitcoind, and with the context of each request. Request logs are tagged
 // with the endpoint and request ID.
@@ -183,8 +195,9 @@ func NewBitcoind(
 
 		// Forward the request ID as the JSON-RPC id, so a request can be
 		// correlated all the way into bitcoind's debug log
-		RequestID: conf.requestID,
-		Logger:    logFrom,
+		RequestID:  conf.requestID,
+		Logger:     logFrom,
+		HeaderFunc: conf.requestHeaders,
 	}
 
 	client, err := rpcclient.New(&rpcConf)

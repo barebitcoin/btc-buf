@@ -130,8 +130,10 @@ func (c *Client) post(ctx context.Context, marshalledJSON []byte) ([]byte, error
 	}
 	httpReq.Close = true
 	httpReq.Header.Set("Content-Type", "application/json")
-	for key, value := range c.config.ExtraHeaders {
-		httpReq.Header.Set(key, value)
+	if c.config.HeaderFunc != nil {
+		if err := c.config.HeaderFunc(ctx, httpReq.Header); err != nil {
+			return nil, fmt.Errorf("request headers: %w", err)
+		}
 	}
 
 	// Configure basic access authorization.
@@ -280,13 +282,9 @@ type ConnConfig struct {
 	// is not set.
 	ProxyPass string
 
-	// ExtraHeaders specifies the extra headers when perform request. It's
-	// useful when RPC provider need customized headers.
-	ExtraHeaders map[string]string
-
-	// EnableBCInfoHacks is an option provided to enable compatibility hacks
-	// when connecting to blockchain.info RPC server
-	EnableBCInfoHacks bool
+	// HeaderFunc, if set, is called before every request to add headers,
+	// such as credentials that expire. An error fails the request.
+	HeaderFunc func(ctx context.Context, header http.Header) error
 
 	// RequestID, if set, derives the JSON-RPC request "id" sent to the
 	// server from the request context.

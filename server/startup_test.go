@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -28,9 +29,17 @@ type fakeCore struct {
 	// for bad credentials.
 	unauthorized bool
 
-	idsMu  sync.Mutex
-	ids    []string          // JSON-RPC ids received, in order
-	params map[string]string // last params received, as raw JSON, by response key
+	idsMu   sync.Mutex
+	ids     []string               // JSON-RPC ids received, in order
+	params  map[string]string      // last params received, as raw JSON, by response key
+	headers map[string]http.Header // last request headers received, by response key
+}
+
+// lastHeaders returns the request headers of the last call for a response key.
+func (f *fakeCore) lastHeaders(key string) http.Header {
+	f.idsMu.Lock()
+	defer f.idsMu.Unlock()
+	return f.headers[key]
 }
 
 // lastParams returns the params of the last call for a response key, as raw
@@ -91,6 +100,10 @@ func (f *fakeCore) start(t *testing.T) string {
 			f.params = make(map[string]string)
 		}
 		f.params[key] = string(req.Params)
+		if f.headers == nil {
+			f.headers = make(map[string]http.Header)
+		}
+		f.headers[key] = r.Header.Clone()
 		f.idsMu.Unlock()
 		res, ok := f.responses[key]
 		if !ok {
@@ -180,6 +193,32 @@ func TestWithoutPrivateKeys(t *testing.T) {
 			t.Fatal("expected an error")
 		}
 	})
+}
+
+func TestWithRequestHeaders(t *testing.T) {
+	core := &fakeCore{responses: map[string]fakeResponse{
+		"listwallets":         {result: []string{"watch"}},
+		"getwalletinfo@watch": walletInfo("watch", false),
+	}}
+
+	calls := 0
+	headers := WithRequestHeaders(func(_ context.Context, h http.Header) error {
+		calls++
+		h.Set("X-Token", fmt.Sprintf("token-%d", calls))
+		return nil
+	})
+	if _, err := newTestBitcoind(t, core, WithoutPrivateKeys(), headers); err != nil {
+		t.Fatal(err)
+	}
+
+	// Both the node's client and the wallet-specific one carry it, fresh on
+	// every request.
+	if got := core.lastHeaders("listwallets").Get("X-Token"); got != "token-1" {
+		t.Errorf("listwallets X-Token = %q, want token-1", got)
+	}
+	if got := core.lastHeaders("getwalletinfo@watch").Get("X-Token"); got != "token-2" {
+		t.Errorf("getwalletinfo@watch X-Token = %q, want token-2", got)
+	}
 }
 
 func TestBackgroundStartup(t *testing.T) {
