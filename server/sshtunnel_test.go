@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"log/slog"
 	"net"
 	"os"
 	"path/filepath"
@@ -12,9 +14,28 @@ import (
 	"testing"
 	"time"
 
-	"connectrpc.com/connect"
-	"github.com/rs/zerolog"
+	"connectrpc.com/connect/v2"
+	"google.golang.org/protobuf/proto"
+
+	pb "github.com/barebitcoin/btc-buf/gen/bitcoin/bitcoind/v1"
 )
+
+type oneRequestStream struct {
+	request  proto.Message
+	receives int
+}
+
+func (s *oneRequestStream) Receive(message any) error {
+	s.receives++
+	if s.receives > 1 {
+		return io.EOF
+	}
+	proto.Merge(message.(proto.Message), s.request)
+	return nil
+}
+
+func (s *oneRequestStream) SendHeaders() error { return nil }
+func (s *oneRequestStream) Send(any) error     { return nil }
 
 type fakeNext struct {
 	mu    sync.Mutex
@@ -22,16 +43,16 @@ type fakeNext struct {
 	fn    func(call int) error
 }
 
-func (f *fakeNext) unary(context.Context, connect.AnyRequest) (connect.AnyResponse, error) {
+func (f *fakeNext) unary(context.Context, connect.Spec, connect.ServerStream) error {
 	f.mu.Lock()
 	f.calls++
 	call := f.calls
 	f.mu.Unlock()
 
 	if err := f.fn(call); err != nil {
-		return nil, err
+		return err
 	}
-	return connect.NewResponse(&struct{}{}), nil
+	return nil
 }
 
 func (f *fakeNext) count() int {
@@ -41,13 +62,12 @@ func (f *fakeNext) count() int {
 }
 
 func callThroughGate(ctx context.Context, gate *tunnelGate, wait time.Duration, next *fakeNext) error {
-	handler := gate.interceptor(wait).WrapUnary(next.unary)
-	_, err := handler(ctx, connect.NewRequest(&struct{}{}))
-	return err
+	handler := gate.interceptor(wait)(next.unary)
+	return handler(ctx, connect.Spec{}, nil)
 }
 
 func refused() error {
-	return connect.NewError(connect.CodeUnavailable, ErrUnreachable)
+	return newConnectError(connect.CodeUnavailable, ErrUnreachable)
 }
 
 func isUp(gate *tunnelGate) bool {
@@ -195,6 +215,35 @@ func TestTunnelGate_RetriesRefusedAfterRepair(t *testing.T) {
 	}
 }
 
+func TestTunnelGate_ReplaysRequestAfterRepair(t *testing.T) {
+	gate := newTunnelGate()
+	gate.set(true)
+	stream := &oneRequestStream{request: &pb.GetBlockRequest{Hash: "original-hash"}}
+	calls := 0
+	handler := gate.interceptor(time.Second)(func(_ context.Context, _ connect.Spec, stream connect.ServerStream) error {
+		var request pb.GetBlockRequest
+		if err := stream.Receive(&request); err != nil {
+			return err
+		}
+		if request.Hash != "original-hash" {
+			t.Errorf("request changed on retry: %q", request.Hash)
+		}
+		calls++
+		if calls == 1 {
+			gate.set(false)
+			gate.set(true)
+			return refused()
+		}
+		return nil
+	})
+	if err := handler(t.Context(), connect.Spec{}, stream); err != nil {
+		t.Fatal(err)
+	}
+	if calls != 2 || stream.receives != 1 {
+		t.Fatalf("calls=%d stream receives=%d; want 2 calls and 1 receive", calls, stream.receives)
+	}
+}
+
 func TestTunnelGate_RetriesRefusedOnlyOnce(t *testing.T) {
 	gate := newTunnelGate()
 	gate.set(true)
@@ -323,8 +372,7 @@ func TestSuperviseSSHTunnel(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
-	log := zerolog.New(zerolog.NewTestWriter(t)).With().Timestamp().Logger()
-	ctx = log.WithContext(ctx)
+	ctx = withLogger(ctx, slog.New(slog.NewTextHandler(t.Output(), &slog.HandlerOptions{Level: levelTrace})))
 
 	gate := newTunnelGate()
 	gate.set(true)

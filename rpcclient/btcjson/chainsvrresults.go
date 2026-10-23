@@ -401,6 +401,7 @@ type GetPeerInfoResult struct {
 	ConnTime       int64   `json:"conntime"`
 	TimeOffset     int64   `json:"timeoffset"`
 	PingTime       float64 `json:"pingtime"`
+	MinPing        float64 `json:"minping,omitempty"`
 	PingWait       float64 `json:"pingwait,omitempty"`
 	Version        uint32  `json:"version"`
 	SubVer         string  `json:"subver"`

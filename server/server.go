@@ -8,33 +8,27 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
+	"log/slog"
 	"net"
-	"net/http"
+	"reflect"
+	"slices"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2"
+	"connectrpc.com/connect/v2/connectproto"
 	"github.com/btcsuite/btcd/address/v2"
 	"github.com/btcsuite/btcd/btcutil/v2"
-	"github.com/btcsuite/btcd/chaincfg/v2"
 	"github.com/btcsuite/btcd/chainhash/v2"
 	"github.com/btcsuite/btcd/wire/v2"
-	"github.com/rs/zerolog"
-	"github.com/samber/lo"
-	"github.com/tidwall/gjson"
-	"golang.org/x/exp/slices"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
-	"github.com/barebitcoin/btc-buf/connectserver"
-	"github.com/barebitcoin/btc-buf/connectserver/logging"
-	pb "github.com/barebitcoin/btc-buf/gen/bitcoin/bitcoind/v1alpha"
-	rpc "github.com/barebitcoin/btc-buf/gen/bitcoin/bitcoind/v1alpha/bitcoindv1alphaconnect"
+	pb "github.com/barebitcoin/btc-buf/gen/bitcoin/bitcoind/v1"
+	rpc "github.com/barebitcoin/btc-buf/gen/bitcoin/bitcoind/v1/bitcoindv1connect"
 	"github.com/barebitcoin/btc-buf/rpcclient"
 	"github.com/barebitcoin/btc-buf/rpcclient/btcjson"
 	"github.com/barebitcoin/btc-buf/server/commands"
@@ -48,25 +42,19 @@ func init() {
 	btcjson.MustRegisterCmd("bumpfee", new(commands.BumpFee), btcjson.UFWalletOnly)
 	btcjson.MustRegisterCmd("analyzepsbt", new(commands.AnalyzePsbt), btcjson.UFWalletOnly)
 	btcjson.MustRegisterCmd("combinepsbt", new(commands.CombinePsbt), btcjson.UFWalletOnly)
-	btcjson.MustRegisterCmd("createpsbt", new(commands.CreatePsbt), btcjson.UFWalletOnly)
 	btcjson.MustRegisterCmd("decodepsbt", new(commands.DecodePsbt), btcjson.UFWalletOnly)
-	btcjson.MustRegisterCmd("utxoupdatepsbt", new(commands.UtxoUpdatePsbt), btcjson.UFWalletOnly)
 	btcjson.MustRegisterCmd("joinpsbts", new(commands.JoinPsbts), btcjson.UFWalletOnly)
 }
-
-type Client = rpc.BitcoinServiceClient
 
 type Bitcoind struct {
 	conf    config
 	rpcConf rpcclient.ConnConfig
 	rpc     *rpcclient.Client
-	server  *connectserver.Server
+	server  *connect.Server
 
 	// One client per wallet, created on first use. See rpcForWallet.
 	walletClientsMu sync.Mutex
 	walletClients   map[string]*rpcclient.Client
-
-	setupDone atomic.Bool
 
 	// stop ends the SSH tunnel and any background startup. Called by
 	// Shutdown.
@@ -80,18 +68,19 @@ type Bitcoind struct {
 type config struct {
 	enableTLS                     bool
 	allowPrivateDescriptorsExport bool // default to the safe option, denying
-	logging                       func(ctx context.Context) *zerolog.Logger
+	logging                       func(ctx context.Context) *slog.Logger
 	withoutInitialConnectionCheck bool
 	cookiePath                    string
-	interceptors                  []connect.Interceptor
+	interceptors                  []connect.ServerInterceptor
 	sshTunnel                     *SSHTunnel
 	requireNoPrivateKeys          bool
 	backgroundStartup             bool
+	requestID                     func(ctx context.Context) string
 }
 
 func newConfig(opts []Option) config {
 	conf := config{
-		logging: zerolog.Ctx,
+		logging: func(context.Context) *slog.Logger { return slog.Default() },
 	}
 
 	for _, opt := range opts {
@@ -137,19 +126,38 @@ func WithoutInitialConnectionCheck() Option {
 
 // WithInterceptors runs the given interceptors innermost, after logging and
 // error mapping, so they see the handler's errors as-is.
-func WithInterceptors(interceptors ...connect.Interceptor) Option {
+func WithInterceptors(interceptors ...connect.ServerInterceptor) Option {
 	return func(c *config) {
 		c.interceptors = append(c.interceptors, interceptors...)
 	}
 }
 
-// WithLogging allows you to provide a custom logging function.
+// WithRequestID tells the server how to find the ID of the request a context
+// belongs to. The ID is logged, and forwarded to Bitcoin Core as the JSON-RPC
+// id, so a request can be followed into Core's debug log. fn returns the
+// empty string for a context without an ID.
 //
-// The function will be called with the context of the request, and should
-// return a zerolog.Logger.
+// The server doesn't create IDs itself. Put them in the context before
+// calling: in an HTTP middleware, in the context passed to an in-process
+// client, or in an interceptor.
 //
-// The default is to use the zerolog.Ctx function.
-func WithLogging(fn func(ctx context.Context) *zerolog.Logger) Option {
+// Without this, requests have no ID, and Core gets numeric JSON-RPC ids.
+func WithRequestID(fn func(ctx context.Context) string) Option {
+	return func(c *config) {
+		c.requestID = fn
+	}
+}
+
+// WithLogging sets the logger to use. fn is called with the context passed to
+// NewBitcoind, and with the context of each request. Request logs are tagged
+// with the endpoint and request ID.
+//
+// The default is slog.Default. To log through zerolog:
+//
+//	WithLogging(func(ctx context.Context) *slog.Logger {
+//		return slog.New(zerolog.NewSlogHandler(*zerolog.Ctx(ctx)))
+//	})
+func WithLogging(fn func(ctx context.Context) *slog.Logger) Option {
 	return func(c *config) {
 		c.logging = fn
 	}
@@ -161,11 +169,10 @@ func NewBitcoind(
 ) (*Bitcoind, error) {
 	conf := newConfig(opts)
 
-	log := zerolog.Ctx(ctx)
-	log.Info().
-		Str("host", host).
-		Str("user", user).
-		Msg("connecting to bitcoind")
+	// Startup and the SSH tunnel log through ctx.
+	log := conf.logging(ctx)
+	ctx = withLogger(ctx, log)
+	log.InfoContext(ctx, "connecting to bitcoind", "host", host, "user", user)
 
 	rpcConf := rpcclient.ConnConfig{
 		User:       user,
@@ -174,18 +181,18 @@ func NewBitcoind(
 		DisableTLS: !conf.enableTLS,
 		Host:       host,
 
-		// Forward our per-request Connect ID as the JSON-RPC id, so a
-		// request can be correlated all the way into bitcoind's debug
-		// log
-		RequestID: connectserver.RequestID,
+		// Forward the request ID as the JSON-RPC id, so a request can be
+		// correlated all the way into bitcoind's debug log
+		RequestID: conf.requestID,
+		Logger:    logFrom,
 	}
 
-	client, err := rpcclient.New(ctx, &rpcConf)
+	client, err := rpcclient.New(&rpcConf)
 	if err != nil {
 		return nil, fmt.Errorf("new RPC client: %w", err)
 	}
 
-	log.Debug().Msg("created RPC client")
+	log.DebugContext(ctx, "created RPC client")
 
 	// The SSH tunnel and a background startup outlive ctx, which may only
 	// bound construction. Shutdown ends them. The logger on ctx is kept.
@@ -201,13 +208,23 @@ func NewBitcoind(
 
 	// Requests wait for startup first, then for the tunnel, and only then
 	// reach the caller's interceptors and the handler.
-	gates := []connect.Interceptor{server.startupInterceptor()}
+	gates := []connect.ServerInterceptor{server.startupInterceptor()}
 	var tunnel *tunnelGate
 	if conf.sshTunnel != nil {
 		tunnel = newTunnelGate()
 		gates = append(gates, tunnel.interceptor(tunnelRepairWait))
 	}
 	server.conf.interceptors = append(gates, conf.interceptors...)
+
+	// Ordering of interceptors matter! First interceptors in the list get
+	// called first.
+	interceptors := []connect.ServerInterceptor{
+		loggingInterceptor(conf.logging, conf.requestID),
+		panicInterceptor(),
+		handleBtcJsonErrors(),
+	}
+	server.server = connect.NewServer(append(interceptors, server.conf.interceptors...)...)
+	rpc.RegisterBitcoinServiceHandler(server.server, rpc.BitcoinServiceHandler(server))
 
 	go func() {
 		// Bounded on its own, so a caller without a deadline can't be held
@@ -219,9 +236,9 @@ func NewBitcoind(
 		switch {
 		case err == nil:
 		case lifetime.Err() != nil:
-			log.Debug().Err(err).Msg("shut down during startup")
+			log.DebugContext(lifetime, "shut down during startup", "error", err)
 		default:
-			log.Err(err).Msg("Bitcoin Core proxy failed to start")
+			log.ErrorContext(lifetime, "Bitcoin Core proxy failed to start", "error", err)
 			// Nothing can use the tunnel once startup has failed.
 			stop()
 		}
@@ -250,92 +267,74 @@ func bitcoindErrorCode(err error) btcjson.RPCErrorCode {
 	return rpcErr.Code
 }
 
-var (
-	pendingRequestsMu sync.RWMutex
-	pendingRequests   []string
-)
-
-func loadPendingRequests() []string {
-	pendingRequestsMu.RLock()
-	defer pendingRequestsMu.RUnlock()
-
-	return slices.Clone(pendingRequests) // nolint:govet
-}
-
-func addPendingRequest(id string) {
-	pendingRequestsMu.Lock()
-	defer pendingRequestsMu.Unlock()
-
-	pendingRequests = append(pendingRequests, id)
-}
-
-func removePendingRequest(id string) {
-	pendingRequestsMu.Lock()
-	defer pendingRequestsMu.Unlock()
-
-	pendingRequests = slices.DeleteFunc(pendingRequests, func(maybe string) bool { // nolint:govet
-		return maybe == id
-	})
-}
-
-// By default, the rpcclient calls are not cancelable. This adds that
-// capability (client-side, the actual calls will continue running in the
-// background).
-func withCancel[R any, M any](
-	ctx context.Context, conf config,
+// callRPC fetches a result from Bitcoin Core, and transforms it into our
+// response type. Errors are translated into Connect errors.
+func callRPC[R any, M any](
+	ctx context.Context,
 	fetch func(ctx context.Context) (R, error), transform func(r R) *M,
-) (*connect.Response[M], error) {
-	log := conf.logging(ctx)
+) (*M, error) {
+	log := logFrom(ctx)
 
-	// Buffered: if the caller has already given up (ctx done), the fetch
-	// goroutine must still be able to deliver and exit. Unbuffered channels
-	// would park it forever, holding the result.
-	ch := make(chan R, 1)
-	errs := make(chan error, 1)
-	requestID := connectserver.RequestID(ctx)
+	start := time.Now()
+	log.Log(ctx, levelTrace, "rpc: starting fetch")
 
-	if requestID != "" {
-		defer removePendingRequest(requestID)
-	}
-
-	go func() {
-		if requestID != "" {
-			addPendingRequest(requestID)
-		}
-
-		start := time.Now()
-		log.Trace().Msgf("rpc: starting fetch")
-
-		fetchResult, err := fetch(ctx)
-		log.Trace().Err(err).Msgf("rpc: fetch completed in %s", time.Since(start))
-		switch {
-		case err != nil && err.Error() == `status code: 401, response: ""`:
-			errs <- connect.NewError(connect.CodePermissionDenied, errors.New("permission denied"))
-
-		case err != nil:
-			errs <- err
-
-		default:
-			ch <- fetchResult
-		}
-	}()
-
-	select {
-	case <-ctx.Done():
+	fetchResult, err := fetch(ctx)
+	log.Log(ctx, levelTrace, "rpc: fetch completed", "duration", time.Since(start), "error", err)
+	switch {
+	// If the request was cancelled, report that, rather than however the
+	// fetch failed because of it.
+	case err != nil && ctx.Err() != nil:
 		return nil, ctx.Err()
 
-	case err := <-errs:
+	case err != nil:
 		return nil, transformError(ctx, err)
-
-	case fetchResult := <-ch:
-		start := time.Now()
-		transformed := transform(fetchResult)
-
-		log.Debug().
-			Msgf("rpc: transformed raw result in %s", time.Since(start))
-
-		return connect.NewResponse[M](transformed), nil
 	}
+
+	start = time.Now()
+	transformed := transform(fetchResult)
+
+	log.DebugContext(ctx, "rpc: transformed raw result", "duration", time.Since(start))
+
+	return transformed, nil
+}
+
+// call sends method to Core with positional params, and unmarshals the result
+// into T. Trailing nil params are left out, and other nils are sent as null,
+// which Core reads as "use the default".
+func call[T any](ctx context.Context, rpc *rpcclient.Client, method string, params ...any) (T, error) {
+	var out T
+	for len(params) > 0 && isNil(params[len(params)-1]) {
+		params = params[:len(params)-1]
+	}
+	raw := make([]json.RawMessage, len(params))
+	for i, param := range params {
+		marshalled, err := json.Marshal(param)
+		if err != nil {
+			return out, fmt.Errorf("marshal %s param %d: %w", method, i, err)
+		}
+		raw[i] = marshalled
+	}
+
+	res, err := rpc.RawRequest(ctx, method, raw)
+	if err != nil {
+		return out, err
+	}
+	if err := json.Unmarshal(res, &out); err != nil {
+		return out, fmt.Errorf("unmarshal %s response: %w", method, err)
+	}
+	return out, nil
+}
+
+// isNil reports whether v is nil, or a nil pointer, slice or map.
+func isNil(v any) bool {
+	if v == nil {
+		return true
+	}
+	switch rv := reflect.ValueOf(v); rv.Kind() {
+	case reflect.Pointer, reflect.Slice, reflect.Map:
+		return rv.IsNil()
+	}
+	return false
 }
 
 // ErrUnreachable is the cause of CodeUnavailable when the dial to Bitcoin Core
@@ -349,18 +348,19 @@ func transformError(ctx context.Context, err error) error {
 		panic("PROGRAMMER ERROR: transformError called with nil")
 	}
 
-	if netErr, ok := lo.ErrorsAs[*net.OpError](err); ok &&
+	if errors.Is(err, rpcclient.ErrUnauthorized) {
+		return newConnectError(connect.CodePermissionDenied, errors.New("permission denied"))
+	}
+
+	if netErr, ok := errors.AsType[*net.OpError](err); ok &&
 		strings.Contains(netErr.Error(), "connection refused") {
 
-		zerolog.Ctx(ctx).Debug().Err(err).
-			Msgf("transform error: returning connect.CodeUnavailable")
+		logFrom(ctx).DebugContext(ctx, "transform error: returning connect.CodeUnavailable", "error", err)
 
-		cErr := connect.NewError(connect.CodeUnavailable, ErrUnreachable)
+		cErr := newConnectError(connect.CodeUnavailable, ErrUnreachable)
 
-		if detail, detaiLErr := connect.NewErrorDetail(
-			wrapperspb.String(err.Error()),
-		); detaiLErr == nil {
-			cErr.AddDetail(detail)
+		if detail, detailErr := connectproto.NewErrorDetail(wrapperspb.String(err.Error())); detailErr == nil {
+			cErr = cErr.WithDetail(detail)
 		}
 
 		return cErr
@@ -369,15 +369,10 @@ func transformError(ctx context.Context, err error) error {
 	return err
 }
 
-// Common interface implemented for all wallet RPCs
-type walletRequest interface {
-	GetWallet() string
-}
-
-// rpcForWallet returns the client for the request's wallet, creating it on
-// first use and reusing it after that. Not reusing is a source for memory leaks
-func (b *Bitcoind) rpcForWallet(ctx context.Context, req walletRequest) (*rpcclient.Client, error) {
-	wallet := req.GetWallet()
+// rpcForWallet returns the client for a wallet, creating it on first use and
+// reusing it after that, so requests share its HTTP transport and cookie cache.
+// The empty wallet gives the default client.
+func (b *Bitcoind) rpcForWallet(ctx context.Context, wallet string) (*rpcclient.Client, error) {
 	if wallet == "" {
 		return b.rpc, nil
 	}
@@ -393,13 +388,9 @@ func (b *Bitcoind) rpcForWallet(ctx context.Context, req walletRequest) (*rpccli
 	hostWithoutWallet, _, _ := strings.Cut(rpcConf.Host, "/wallet")
 	rpcConf.Host = fmt.Sprintf("%s/wallet/%s", hostWithoutWallet, wallet)
 
-	zerolog.Ctx(ctx).Info().
-		Str("wallet", wallet).
-		Msgf("creating wallet-specific client: %q", rpcConf.Host)
+	logFrom(ctx).InfoContext(ctx, "creating wallet-specific client", "wallet", wallet, "host", rpcConf.Host)
 
-	// The client outlives this request, so it must not inherit its
-	// cancellation. The logger on the context is kept.
-	rpc, err := rpcclient.New(context.WithoutCancel(ctx), &rpcConf)
+	rpc, err := rpcclient.New(&rpcConf)
 	if err != nil {
 		return nil, err
 	}
@@ -412,9 +403,9 @@ func (b *Bitcoind) rpcForWallet(ctx context.Context, req walletRequest) (*rpccli
 	return rpc, nil
 }
 
-// ListTransactions implements bitcoindv1alphaconnect.BitcoinServiceHandler.
-func (b *Bitcoind) ListTransactions(ctx context.Context, c *connect.Request[pb.ListTransactionsRequest]) (*connect.Response[pb.ListTransactionsResponse], error) {
-	rpc, err := b.rpcForWallet(ctx, c.Msg)
+// ListTransactions implements bitcoindv1connect.BitcoinServiceHandler.
+func (b *Bitcoind) ListTransactions(ctx context.Context, c *pb.ListTransactionsRequest) (*pb.ListTransactionsResponse, error) {
+	rpc, err := b.rpcForWallet(ctx, c.Wallet)
 	if err != nil {
 		return nil, err
 	}
@@ -422,17 +413,17 @@ func (b *Bitcoind) ListTransactions(ctx context.Context, c *connect.Request[pb.L
 		label        = "*"
 		defaultCount = 10
 	)
-	return withCancel(ctx, b.conf,
+	return callRPC(ctx,
 		func(ctx context.Context) ([]btcjson.ListTransactionsResult, error) {
 			return rpc.ListTransactionsCountFrom(
 				ctx, label,
-				cmp.Or(int(c.Msg.Count), defaultCount),
-				int(c.Msg.Skip),
+				cmp.Or(int(c.Count), defaultCount),
+				int(c.Skip),
 			)
 		},
 		func(r []btcjson.ListTransactionsResult) *pb.ListTransactionsResponse {
 			return &pb.ListTransactionsResponse{
-				Transactions: lo.Map(r, func(
+				Transactions: mapSlice(r, func(
 					tx btcjson.ListTransactionsResult, idx int,
 				) *pb.GetTransactionResponse {
 					return txListEntryToProto(tx)
@@ -442,82 +433,66 @@ func (b *Bitcoind) ListTransactions(ctx context.Context, c *connect.Request[pb.L
 	)
 }
 
-func (b *Bitcoind) ListUnspent(ctx context.Context, c *connect.Request[pb.ListUnspentRequest]) (*connect.Response[pb.ListUnspentResponse], error) {
-	rpc, err := b.rpcForWallet(ctx, c.Msg)
+func (b *Bitcoind) ListUnspent(ctx context.Context, c *pb.ListUnspentRequest) (*pb.ListUnspentResponse, error) {
+	rpc, err := b.rpcForWallet(ctx, c.Wallet)
 	if err != nil {
 		return nil, err
 	}
 
-	cmd := btcjson.ListUnspentCmd{
-		Addresses: lo.EmptyableToPtr(c.Msg.Addresses),
-	}
-
-	if c.Msg.MinimumConfirmations != nil {
-		cmd.MinConf = lo.ToPtr(int(*c.Msg.MinimumConfirmations))
-	}
-	if c.Msg.MaximumConfirmations != nil {
-		cmd.MaxConf = lo.ToPtr(int(*c.Msg.MaximumConfirmations))
-	}
-
-	res, err := rpcclient.ReceiveFuture(rpc.SendCmd(ctx, &cmd))
-	if err != nil {
-		return nil, transformError(ctx, err)
-	}
-
-	var parsed []btcjson.ListUnspentResult
-	if err := json.Unmarshal(res, &parsed); err != nil {
-		return nil, fmt.Errorf("unmarshal listunspent response: %w", err)
-	}
-
-	return connect.NewResponse(&pb.ListUnspentResponse{
-		Unspent: lo.Map(parsed, func(
-			unspent btcjson.ListUnspentResult, idx int,
-		) *pb.UnspentOutput {
-			return &pb.UnspentOutput{
-				Txid:          unspent.TxID,
-				Vout:          unspent.Vout,
-				Address:       unspent.Address,
-				ScriptPubKey:  unspent.ScriptPubKey,
-				Spendable:     unspent.Spendable,
-				Amount:        unspent.Amount,
-				Confirmations: uint32(unspent.Confirmations),
-				RedeemScript:  unspent.RedeemScript,
+	return callRPC(ctx,
+		func(ctx context.Context) ([]btcjson.ListUnspentResult, error) {
+			return call[[]btcjson.ListUnspentResult](ctx, rpc, "listunspent",
+				c.MinimumConfirmations, c.MaximumConfirmations, c.Addresses, c.IncludeUnsafe)
+		},
+		func(r []btcjson.ListUnspentResult) *pb.ListUnspentResponse {
+			return &pb.ListUnspentResponse{
+				Unspent: mapSlice(r, func(
+					unspent btcjson.ListUnspentResult, idx int,
+				) *pb.UnspentOutput {
+					return &pb.UnspentOutput{
+						Txid:          unspent.TxID,
+						Vout:          unspent.Vout,
+						Address:       unspent.Address,
+						ScriptPubKey:  unspent.ScriptPubKey,
+						Spendable:     unspent.Spendable,
+						Safe:          unspent.Safe,
+						Amount:        unspent.Amount,
+						Confirmations: uint32(unspent.Confirmations),
+						RedeemScript:  unspent.RedeemScript,
+					}
+				}),
 			}
-		}),
-	}), nil
+		},
+	)
 }
 
-// ListWallets implements bitcoindv1alphaconnect.BitcoinServiceHandler.
-func (b *Bitcoind) ListWallets(ctx context.Context, _ *connect.Request[emptypb.Empty]) (*connect.Response[pb.ListWalletsResponse], error) {
-	wallets, err := b.rpc.ListWallets(ctx)
-	if err != nil {
-		return nil, transformError(ctx, err)
-	}
-
-	return connect.NewResponse(&pb.ListWalletsResponse{
-		Wallets: wallets,
-	}), nil
+// ListWallets implements bitcoindv1connect.BitcoinServiceHandler.
+func (b *Bitcoind) ListWallets(ctx context.Context, _ *emptypb.Empty) (*pb.ListWalletsResponse, error) {
+	return callRPC(ctx, b.rpc.ListWallets,
+		func(wallets []string) *pb.ListWalletsResponse {
+			return &pb.ListWalletsResponse{Wallets: wallets}
+		})
 }
 
-// ListSinceBlock implements bitcoindv1alphaconnect.BitcoinServiceHandler.
-func (b *Bitcoind) ListSinceBlock(ctx context.Context, c *connect.Request[pb.ListSinceBlockRequest]) (*connect.Response[pb.ListSinceBlockResponse], error) {
-	rpc, err := b.rpcForWallet(ctx, c.Msg)
+// ListSinceBlock implements bitcoindv1connect.BitcoinServiceHandler.
+func (b *Bitcoind) ListSinceBlock(ctx context.Context, c *pb.ListSinceBlockRequest) (*pb.ListSinceBlockResponse, error) {
+	rpc, err := b.rpcForWallet(ctx, c.Wallet)
 	if err != nil {
 		return nil, err
 	}
 
-	hash, err := newChainHash(c.Msg.Hash)
+	hash, err := newChainHash(c.Hash)
 	if err != nil {
 		return nil, err
 	}
 
-	return withCancel(ctx, b.conf,
+	return callRPC(ctx,
 		func(ctx context.Context) (*btcjson.ListSinceBlockResult, error) {
 			return rpc.ListSinceBlock(ctx, hash)
 		},
 		func(r *btcjson.ListSinceBlockResult) *pb.ListSinceBlockResponse {
 			return &pb.ListSinceBlockResponse{
-				Transactions: lo.Map(r.Transactions, func(tx btcjson.ListTransactionsResult, idx int) *pb.GetTransactionResponse {
+				Transactions: mapSlice(r.Transactions, func(tx btcjson.ListTransactionsResult, idx int) *pb.GetTransactionResponse {
 					return txListEntryToProto(tx)
 				}),
 			}
@@ -528,11 +503,11 @@ func (b *Bitcoind) ListSinceBlock(ctx context.Context, c *connect.Request[pb.Lis
 func txListEntryToProto(tx btcjson.ListTransactionsResult) *pb.GetTransactionResponse {
 	return &pb.GetTransactionResponse{
 		Amount:            tx.Amount,
-		Fee:               lo.FromPtr(tx.Fee),
+		Fee:               deref(tx.Fee),
 		Confirmations:     int32(tx.Confirmations),
 		BlockHash:         tx.BlockHash,
-		BlockIndex:        uint32(lo.FromPtr(tx.BlockIndex)),
-		BlockTime:         nil,
+		BlockIndex:        uint32(deref(tx.BlockIndex)),
+		BlockTime:         newTimestamp(tx.BlockTime),
 		Txid:              tx.TxID,
 		WalletConflicts:   tx.WalletConflicts,
 		ReplacedByTxid:    tx.ReplacedByTXID,
@@ -547,14 +522,14 @@ func txListEntryToProto(tx btcjson.ListTransactionsResult) *pb.GetTransactionRes
 			Category:          categoryFromString(tx.Category),
 			Amount:            tx.Amount,
 			Vout:              tx.Vout,
-			Fee:               lo.FromPtr(tx.Fee),
+			Fee:               deref(tx.Fee),
 		}},
 	}
 }
 
-// BumpFee implements bitcoindv1alphaconnect.BitcoinServiceHandler.
-func (b *Bitcoind) BumpFee(ctx context.Context, c *connect.Request[pb.BumpFeeRequest]) (*connect.Response[pb.BumpFeeResponse], error) {
-	rpc, err := b.rpcForWallet(ctx, c.Msg)
+// BumpFee implements bitcoindv1connect.BitcoinServiceHandler.
+func (b *Bitcoind) BumpFee(ctx context.Context, c *pb.BumpFeeRequest) (*pb.BumpFeeResponse, error) {
+	rpc, err := b.rpcForWallet(ctx, c.Wallet)
 	if err != nil {
 		return nil, err
 	}
@@ -565,9 +540,9 @@ func (b *Bitcoind) BumpFee(ctx context.Context, c *connect.Request[pb.BumpFeeReq
 		Fee     json.Number // new fee
 		Errors  []string    // May be empty
 	}
-	return withCancel(ctx, b.conf,
+	return callRPC(ctx,
 		func(ctx context.Context) (rawBumpFeeResponse, error) {
-			cmd, err := btcjson.NewCmd("bumpfee", c.Msg.Txid)
+			cmd, err := btcjson.NewCmd("bumpfee", c.Txid)
 			if err != nil {
 				return rawBumpFeeResponse{}, err
 			}
@@ -576,8 +551,7 @@ func (b *Bitcoind) BumpFee(ctx context.Context, c *connect.Request[pb.BumpFeeReq
 			if err != nil {
 				return rawBumpFeeResponse{}, fmt.Errorf("send bumpfee: %w", err)
 			}
-			zerolog.Ctx(ctx).Err(err).
-				Msgf("bumpfee response: %s", string(res))
+			logFrom(ctx).DebugContext(ctx, "bumpfee response", "response", string(res))
 
 			var parsed rawBumpFeeResponse
 			if err := json.Unmarshal(res, &parsed); err != nil {
@@ -601,19 +575,19 @@ func (b *Bitcoind) BumpFee(ctx context.Context, c *connect.Request[pb.BumpFeeReq
 }
 
 // GetNewAddress implements bitcoind.Bitcoin
-func (b *Bitcoind) GetNewAddress(ctx context.Context, req *connect.Request[pb.GetNewAddressRequest]) (*connect.Response[pb.GetNewAddressResponse], error) {
-	rpc, err := b.rpcForWallet(ctx, req.Msg)
+func (b *Bitcoind) GetNewAddress(ctx context.Context, req *pb.GetNewAddressRequest) (*pb.GetNewAddressResponse, error) {
+	rpc, err := b.rpcForWallet(ctx, req.Wallet)
 	if err != nil {
 		return nil, err
 	}
 
-	return withCancel(ctx, b.conf,
+	return callRPC(ctx,
 		func(ctx context.Context) (address.Address, error) {
-			if req.Msg.AddressType != "" {
-				return rpc.GetNewAddressType(ctx, req.Msg.Label, req.Msg.AddressType)
+			if req.AddressType != "" {
+				return rpc.GetNewAddressType(ctx, req.Label, req.AddressType)
 			}
 
-			return rpc.GetNewAddress(ctx, req.Msg.Label)
+			return rpc.GetNewAddress(ctx, req.Label)
 		},
 		func(r address.Address) *pb.GetNewAddressResponse {
 			return &pb.GetNewAddressResponse{Address: r.EncodeAddress()}
@@ -622,9 +596,9 @@ func (b *Bitcoind) GetNewAddress(ctx context.Context, req *connect.Request[pb.Ge
 
 // GetBlockchainInfo implements bitcoindv22.BitcoinServer
 func (b *Bitcoind) GetBlockchainInfo(
-	ctx context.Context, req *connect.Request[pb.GetBlockchainInfoRequest],
-) (*connect.Response[pb.GetBlockchainInfoResponse], error) {
-	return withCancel(ctx, b.conf, b.rpc.GetBlockChainInfo,
+	ctx context.Context, req *pb.GetBlockchainInfoRequest,
+) (*pb.GetBlockchainInfoResponse, error) {
+	return callRPC(ctx, b.rpc.GetBlockChainInfo,
 		func(info *btcjson.GetBlockChainInfoResult) *pb.GetBlockchainInfoResponse {
 			return &pb.GetBlockchainInfoResponse{
 				BestBlockHash:        info.BestBlockHash,
@@ -640,12 +614,12 @@ func (b *Bitcoind) GetBlockchainInfo(
 
 // GetPeerInfo implements bitcoindv22.BitcoinServer
 func (b *Bitcoind) GetPeerInfo(
-	ctx context.Context, req *connect.Request[pb.GetPeerInfoRequest],
-) (*connect.Response[pb.GetPeerInfoResponse], error) {
-	return withCancel(ctx, b.conf, b.rpc.GetPeerInfo,
+	ctx context.Context, req *pb.GetPeerInfoRequest,
+) (*pb.GetPeerInfoResponse, error) {
+	return callRPC(ctx, b.rpc.GetPeerInfo,
 		func(info []btcjson.GetPeerInfoResult) *pb.GetPeerInfoResponse {
 			return &pb.GetPeerInfoResponse{
-				Peers: lo.Map(info, func(peer btcjson.GetPeerInfoResult, idx int) *pb.Peer {
+				Peers: mapSlice(info, func(peer btcjson.GetPeerInfoResult, idx int) *pb.Peer {
 					// Create a peer object with all available fields from the GetPeerInfoResult struct
 					p := &pb.Peer{
 						Id:                  peer.ID,
@@ -662,7 +636,6 @@ func (b *Bitcoind) GetPeerInfo(
 						LastBlockAt:         nil,                                    // Not in the RPC client
 						BytesSentPerMsg:     map[string]int64{},                     // Not in the RPC client
 						BytesReceivedPerMsg: map[string]int64{},                     // Not in the RPC client
-						MinPing:             nil,                                    // Not in the RPC client
 						Bip152HbTo:          false,                                  // Not in the RPC client
 						Bip152HbFrom:        false,                                  // Not in the RPC client
 						PresyncedHeaders:    0,                                      // Not in the RPC client
@@ -686,8 +659,9 @@ func (b *Bitcoind) GetPeerInfo(
 						Services:            peer.Services,
 						ServicesNames:       []string{}, // Not in the RPC client
 						RelayTransactions:   peer.RelayTxes,
-						PingTime:            durationpb.New(time.Millisecond * time.Duration(peer.PingTime)),
-						PingWait:            durationpb.New(time.Millisecond * time.Duration(peer.PingWait)),
+						PingTime:            secondsDuration(peer.PingTime),
+						MinPing:             secondsDuration(peer.MinPing),
+						PingWait:            secondsDuration(peer.PingWait),
 					}
 
 					return p
@@ -696,11 +670,11 @@ func (b *Bitcoind) GetPeerInfo(
 		})
 }
 
-// GetNetworkInfo implements bitcoindv1alpha.BitcoinServiceServer
+// GetNetworkInfo implements bitcoindv1connect.BitcoinServiceHandler
 func (b *Bitcoind) GetNetworkInfo(
-	ctx context.Context, req *connect.Request[pb.GetNetworkInfoRequest],
-) (*connect.Response[pb.GetNetworkInfoResponse], error) {
-	return withCancel(ctx, b.conf, b.rpc.GetNetworkInfo,
+	ctx context.Context, req *pb.GetNetworkInfoRequest,
+) (*pb.GetNetworkInfoResponse, error) {
+	return callRPC(ctx, b.rpc.GetNetworkInfo,
 		func(info *btcjson.GetNetworkInfoResult) *pb.GetNetworkInfoResponse {
 			// Convert warnings - handle both single string and array formats
 			warnings := []string{}
@@ -720,7 +694,7 @@ func (b *Bitcoind) GetNetworkInfo(
 				ConnectionsIn:      info.ConnectionsIn,
 				ConnectionsOut:     info.ConnectionsOut,
 				NetworkActive:      info.NetworkActive,
-				Networks: lo.Map(info.Networks, func(n btcjson.NetworksResult, _ int) *pb.GetNetworkInfoResponse_Network {
+				Networks: mapSlice(info.Networks, func(n btcjson.NetworksResult, _ int) *pb.GetNetworkInfoResponse_Network {
 					return &pb.GetNetworkInfoResponse_Network{
 						Name:                      n.Name,
 						Limited:                   n.Limited,
@@ -731,7 +705,7 @@ func (b *Bitcoind) GetNetworkInfo(
 				}),
 				RelayFee:       info.RelayFee,
 				IncrementalFee: info.IncrementalFee,
-				LocalAddresses: lo.Map(info.LocalAddresses, func(a btcjson.LocalAddressesResult, _ int) *pb.GetNetworkInfoResponse_LocalAddress {
+				LocalAddresses: mapSlice(info.LocalAddresses, func(a btcjson.LocalAddressesResult, _ int) *pb.GetNetworkInfoResponse_LocalAddress {
 					return &pb.GetNetworkInfoResponse_LocalAddress{
 						Address: a.Address,
 						Port:    uint32(a.Port),
@@ -743,11 +717,11 @@ func (b *Bitcoind) GetNetworkInfo(
 		})
 }
 
-// GetNetTotals implements bitcoindv1alpha.BitcoinServiceServer
+// GetNetTotals implements bitcoindv1connect.BitcoinServiceHandler
 func (b *Bitcoind) GetNetTotals(
-	ctx context.Context, req *connect.Request[pb.GetNetTotalsRequest],
-) (*connect.Response[pb.GetNetTotalsResponse], error) {
-	return withCancel(ctx, b.conf, b.rpc.GetNetTotals,
+	ctx context.Context, req *pb.GetNetTotalsRequest,
+) (*pb.GetNetTotalsResponse, error) {
+	return callRPC(ctx, b.rpc.GetNetTotals,
 		func(totals *btcjson.GetNetTotalsResult) *pb.GetNetTotalsResponse {
 			return &pb.GetNetTotalsResponse{
 				TotalBytesRecv: totals.TotalBytesRecv,
@@ -757,17 +731,17 @@ func (b *Bitcoind) GetNetTotals(
 		})
 }
 
-// GetWalletInfo implements bitcoindv1alpha.BitcoinServiceServer
+// GetWalletInfo implements bitcoindv1connect.BitcoinServiceHandler
 func (b *Bitcoind) GetWalletInfo(
-	ctx context.Context, req *connect.Request[pb.GetWalletInfoRequest],
-) (*connect.Response[pb.GetWalletInfoResponse], error) {
-	rpc, err := b.rpcForWallet(ctx, req.Msg)
+	ctx context.Context, req *pb.GetWalletInfoRequest,
+) (*pb.GetWalletInfoResponse, error) {
+	rpc, err := b.rpcForWallet(ctx, req.Wallet)
 	if err != nil {
 		return nil, err
 	}
 
-	return withCancel(ctx,
-		b.conf, rpc.GetWalletInfo,
+	return callRPC(ctx,
+		rpc.GetWalletInfo,
 		func(info *btcjson.GetWalletInfoResult) *pb.GetWalletInfoResponse {
 			var scanning *pb.WalletScan
 			if info, ok := info.Scanning.Value.(btcjson.ScanProgress); ok {
@@ -782,7 +756,7 @@ func (b *Bitcoind) GetWalletInfo(
 				Format:                info.Format,
 				TxCount:               int64(info.TransactionCount),
 				KeyPoolSize:           int64(info.KeyPoolSize),
-				KeyPoolSizeHdInternal: int64(*info.KeyPoolSizeHDInternal),
+				KeyPoolSizeHdInternal: int64(deref(info.KeyPoolSizeHDInternal)),
 				PayTxFee:              info.PayTransactionFee,
 				PrivateKeysEnabled:    info.PrivateKeysEnabled,
 				AvoidReuse:            info.AvoidReuse,
@@ -794,11 +768,11 @@ func (b *Bitcoind) GetWalletInfo(
 	)
 }
 
-// GetBlockHash implements bitcoindv1alphaconnect.BitcoinServiceHandler.
-func (b *Bitcoind) GetBlockHash(ctx context.Context, c *connect.Request[pb.GetBlockHashRequest]) (*connect.Response[pb.GetBlockHashResponse], error) {
-	return withCancel(ctx, b.conf,
+// GetBlockHash implements bitcoindv1connect.BitcoinServiceHandler.
+func (b *Bitcoind) GetBlockHash(ctx context.Context, c *pb.GetBlockHashRequest) (*pb.GetBlockHashResponse, error) {
+	return callRPC(ctx,
 		func(ctx context.Context) (*chainhash.Hash, error) {
-			return b.rpc.GetBlockHash(ctx, int64(c.Msg.Height))
+			return b.rpc.GetBlockHash(ctx, int64(c.Height))
 		},
 		func(hash *chainhash.Hash) *pb.GetBlockHashResponse {
 			return &pb.GetBlockHashResponse{Hash: hash.String()}
@@ -806,27 +780,32 @@ func (b *Bitcoind) GetBlockHash(ctx context.Context, c *connect.Request[pb.GetBl
 	)
 }
 
-// GetBlock implements bitcoindv1alphaconnect.BitcoinServiceHandler.
-func (b *Bitcoind) GetBlock(ctx context.Context, c *connect.Request[pb.GetBlockRequest]) (*connect.Response[pb.GetBlockResponse], error) {
-	if (c.Msg.Hash == "" && c.Msg.Height == nil) || (c.Msg.Hash != "" && c.Msg.Height != nil) {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New(`must set one of "hash" or "height"`))
+// GetBlock implements bitcoindv1connect.BitcoinServiceHandler.
+func (b *Bitcoind) GetBlock(ctx context.Context, c *pb.GetBlockRequest) (*pb.GetBlockResponse, error) {
+	if (c.Hash == "" && c.Height == nil) || (c.Hash != "" && c.Height != nil) {
+		return nil, newConnectError(connect.CodeInvalidArgument, errors.New(`must set one of "hash" or "height"`))
 	}
 
-	hash, err := newChainHash(c.Msg.Hash)
+	hash, err := newChainHash(c.Hash)
 	if err != nil {
 		return nil, fmt.Errorf("new chain hash: %w", err)
 	}
 
-	if c.Msg.Height != nil {
-		hash, err = b.rpc.GetBlockHash(ctx, int64(*c.Msg.Height))
+	if c.Height != nil {
+		res, err := callRPC(ctx,
+			func(ctx context.Context) (*chainhash.Hash, error) {
+				return b.rpc.GetBlockHash(ctx, int64(*c.Height))
+			},
+			func(hash *chainhash.Hash) *chainhash.Hash { return hash })
 		if err != nil {
-			return nil, fmt.Errorf("get block hash from height: %w", transformError(ctx, err))
+			return nil, fmt.Errorf("get block hash from height: %w", err)
 		}
+		hash = res
 	}
 
 	// Bitcoin Core default
-	if c.Msg.Verbosity == pb.GetBlockRequest_VERBOSITY_UNSPECIFIED {
-		c.Msg.Verbosity = pb.GetBlockRequest_VERBOSITY_BLOCK_INFO
+	if c.Verbosity == pb.GetBlockRequest_VERBOSITY_UNSPECIFIED {
+		c.Verbosity = pb.GetBlockRequest_VERBOSITY_BLOCK_INFO
 	}
 
 	// The Bitcoin Core `getblock` results has different types for the same fields
@@ -856,59 +835,28 @@ func (b *Bitcoind) GetBlock(ctx context.Context, c *connect.Request[pb.GetBlockR
 		Txids        []string              `json:"-"`
 		Transactions []btcjson.TxRawResult `json:"-"`
 	}
-	switch c.Msg.Verbosity {
+	switch c.Verbosity {
 	case pb.GetBlockRequest_VERBOSITY_RAW_DATA:
-		return withCancel(ctx, b.conf,
-			func(ctx context.Context) (*wire.MsgBlock, error) {
-				res, err := rpcclient.ReceiveFuture(b.rpc.SendCmd(ctx, btcjson.NewGetBlockCmd(hash.String(), btcjson.Int(0))))
-				if err != nil {
-					return nil, err
-				}
-
-				// Decode the serialized block hex to raw bytes.
-				serializedBlock, err := hex.DecodeString(gjson.ParseBytes(res).String())
-				if err != nil {
-					return nil, err
-				}
-
-				// Deserialize the block and return it.
-				var msgBlock wire.MsgBlock
-				err = msgBlock.Deserialize(bytes.NewReader(serializedBlock))
-				if err != nil {
-					return nil, err
-				}
-				return &msgBlock, nil
+		return callRPC(ctx,
+			func(ctx context.Context) (string, error) {
+				return call[string](ctx, b.rpc, "getblock", hash.String(), 0)
 			},
-			func(block *wire.MsgBlock) *pb.GetBlockResponse {
-				var out bytes.Buffer
-				if err := block.Serialize(&out); err != nil {
-					panic(fmt.Sprintf("serialize block: %s", err))
-				}
-
-				return &pb.GetBlockResponse{
-					Hex: hex.EncodeToString(out.Bytes()),
-				}
+			func(blockHex string) *pb.GetBlockResponse {
+				return &pb.GetBlockResponse{Hex: blockHex}
 			},
 		)
 
 	case pb.GetBlockRequest_VERBOSITY_BLOCK_INFO,
 		pb.GetBlockRequest_VERBOSITY_BLOCK_TX_INFO,
 		pb.GetBlockRequest_VERBOSITY_BLOCK_TX_PREVOUT_INFO:
-		return withCancel(ctx, b.conf,
+		return callRPC(ctx,
 			func(ctx context.Context) (getBlockResult, error) {
 				coreVerbosities := map[pb.GetBlockRequest_Verbosity]int{
-					pb.GetBlockRequest_VERBOSITY_RAW_DATA:              0,
 					pb.GetBlockRequest_VERBOSITY_BLOCK_INFO:            1,
 					pb.GetBlockRequest_VERBOSITY_BLOCK_TX_INFO:         2,
 					pb.GetBlockRequest_VERBOSITY_BLOCK_TX_PREVOUT_INFO: 3,
 				}
-				rpcVerbosity, ok := coreVerbosities[c.Msg.Verbosity]
-				if !ok {
-					return getBlockResult{}, fmt.Errorf("invalid verbosity: %q", c.Msg.Verbosity)
-				}
-
-				cmd := btcjson.NewGetBlockCmd(hash.String(), btcjson.Int(rpcVerbosity))
-				res, err := rpcclient.ReceiveFuture(b.rpc.SendCmd(ctx, cmd))
+				res, err := call[json.RawMessage](ctx, b.rpc, "getblock", hash.String(), coreVerbosities[c.Verbosity])
 				if err != nil {
 					return getBlockResult{}, err
 				}
@@ -918,17 +866,23 @@ func (b *Bitcoind) GetBlock(ctx context.Context, c *connect.Request[pb.GetBlockR
 					return getBlockResult{}, err
 				}
 
-				switch c.Msg.Verbosity {
+				// The shape of "tx" depends on the verbosity.
+				var rawTx struct {
+					Tx json.RawMessage `json:"tx"`
+				}
+				if err := json.Unmarshal(res, &rawTx); err != nil {
+					return getBlockResult{}, err
+				}
+
+				switch c.Verbosity {
 				case pb.GetBlockRequest_VERBOSITY_BLOCK_INFO:
-					rawTxids := gjson.GetBytes(res, "tx").Raw
-					if err := json.Unmarshal([]byte(rawTxids), &blockResult.Txids); err != nil {
+					if err := json.Unmarshal(rawTx.Tx, &blockResult.Txids); err != nil {
 						return getBlockResult{}, fmt.Errorf("unmarshal txids: %w", err)
 					}
 				case pb.GetBlockRequest_VERBOSITY_BLOCK_TX_INFO,
 					pb.GetBlockRequest_VERBOSITY_BLOCK_TX_PREVOUT_INFO:
 
-					rawTransactions := gjson.GetBytes(res, "tx").Raw
-					if err := json.Unmarshal([]byte(rawTransactions), &blockResult.Transactions); err != nil {
+					if err := json.Unmarshal(rawTx.Tx, &blockResult.Transactions); err != nil {
 						return getBlockResult{}, fmt.Errorf("unmarshal transactions: %w", err)
 					}
 				}
@@ -946,8 +900,8 @@ func (b *Bitcoind) GetBlock(ctx context.Context, c *connect.Request[pb.GetBlockR
 					Time:              newTimestamp(block.Time),
 					MedianTime:        newTimestamp(block.MedianTime),
 					Nonce:             block.Nonce,
-					PreviousBlockHash: lo.FromPtr(block.PreviousHash),
-					NextBlockHash:     lo.FromPtr(block.NextHash),
+					PreviousBlockHash: deref(block.PreviousHash),
+					NextBlockHash:     deref(block.NextHash),
 					Bits:              block.Bits,
 					Target:            block.Target,
 					StrippedSize:      block.StrippedSize,
@@ -956,38 +910,45 @@ func (b *Bitcoind) GetBlock(ctx context.Context, c *connect.Request[pb.GetBlockR
 					Difficulty:        block.Difficulty,
 					Chainwork:         block.Chainwork,
 					Txids:             block.Txids,
-					Transactions:      lo.Map(block.Transactions, blockTransactionProto),
+					Transactions:      mapSlice(block.Transactions, blockTransactionProto),
 				}
 			},
 		)
 
 	default:
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid verbosity: %q", c.Msg.Verbosity))
+		return nil, newConnectError(connect.CodeInvalidArgument, fmt.Errorf("invalid verbosity: %q", c.Verbosity))
 	}
 }
 
-// GetRawTransaction implements bitcoindv1alphaconnect.BitcoinServiceHandler.
-func (b *Bitcoind) GetRawTransaction(ctx context.Context, c *connect.Request[pb.GetRawTransactionRequest]) (*connect.Response[pb.GetRawTransactionResponse], error) {
-	if c.Msg.Txid == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New(`"txid" is a required argument`))
+// GetRawTransaction implements bitcoindv1connect.BitcoinServiceHandler.
+func (b *Bitcoind) GetRawTransaction(ctx context.Context, c *pb.GetRawTransactionRequest) (*pb.GetRawTransactionResponse, error) {
+	if c.Txid == "" {
+		return nil, newConnectError(connect.CodeInvalidArgument, errors.New(`"txid" is a required argument`))
 	}
 
-	hash, err := newChainHash(c.Msg.Txid)
+	hash, err := newChainHash(c.Txid)
 	if err != nil {
 		return nil, err
 	}
+	blockHash, err := newChainHash(c.Blockhash)
+	if err != nil {
+		return nil, err
+	}
+	var blockHashParam any
+	if blockHash != nil {
+		blockHashParam = blockHash.String()
+	}
 
-	if c.Msg.Verbosity == pb.GetRawTransactionRequest_VERBOSITY_UNSPECIFIED ||
-		c.Msg.Verbosity == pb.GetRawTransactionRequest_VERBOSITY_RAW_DATA {
-		return withCancel(ctx, b.conf,
-			func(ctx context.Context) (*btcutil.Tx, error) { return b.rpc.GetRawTransaction(ctx, hash) },
-			func(tx *btcutil.Tx) *pb.GetRawTransactionResponse {
-				var buf bytes.Buffer
-				if err := tx.MsgTx().Serialize(&buf); err != nil {
-					panic(err)
-				}
+	if c.Verbosity == pb.GetRawTransactionRequest_VERBOSITY_UNSPECIFIED ||
+		c.Verbosity == pb.GetRawTransactionRequest_VERBOSITY_RAW_DATA {
+		return callRPC(ctx,
+			func(ctx context.Context) (string, error) {
+				return call[string](ctx, b.rpc, "getrawtransaction", hash.String(), 0, blockHashParam)
+			},
+			func(txHex string) *pb.GetRawTransactionResponse {
+				decoded, _ := hex.DecodeString(txHex)
 				return &pb.GetRawTransactionResponse{
-					Tx: rawTransaction(buf.Bytes()),
+					Tx: rawTransaction(decoded),
 				}
 			},
 		)
@@ -997,34 +958,24 @@ func (b *Bitcoind) GetRawTransaction(ctx context.Context, c *connect.Request[pb.
 		pb.GetRawTransactionRequest_VERBOSITY_TX_INFO:         1,
 		pb.GetRawTransactionRequest_VERBOSITY_TX_PREVOUT_INFO: 2,
 	}
-	rpcVerbosity, ok := coreVerbosities[c.Msg.Verbosity]
+	rpcVerbosity, ok := coreVerbosities[c.Verbosity]
 	if !ok {
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid verbosity: %q", c.Msg.Verbosity))
+		return nil, newConnectError(connect.CodeInvalidArgument, fmt.Errorf("invalid verbosity: %q", c.Verbosity))
 	}
 
-	cmd := btcjson.NewGetRawTransactionCmd(hash.String(), btcjson.Int(rpcVerbosity))
-
-	return withCancel(ctx, b.conf,
-		func(ctx context.Context) (*btcjson.TxRawResult, error) {
-			res, err := rpcclient.ReceiveFuture(b.rpc.SendCmd(ctx, cmd))
-			if err != nil {
-				return nil, err
-			}
-			var rawTxResult btcjson.TxRawResult
-			if err := json.Unmarshal(res, &rawTxResult); err != nil {
-				return nil, err
-			}
-			return &rawTxResult, nil
+	return callRPC(ctx,
+		func(ctx context.Context) (btcjson.TxRawResult, error) {
+			return call[btcjson.TxRawResult](ctx, b.rpc, "getrawtransaction", hash.String(), rpcVerbosity, blockHashParam)
 		},
-		func(tx *btcjson.TxRawResult) *pb.GetRawTransactionResponse {
+		func(tx btcjson.TxRawResult) *pb.GetRawTransactionResponse {
 			decoded, _ := hex.DecodeString(tx.Hex)
 			return &pb.GetRawTransactionResponse{
 				Tx:            rawTransaction(decoded),
 				Blockhash:     tx.BlockHash,
 				Confirmations: uint32(tx.Confirmations),
 				BlockTime:     newTimestamp(tx.Blocktime),
-				Inputs:        lo.Map(tx.Vin, inputProto),
-				Outputs:       lo.Map(tx.Vout, outputProto),
+				Inputs:        mapSlice(tx.Vin, inputProto),
+				Outputs:       mapSlice(tx.Vout, outputProto),
 				Fee:           tx.Fee,
 				Size:          tx.Size,
 				Vsize:         tx.Vsize,
@@ -1054,8 +1005,8 @@ func blockTransactionProto(tx btcjson.TxRawResult, _ int) *pb.GetBlockResponse_T
 		Weight:   tx.Weight,
 		Version:  tx.Version,
 		Locktime: tx.LockTime,
-		Inputs:   lo.Map(tx.Vin, inputProto),
-		Outputs:  lo.Map(tx.Vout, outputProto),
+		Inputs:   mapSlice(tx.Vin, inputProto),
+		Outputs:  mapSlice(tx.Vout, outputProto),
 		Fee:      tx.Fee,
 	}
 }
@@ -1099,22 +1050,9 @@ func inputProto(input btcjson.Vin, _ int) *pb.Input {
 }
 
 func outputProto(output btcjson.Vout, _ int) *pb.Output {
-	if len(output.ScriptPubKey.Addresses) != 0 {
-		output.ScriptPubKey.Address = output.ScriptPubKey.Addresses[0]
-	}
-
-	var scriptSig *pb.ScriptSig
-	if output.ScriptPubKey.Asm != "" || output.ScriptPubKey.Hex != "" {
-		scriptSig = &pb.ScriptSig{
-			Asm: output.ScriptPubKey.Asm,
-			Hex: output.ScriptPubKey.Hex,
-		}
-	}
-
 	return &pb.Output{
-		Amount:    output.Value,
-		Vout:      output.N,
-		ScriptSig: scriptSig,
+		Amount: output.Value,
+		Vout:   output.N,
 		ScriptPubKey: &pb.ScriptPubKey{
 			Type:    output.ScriptPubKey.Type,
 			Address: output.ScriptPubKey.Address,
@@ -1124,28 +1062,39 @@ func outputProto(output btcjson.Vout, _ int) *pb.Output {
 	}
 }
 
-// GetTransaction implements bitcoindv1alpha.BitcoinServiceServer
-func (b *Bitcoind) GetTransaction(ctx context.Context, c *connect.Request[pb.GetTransactionRequest]) (*connect.Response[pb.GetTransactionResponse], error) {
-	if c.Msg.Txid == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New(`"txid" is a required argument`))
+// GetTransaction implements bitcoindv1connect.BitcoinServiceHandler
+func (b *Bitcoind) GetTransaction(ctx context.Context, c *pb.GetTransactionRequest) (*pb.GetTransactionResponse, error) {
+	if c.Txid == "" {
+		return nil, newConnectError(connect.CodeInvalidArgument, errors.New(`"txid" is a required argument`))
 	}
 
-	hash, err := newChainHash(c.Msg.Txid)
+	hash, err := newChainHash(c.Txid)
 	if err != nil {
 		return nil, err
 	}
 
-	rpc, err := b.rpcForWallet(ctx, c.Msg)
+	rpc, err := b.rpcForWallet(ctx, c.Wallet)
 	if err != nil {
 		return nil, err
 	}
 
-	return withCancel(ctx, b.conf,
-		func(ctx context.Context) (*btcjson.GetTransactionResult, error) {
-			return rpc.GetTransaction(ctx, hash)
+	type getTransactionResult struct {
+		btcjson.GetTransactionResult
+		// Only set if verbose.
+		Decoded *btcjson.TxRawResult `json:"decoded"`
+	}
+	return callRPC(ctx,
+		func(ctx context.Context) (getTransactionResult, error) {
+			// Leave include_watchonly to Core's default.
+			return call[getTransactionResult](ctx, rpc, "gettransaction", hash.String(), nil, nonZeroPtr(c.Verbose))
 		},
 
-		func(res *btcjson.GetTransactionResult) *pb.GetTransactionResponse {
+		func(res getTransactionResult) *pb.GetTransactionResponse {
+			var decoded *pb.DecodeRawTransactionResponse
+			if res.Decoded != nil {
+				decoded = decodedTransactionProto(*res.Decoded)
+			}
+
 			var details []*pb.GetTransactionResponse_Details
 			for _, d := range res.Details {
 				detail := &pb.GetTransactionResponse_Details{
@@ -1179,29 +1128,31 @@ func (b *Bitcoind) GetTransaction(ctx context.Context, c *connect.Request[pb.Get
 				TimeReceived:      newTimestamp(res.TimeReceived),
 				Details:           details,
 				Bip125Replaceable: parseReplaceable(res.BIP125Replaceable),
+				Decoded:           decoded,
 			}
 		},
 	)
 }
 
-// Send implements bitcoindv1alphaconnect.BitcoinServiceHandler.
-func (b *Bitcoind) Send(ctx context.Context, c *connect.Request[pb.SendRequest]) (*connect.Response[pb.SendResponse], error) {
-	if len(c.Msg.Destinations) == 0 {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("'destinations' is a required argument"))
+// Send implements bitcoindv1connect.BitcoinServiceHandler.
+func (b *Bitcoind) Send(ctx context.Context, c *pb.SendRequest) (*pb.SendResponse, error) {
+	if len(c.Destinations) == 0 {
+		return nil, newConnectError(connect.CodeInvalidArgument, errors.New("'destinations' is a required argument"))
 	}
 
-	rpc, err := b.rpcForWallet(ctx, c.Msg)
+	rpc, err := b.rpcForWallet(ctx, c.Wallet)
 	if err != nil {
 		return nil, err
 	}
 
-	return withCancel(ctx, b.conf,
+	return callRPC(ctx,
 		func(ctx context.Context) (*btcjson.SendResult, error) {
 			var outputs []btcjson.SendDestination
-			for addr, amount := range c.Msg.Destinations {
+			for addr, amount := range c.Destinations {
 				btcAmount, err := btcutil.NewAmount(amount)
-				if err != nil {
-					return nil, err
+				if err != nil || btcAmount <= 0 {
+					return nil, newConnectError(connect.CodeInvalidArgument,
+						fmt.Errorf("invalid amount for %q: %v", addr, amount))
 				}
 
 				outputs = append(outputs, btcjson.SendDestination{
@@ -1211,31 +1162,31 @@ func (b *Bitcoind) Send(ctx context.Context, c *connect.Request[pb.SendRequest])
 			}
 
 			var opts []rpcclient.WalletSendOpt
-			if c.Msg.ConfTarget != 0 {
+			if c.ConfTarget != 0 {
 				opts = append(opts, rpcclient.WithWalletSendConfirmationTarget(
-					int(c.Msg.ConfTarget),
+					int(c.ConfTarget),
 				))
 
 				// conf target implies need for estimation mode
 				// TODO: do this properly
 				opts = append(opts, func(sc *btcjson.SendCmd) {
-					sc.EstimateMode = lo.ToPtr(btcjson.EstimateModeEconomical)
+					sc.EstimateMode = new(btcjson.EstimateModeEconomical)
 				})
 			}
 
-			if c.Msg.IncludeUnsafe {
+			if c.IncludeUnsafe {
 				opts = append(opts, rpcclient.WithWalletSendIncludeUnsafe())
 			}
 
 			var subOutputs []int
-			for _, addr := range c.Msg.SubtractFeeFromOutputs {
-				_, idx, ok := lo.FindIndexOf(outputs, func(item btcjson.SendDestination) bool {
+			for _, addr := range c.SubtractFeeFromOutputs {
+				idx := slices.IndexFunc(outputs, func(item btcjson.SendDestination) bool {
 					return item.Address == addr
 				})
 
-				if !ok {
+				if idx == -1 {
 					err := fmt.Errorf("unable to find output index for %q", addr)
-					return nil, connect.NewError(connect.CodeInvalidArgument, err)
+					return nil, newConnectError(connect.CodeInvalidArgument, err)
 				}
 
 				subOutputs = append(subOutputs, idx)
@@ -1247,15 +1198,15 @@ func (b *Bitcoind) Send(ctx context.Context, c *connect.Request[pb.SendRequest])
 				)
 			}
 
-			if c.Msg.AddToWallet != nil {
+			if c.AddToWallet != nil {
 				opts = append(opts,
-					rpcclient.WithWalletSendAddToWallet(c.Msg.AddToWallet.Value),
+					rpcclient.WithWalletSendAddToWallet(c.AddToWallet.Value),
 				)
 			}
 
-			if c.Msg.FeeRate != 0 {
+			if c.FeeRate != 0 {
 				opts = append(opts,
-					rpcclient.WithWalletSendFeeRate(c.Msg.FeeRate),
+					rpcclient.WithWalletSendFeeRate(c.FeeRate),
 				)
 			}
 
@@ -1272,113 +1223,105 @@ func (b *Bitcoind) Send(ctx context.Context, c *connect.Request[pb.SendRequest])
 	)
 }
 
-// SendToAddress implements bitcoindv1alphaconnect.BitcoinServiceHandler.
-func (b *Bitcoind) SendToAddress(ctx context.Context, c *connect.Request[pb.SendToAddressRequest]) (*connect.Response[pb.SendToAddressResponse], error) {
-	rpc, err := b.rpcForWallet(ctx, c.Msg)
+// SendToAddress implements bitcoindv1connect.BitcoinServiceHandler.
+func (b *Bitcoind) SendToAddress(ctx context.Context, c *pb.SendToAddressRequest) (*pb.SendToAddressResponse, error) {
+	rpc, err := b.rpcForWallet(ctx, c.Wallet)
 	if err != nil {
 		return nil, err
 	}
 
-	if c.Msg.Address == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("address is a required argument"))
+	if c.Address == "" {
+		return nil, newConnectError(connect.CodeInvalidArgument, errors.New("address is a required argument"))
 	}
 
-	address, err := address.DecodeAddress(c.Msg.Address, &chaincfg.MainNetParams)
-	if err != nil {
-		return nil, fmt.Errorf("address has invalid format: %w", err)
+	amount, err := btcutil.NewAmount(c.Amount)
+	if err != nil || amount <= 0 {
+		return nil, newConnectError(connect.CodeInvalidArgument, errors.New("amount must be a positive number of BTC"))
 	}
 
-	amount, err := btcutil.NewAmount(c.Msg.Amount)
-	if err != nil {
-		return nil, fmt.Errorf("amount has invalid format: %w", err)
-	}
-	if amount <= 0 {
-		return nil, fmt.Errorf("amount must be greater than 0: %w", err)
-	}
-
-	return withCancel(ctx, b.conf,
-		func(ctx context.Context) (*chainhash.Hash, error) {
-			if c.Msg.Comment != "" || c.Msg.CommentTo != "" {
-				return rpc.SendToAddressComment(ctx, address, amount, c.Msg.Comment, c.Msg.CommentTo)
-			}
-
-			return rpc.SendToAddress(ctx, address, amount)
+	return callRPC(ctx,
+		func(ctx context.Context) (string, error) {
+			// Core validates the address, against the network it runs on.
+			return call[string](ctx, rpc, "sendtoaddress",
+				c.Address, amount.ToBTC(), nonZeroPtr(c.Comment), nonZeroPtr(c.CommentTo))
 		},
 
-		func(r *chainhash.Hash) *pb.SendToAddressResponse {
-			return &pb.SendToAddressResponse{
-				Txid: r.String(),
-			}
+		func(txid string) *pb.SendToAddressResponse {
+			return &pb.SendToAddressResponse{Txid: txid}
 		},
 	)
 }
 
-// DecodeRawTransaction implements bitcoindv1alphaconnect.BitcoinServiceHandler.
-func (b *Bitcoind) DecodeRawTransaction(ctx context.Context, c *connect.Request[pb.DecodeRawTransactionRequest]) (*connect.Response[pb.DecodeRawTransactionResponse], error) {
-	data, err := getRawTransactionBytes(c.Msg.Tx)
+// DecodeRawTransaction implements bitcoindv1connect.BitcoinServiceHandler.
+func (b *Bitcoind) DecodeRawTransaction(ctx context.Context, c *pb.DecodeRawTransactionRequest) (*pb.DecodeRawTransactionResponse, error) {
+	data, err := getRawTransactionBytes(c.Tx)
 	if err != nil {
 		return nil, err
 	}
 
-	return withCancel(
-		ctx, b.conf,
+	return callRPC(
+		ctx,
 		func(ctx context.Context) (*btcjson.TxRawResult, error) {
 			return b.rpc.DecodeRawTransaction(ctx, data)
 		},
 
 		func(r *btcjson.TxRawResult) *pb.DecodeRawTransactionResponse {
-			return &pb.DecodeRawTransactionResponse{
-				Txid:        r.Txid,
-				Hash:        r.Hash,
-				Size:        uint32(r.Size),
-				VirtualSize: uint32(r.Vsize),
-				Weight:      uint32(r.Weight),
-				Version:     r.Version,
-				Locktime:    r.LockTime,
-				Inputs:      lo.Map(r.Vin, inputProto),
-				Outputs:     lo.Map(r.Vout, outputProto),
-			}
+			return decodedTransactionProto(*r)
 		},
 	)
 }
 
-// EstimateSmartFee implements bitcoindv1alphaconnect.BitcoinServiceHandler.
-func (b *Bitcoind) EstimateSmartFee(ctx context.Context, c *connect.Request[pb.EstimateSmartFeeRequest]) (*connect.Response[pb.EstimateSmartFeeResponse], error) {
-	return withCancel(
-		ctx, b.conf,
+func decodedTransactionProto(r btcjson.TxRawResult) *pb.DecodeRawTransactionResponse {
+	return &pb.DecodeRawTransactionResponse{
+		Txid:        r.Txid,
+		Hash:        r.Hash,
+		Size:        uint32(r.Size),
+		VirtualSize: uint32(r.Vsize),
+		Weight:      uint32(r.Weight),
+		Version:     r.Version,
+		Locktime:    r.LockTime,
+		Inputs:      mapSlice(r.Vin, inputProto),
+		Outputs:     mapSlice(r.Vout, outputProto),
+	}
+}
+
+// EstimateSmartFee implements bitcoindv1connect.BitcoinServiceHandler.
+func (b *Bitcoind) EstimateSmartFee(ctx context.Context, c *pb.EstimateSmartFeeRequest) (*pb.EstimateSmartFeeResponse, error) {
+	return callRPC(
+		ctx,
 		func(ctx context.Context) (*btcjson.EstimateSmartFeeResult, error) {
 			var estimateMode *btcjson.EstimateSmartFeeMode
-			if c.Msg.EstimateMode != pb.EstimateSmartFeeRequest_ESTIMATE_MODE_UNSPECIFIED {
-				switch c.Msg.EstimateMode {
+			if c.EstimateMode != pb.EstimateSmartFeeRequest_ESTIMATE_MODE_UNSPECIFIED {
+				switch c.EstimateMode {
 				case pb.EstimateSmartFeeRequest_ESTIMATE_MODE_ECONOMICAL:
 					estimateMode = &btcjson.EstimateModeEconomical
 				case pb.EstimateSmartFeeRequest_ESTIMATE_MODE_CONSERVATIVE:
 					estimateMode = &btcjson.EstimateModeConservative
 				default:
-					return nil, fmt.Errorf("unexpected estimate mode: %s", c.Msg.EstimateMode)
+					return nil, fmt.Errorf("unexpected estimate mode: %s", c.EstimateMode)
 				}
 			}
-			return b.rpc.EstimateSmartFee(ctx, c.Msg.ConfTarget, estimateMode)
+			return b.rpc.EstimateSmartFee(ctx, c.ConfTarget, estimateMode)
 		},
 
 		func(r *btcjson.EstimateSmartFeeResult) *pb.EstimateSmartFeeResponse {
 			return &pb.EstimateSmartFeeResponse{
 				Errors:  r.Errors,
 				Blocks:  r.Blocks,
-				FeeRate: lo.FromPtr(r.FeeRate),
+				FeeRate: deref(r.FeeRate),
 			}
 		},
 	)
 }
 
-// GetBalances implements bitcoindv1alphaconnect.BitcoinServiceHandler.
-func (b *Bitcoind) GetBalances(ctx context.Context, c *connect.Request[pb.GetBalancesRequest]) (*connect.Response[pb.GetBalancesResponse], error) {
-	rpc, err := b.rpcForWallet(ctx, c.Msg)
+// GetBalances implements bitcoindv1connect.BitcoinServiceHandler.
+func (b *Bitcoind) GetBalances(ctx context.Context, c *pb.GetBalancesRequest) (*pb.GetBalancesResponse, error) {
+	rpc, err := b.rpcForWallet(ctx, c.Wallet)
 	if err != nil {
 		return nil, err
 	}
-	return withCancel(
-		ctx, b.conf, rpc.GetBalances,
+	return callRPC(
+		ctx, rpc.GetBalances,
 		func(r *btcjson.GetBalancesResult) *pb.GetBalancesResponse {
 			var watchonly *pb.GetBalancesResponse_Watchonly
 			if r.WatchOnly != nil {
@@ -1399,20 +1342,20 @@ func (b *Bitcoind) GetBalances(ctx context.Context, c *connect.Request[pb.GetBal
 		})
 }
 
-func (b *Bitcoind) ListDescriptors(ctx context.Context, c *connect.Request[pb.ListDescriptorsRequest]) (*connect.Response[pb.ListDescriptorsResponse], error) {
-	if c.Msg.IncludePrivateDescriptors && !b.conf.allowPrivateDescriptorsExport {
-		return nil, connect.NewError(connect.CodePermissionDenied, errors.New("private descriptor export is not allowed"))
+func (b *Bitcoind) ListDescriptors(ctx context.Context, c *pb.ListDescriptorsRequest) (*pb.ListDescriptorsResponse, error) {
+	if c.IncludePrivateDescriptors && !b.conf.allowPrivateDescriptorsExport {
+		return nil, newConnectError(connect.CodePermissionDenied, errors.New("private descriptor export is not allowed"))
 	}
 
-	rpc, err := b.rpcForWallet(ctx, c.Msg)
+	rpc, err := b.rpcForWallet(ctx, c.Wallet)
 	if err != nil {
 		return nil, err
 	}
 
-	return withCancel(
-		ctx, b.conf, func(ctx context.Context) (commands.ListDescriptorsResponse, error) {
+	return callRPC(
+		ctx, func(ctx context.Context) (commands.ListDescriptorsResponse, error) {
 			cmd := commands.ListDescriptorsCmd{
-				Private: c.Msg.IncludePrivateDescriptors,
+				Private: c.IncludePrivateDescriptors,
 			}
 			// Make sure to NOT log the contents here. May include private keys!
 			res, err := rpcclient.ReceiveFuture(rpc.SendCmd(ctx, &cmd))
@@ -1429,38 +1372,43 @@ func (b *Bitcoind) ListDescriptors(ctx context.Context, c *connect.Request[pb.Li
 		},
 		func(r commands.ListDescriptorsResponse) *pb.ListDescriptorsResponse {
 			return &pb.ListDescriptorsResponse{
-				Descriptors: lo.Map(r.Descriptors, func(r commands.ListDescriptorsResponseDescriptor, idx int) *pb.ListDescriptorsResponse_Descriptor {
+				Descriptors: mapSlice(r.Descriptors, func(r commands.ListDescriptorsResponseDescriptor, idx int) *pb.ListDescriptorsResponse_Descriptor {
+					// Only set for ranged descriptors.
+					var descriptorRange *pb.DescriptorRange
+					if len(r.Range) == 2 {
+						descriptorRange = &pb.DescriptorRange{
+							Begin: uint32(r.Range[0]),
+							End:   uint32(r.Range[1]),
+						}
+					}
 					return &pb.ListDescriptorsResponse_Descriptor{
 						Descriptor_: r.Descriptor,
 						Timestamp:   timestamppb.New(time.Unix(r.Timestamp, 0)),
 						Active:      r.Active,
 						Internal:    r.Internal,
-						Range: &pb.ListDescriptorsResponse_Range{
-							Start: uint32(r.Range[0]),
-							End:   uint32(r.Range[1]),
-						},
-						NextIndex: uint32(r.NextIndex),
+						Range:       descriptorRange,
+						NextIndex:   uint32(r.NextIndex),
 					}
 				}),
 			}
 		})
 }
 
-// ImportDescriptors implements bitcoindv1alphaconnect.BitcoinServiceHandler.
-func (b *Bitcoind) ImportDescriptors(ctx context.Context, c *connect.Request[pb.ImportDescriptorsRequest]) (*connect.Response[pb.ImportDescriptorsResponse], error) {
-	if len(c.Msg.GetRequests()) == 0 {
+// ImportDescriptors implements bitcoindv1connect.BitcoinServiceHandler.
+func (b *Bitcoind) ImportDescriptors(ctx context.Context, c *pb.ImportDescriptorsRequest) (*pb.ImportDescriptorsResponse, error) {
+	if len(c.GetRequests()) == 0 {
 		err := errors.New("must provide at least one request")
-		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+		return nil, newConnectError(connect.CodeInvalidArgument, err)
 	}
 
-	for _, req := range c.Msg.Requests {
+	for _, req := range c.Requests {
 		if req.Descriptor_ == "" {
 			err := errors.New("descriptors must be non-empty")
-			return nil, connect.NewError(connect.CodeInvalidArgument, err)
+			return nil, newConnectError(connect.CodeInvalidArgument, err)
 		}
 	}
 
-	rpc, err := b.rpcForWallet(ctx, c.Msg)
+	rpc, err := b.rpcForWallet(ctx, c.Wallet)
 	if err != nil {
 		return nil, err
 	}
@@ -1471,15 +1419,15 @@ func (b *Bitcoind) ImportDescriptors(ctx context.Context, c *connect.Request[pb.
 	}
 
 	type parsedDescriptorResponse struct {
-		Success  bool         `json:"success"`
-		Warnings []string     `json:"warnings"`
-		Error    jsonRpcError `json:"error"`
+		Success  bool          `json:"success"`
+		Warnings []string      `json:"warnings"`
+		Error    *jsonRpcError `json:"error"`
 	}
 
-	return withCancel(
-		ctx, b.conf, func(ctx context.Context) ([]parsedDescriptorResponse, error) {
+	return callRPC(
+		ctx, func(ctx context.Context) ([]parsedDescriptorResponse, error) {
 			cmd := commands.ImportDescriptorsCmd{
-				Requests: lo.Map(c.Msg.Requests, func(req *pb.ImportDescriptorsRequest_Request, idx int) commands.ImportDescriptorsRequestItem {
+				Requests: mapSlice(c.Requests, func(req *pb.ImportDescriptorsRequest_Request, idx int) commands.ImportDescriptorsRequestItem {
 					importReq := commands.ImportDescriptorsRequestItem{
 						Descriptor: &req.Descriptor_,
 					}
@@ -1491,9 +1439,8 @@ func (b *Bitcoind) ImportDescriptors(ctx context.Context, c *connect.Request[pb.
 						importReq.Timestamp = req.Timestamp.AsTime().Unix()
 					}
 
-					// Add range if specified
-					if req.RangeStart != 0 || req.RangeEnd != 0 {
-						importReq.Range = []int{int(req.RangeStart), int(req.RangeEnd)}
+					if req.Range != nil {
+						importReq.Range = []uint32{req.Range.Begin, req.Range.End}
 					}
 
 					if req.NextIndex != 0 {
@@ -1522,47 +1469,53 @@ func (b *Bitcoind) ImportDescriptors(ctx context.Context, c *connect.Request[pb.
 				}),
 			}
 			res, err := rpcclient.ReceiveFuture(rpc.SendCmd(ctx, &cmd))
-			zerolog.Ctx(ctx).Err(err).
-				Msgf("importdescriptors response: %s", string(res))
+			if err != nil {
+				return nil, err
+			}
+			logFrom(ctx).DebugContext(ctx, "importdescriptors response", "response", string(res))
 
 			var parsed []parsedDescriptorResponse
 			if err := json.Unmarshal(res, &parsed); err != nil {
 				return nil, fmt.Errorf("unmarshal importdescriptors response: %w", err)
 			}
 
-			return parsed, err
+			return parsed, nil
 		},
 		func(r []parsedDescriptorResponse) *pb.ImportDescriptorsResponse {
 			return &pb.ImportDescriptorsResponse{
-				Responses: lo.Map(r, func(r parsedDescriptorResponse, idx int) *pb.ImportDescriptorsResponse_Response {
+				Responses: mapSlice(r, func(r parsedDescriptorResponse, idx int) *pb.ImportDescriptorsResponse_Response {
+					var importErr *pb.ImportDescriptorsResponse_Error
+					if r.Error != nil {
+						importErr = &pb.ImportDescriptorsResponse_Error{
+							Code:    int32(r.Error.Code),
+							Message: r.Error.Message,
+						}
+					}
 					return &pb.ImportDescriptorsResponse_Response{
 						Success:  r.Success,
 						Warnings: r.Warnings,
-						Error: &pb.ImportDescriptorsResponse_Error{
-							Code:    int32(r.Error.Code),
-							Message: r.Error.Message,
-						},
+						Error:    importErr,
 					}
 				}),
 			}
 		})
 }
 
-// GetAddressInfo implements bitcoindv1alphaconnect.BitcoinServiceHandler.
-func (b *Bitcoind) GetAddressInfo(ctx context.Context, c *connect.Request[pb.GetAddressInfoRequest]) (*connect.Response[pb.GetAddressInfoResponse], error) {
-	if c.Msg.Address == "" {
+// GetAddressInfo implements bitcoindv1connect.BitcoinServiceHandler.
+func (b *Bitcoind) GetAddressInfo(ctx context.Context, c *pb.GetAddressInfoRequest) (*pb.GetAddressInfoResponse, error) {
+	if c.Address == "" {
 		err := errors.New("address is required")
-		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+		return nil, newConnectError(connect.CodeInvalidArgument, err)
 	}
 
-	rpc, err := b.rpcForWallet(ctx, c.Msg)
+	rpc, err := b.rpcForWallet(ctx, c.Wallet)
 	if err != nil {
 		return nil, err
 	}
 
-	return withCancel(
-		ctx, b.conf, func(ctx context.Context) (*btcjson.GetAddressInfoResult, error) {
-			return rpc.GetAddressInfo(ctx, c.Msg.Address)
+	return callRPC(
+		ctx, func(ctx context.Context) (*btcjson.GetAddressInfoResult, error) {
+			return rpc.GetAddressInfo(ctx, c.Address)
 		},
 		func(r *btcjson.GetAddressInfoResult) *pb.GetAddressInfoResponse {
 			return &pb.GetAddressInfoResponse{
@@ -1574,19 +1527,19 @@ func (b *Bitcoind) GetAddressInfo(ctx context.Context, c *connect.Request[pb.Get
 				IsChange:       r.IsChange,
 				IsWitness:      r.IsWitness,
 				WitnessVersion: uint32(r.WitnessVersion),
-				WitnessProgram: lo.FromPtr(r.WitnessProgram),
-				ScriptType:     lo.FromPtr(r.ScriptType),
-				IsCompressed:   lo.FromPtr(r.IsCompressed),
+				WitnessProgram: deref(r.WitnessProgram),
+				ScriptType:     deref(r.ScriptType),
+				IsCompressed:   deref(r.IsCompressed),
 			}
 		},
 	)
 }
 
-// GetDescriptorInfo implements bitcoindv1alphaconnect.BitcoinServiceHandler.
-func (b *Bitcoind) GetDescriptorInfo(ctx context.Context, c *connect.Request[pb.GetDescriptorInfoRequest]) (*connect.Response[pb.GetDescriptorInfoResponse], error) {
-	return withCancel(
-		ctx, b.conf, func(ctx context.Context) (*btcjson.GetDescriptorInfoResult, error) {
-			return b.rpc.GetDescriptorInfo(ctx, c.Msg.Descriptor_)
+// GetDescriptorInfo implements bitcoindv1connect.BitcoinServiceHandler.
+func (b *Bitcoind) GetDescriptorInfo(ctx context.Context, c *pb.GetDescriptorInfoRequest) (*pb.GetDescriptorInfoResponse, error) {
+	return callRPC(
+		ctx, func(ctx context.Context) (*btcjson.GetDescriptorInfoResult, error) {
+			return b.rpc.GetDescriptorInfo(ctx, c.Descriptor_)
 		},
 		func(r *btcjson.GetDescriptorInfoResult) *pb.GetDescriptorInfoResponse {
 			return &pb.GetDescriptorInfoResponse{
@@ -1599,15 +1552,15 @@ func (b *Bitcoind) GetDescriptorInfo(ctx context.Context, c *connect.Request[pb.
 		})
 }
 
-// GetRawMempool implements bitcoindv1alphaconnect.BitcoinServiceHandler.
-func (b *Bitcoind) GetRawMempool(ctx context.Context, c *connect.Request[pb.GetRawMempoolRequest]) (*connect.Response[pb.GetRawMempoolResponse], error) {
+// GetRawMempool implements bitcoindv1connect.BitcoinServiceHandler.
+func (b *Bitcoind) GetRawMempool(ctx context.Context, c *pb.GetRawMempoolRequest) (*pb.GetRawMempoolResponse, error) {
 	type maybeVerbose struct {
 		txids        []*chainhash.Hash
 		transactions map[string]btcjson.GetMempoolEntryResult
 	}
-	return withCancel(
-		ctx, b.conf, func(ctx context.Context) (maybeVerbose, error) {
-			if !c.Msg.Verbose {
+	return callRPC(
+		ctx, func(ctx context.Context) (maybeVerbose, error) {
+			if !c.Verbose {
 				res, err := b.rpc.GetRawMempool(ctx)
 				if err != nil {
 					return maybeVerbose{}, err
@@ -1625,7 +1578,7 @@ func (b *Bitcoind) GetRawMempool(ctx context.Context, c *connect.Request[pb.GetR
 		},
 		func(res maybeVerbose) *pb.GetRawMempoolResponse {
 			return &pb.GetRawMempoolResponse{
-				Transactions: lo.MapValues(res.transactions,
+				Transactions: mapValues(res.transactions,
 					func(value btcjson.GetMempoolEntryResult, key string) *pb.MempoolEntry {
 						return &pb.MempoolEntry{
 							VirtualSize:     uint32(value.VSize),
@@ -1649,7 +1602,7 @@ func (b *Bitcoind) GetRawMempool(ctx context.Context, c *connect.Request[pb.GetR
 						}
 					},
 				),
-				Txids: lo.Map(res.txids,
+				Txids: mapSlice(res.txids,
 					func(txid *chainhash.Hash, idx int) string {
 						return txid.String()
 					}),
@@ -1658,21 +1611,21 @@ func (b *Bitcoind) GetRawMempool(ctx context.Context, c *connect.Request[pb.GetR
 	)
 }
 
-// BackupWallet implements bitcoindv1alphaconnect.BitcoinServiceHandler.
-func (b *Bitcoind) BackupWallet(ctx context.Context, c *connect.Request[pb.BackupWalletRequest]) (*connect.Response[pb.BackupWalletResponse], error) {
-	if c.Msg.Destination == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("destination is required"))
+// BackupWallet implements bitcoindv1connect.BitcoinServiceHandler.
+func (b *Bitcoind) BackupWallet(ctx context.Context, c *pb.BackupWalletRequest) (*pb.BackupWalletResponse, error) {
+	if c.Destination == "" {
+		return nil, newConnectError(connect.CodeInvalidArgument, errors.New("destination is required"))
 	}
 
-	rpc, err := b.rpcForWallet(ctx, c.Msg)
+	rpc, err := b.rpcForWallet(ctx, c.Wallet)
 	if err != nil {
 		return nil, err
 	}
 
-	return withCancel(
-		ctx, b.conf,
+	return callRPC(
+		ctx,
 		func(ctx context.Context) (struct{}, error) {
-			err := rpc.BackupWallet(ctx, c.Msg.Destination)
+			err := rpc.BackupWallet(ctx, c.Destination)
 			return struct{}{}, err
 		},
 		func(_ struct{}) *pb.BackupWalletResponse {
@@ -1680,22 +1633,22 @@ func (b *Bitcoind) BackupWallet(ctx context.Context, c *connect.Request[pb.Backu
 		})
 }
 
-// CreateMultisig implements bitcoindv1alphaconnect.BitcoinServiceHandler.
-func (b *Bitcoind) CreateMultisig(ctx context.Context, c *connect.Request[pb.CreateMultisigRequest]) (*connect.Response[pb.CreateMultisigResponse], error) {
-	// Convert string keys to address.Address
-	addresses := make([]address.Address, len(c.Msg.Keys))
-	for i, key := range c.Msg.Keys {
-		addr, err := address.DecodeAddress(key, &chaincfg.MainNetParams)
-		if err != nil {
-			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid address %s: %w", key, err))
+// CreateMultisig implements bitcoindv1connect.BitcoinServiceHandler.
+func (b *Bitcoind) CreateMultisig(ctx context.Context, c *pb.CreateMultisigRequest) (*pb.CreateMultisigResponse, error) {
+	// Bitcoin Core only accepts hex-encoded public keys: compressed (33
+	// bytes) or uncompressed (65 bytes).
+	for _, key := range c.Keys {
+		decoded, err := hex.DecodeString(key)
+		if err != nil || (len(decoded) != 33 && len(decoded) != 65) {
+			return nil, newConnectError(connect.CodeInvalidArgument,
+				fmt.Errorf("invalid public key %q: must be hex-encoded, 33 or 65 bytes", key))
 		}
-		addresses[i] = addr
 	}
 
-	return withCancel(
-		ctx, b.conf,
+	return callRPC(
+		ctx,
 		func(ctx context.Context) (*btcjson.CreateMultiSigResult, error) {
-			return b.rpc.CreateMultisig(ctx, int(c.Msg.RequiredSigs), addresses)
+			return b.rpc.CreateMultisig(ctx, int(c.RequiredSigs), c.Keys)
 		},
 		func(r *btcjson.CreateMultiSigResult) *pb.CreateMultisigResponse {
 			return &pb.CreateMultisigResponse{
@@ -1705,10 +1658,10 @@ func (b *Bitcoind) CreateMultisig(ctx context.Context, c *connect.Request[pb.Cre
 		})
 }
 
-// AnalyzePsbt implements bitcoindv1alphaconnect.BitcoinServiceHandler.
-func (b *Bitcoind) AnalyzePsbt(ctx context.Context, c *connect.Request[pb.AnalyzePsbtRequest]) (*connect.Response[pb.AnalyzePsbtResponse], error) {
-	if c.Msg.Psbt == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("psbt is required"))
+// AnalyzePsbt implements bitcoindv1connect.BitcoinServiceHandler.
+func (b *Bitcoind) AnalyzePsbt(ctx context.Context, c *pb.AnalyzePsbtRequest) (*pb.AnalyzePsbtResponse, error) {
+	if c.Psbt == "" {
+		return nil, newConnectError(connect.CodeInvalidArgument, errors.New("psbt is required"))
 	}
 
 	type rawAnalyzePsbtResponse struct {
@@ -1730,10 +1683,10 @@ func (b *Bitcoind) AnalyzePsbt(ctx context.Context, c *connect.Request[pb.Analyz
 		Error            string   `json:"error,omitempty"`
 	}
 
-	return withCancel(
-		ctx, b.conf,
+	return callRPC(
+		ctx,
 		func(ctx context.Context) (rawAnalyzePsbtResponse, error) {
-			cmd, err := btcjson.NewCmd("analyzepsbt", c.Msg.Psbt)
+			cmd, err := btcjson.NewCmd("analyzepsbt", c.Psbt)
 			if err != nil {
 				return rawAnalyzePsbtResponse{}, err
 			}
@@ -1742,8 +1695,7 @@ func (b *Bitcoind) AnalyzePsbt(ctx context.Context, c *connect.Request[pb.Analyz
 			if err != nil {
 				return rawAnalyzePsbtResponse{}, fmt.Errorf("send analyzepsbt: %w", err)
 			}
-			zerolog.Ctx(ctx).Err(err).
-				Msgf("analyzepsbt response: %s", string(res))
+			logFrom(ctx).DebugContext(ctx, "analyzepsbt response", "response", string(res))
 
 			var parsed rawAnalyzePsbtResponse
 			if err := json.Unmarshal(res, &parsed); err != nil {
@@ -1770,25 +1722,25 @@ func (b *Bitcoind) AnalyzePsbt(ctx context.Context, c *connect.Request[pb.Analyz
 
 			return &pb.AnalyzePsbtResponse{
 				Inputs:           inputs,
-				EstimatedVsize:   lo.FromPtr(r.EstimatedVsize),
-				EstimatedFeerate: lo.FromPtr(r.EstimatedFeerate),
-				Fee:              lo.FromPtr(r.Fee),
+				EstimatedVsize:   deref(r.EstimatedVsize),
+				EstimatedFeerate: deref(r.EstimatedFeerate),
+				Fee:              deref(r.Fee),
 				Next:             r.Next,
 				Error:            r.Error,
 			}
 		})
 }
 
-// CombinePsbt implements bitcoindv1alphaconnect.BitcoinServiceHandler.
-func (b *Bitcoind) CombinePsbt(ctx context.Context, c *connect.Request[pb.CombinePsbtRequest]) (*connect.Response[pb.CombinePsbtResponse], error) {
-	if len(c.Msg.Psbts) == 0 {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("at least one PSBT is required"))
+// CombinePsbt implements bitcoindv1connect.BitcoinServiceHandler.
+func (b *Bitcoind) CombinePsbt(ctx context.Context, c *pb.CombinePsbtRequest) (*pb.CombinePsbtResponse, error) {
+	if len(c.Psbts) == 0 {
+		return nil, newConnectError(connect.CodeInvalidArgument, errors.New("at least one PSBT is required"))
 	}
 
-	return withCancel(
-		ctx, b.conf,
+	return callRPC(
+		ctx,
 		func(ctx context.Context) (string, error) {
-			cmd, err := btcjson.NewCmd("combinepsbt", c.Msg.Psbts)
+			cmd, err := btcjson.NewCmd("combinepsbt", c.Psbts)
 			if err != nil {
 				return "", err
 			}
@@ -1797,8 +1749,7 @@ func (b *Bitcoind) CombinePsbt(ctx context.Context, c *connect.Request[pb.Combin
 			if err != nil {
 				return "", fmt.Errorf("send combinepsbt: %w", err)
 			}
-			zerolog.Ctx(ctx).Err(err).
-				Msgf("combinepsbt response: %s", string(res))
+			logFrom(ctx).DebugContext(ctx, "combinepsbt response", "response", string(res))
 
 			var psbt string
 			if err := json.Unmarshal(res, &psbt); err != nil {
@@ -1814,45 +1765,20 @@ func (b *Bitcoind) CombinePsbt(ctx context.Context, c *connect.Request[pb.Combin
 		})
 }
 
-// CreatePsbt implements bitcoindv1alphaconnect.BitcoinServiceHandler.
-func (b *Bitcoind) CreatePsbt(ctx context.Context, c *connect.Request[pb.CreatePsbtRequest]) (*connect.Response[pb.CreatePsbtResponse], error) {
-	if len(c.Msg.Inputs) == 0 {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("inputs are required"))
+// CreatePsbt implements bitcoindv1connect.BitcoinServiceHandler.
+func (b *Bitcoind) CreatePsbt(ctx context.Context, c *pb.CreatePsbtRequest) (*pb.CreatePsbtResponse, error) {
+	if len(c.Inputs) == 0 {
+		return nil, newConnectError(connect.CodeInvalidArgument, errors.New("inputs are required"))
 	}
-	if len(c.Msg.Outputs) == 0 {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("outputs are required"))
-	}
-
-	// Convert inputs to btcjson.TransactionInput format
-	inputs := make([]btcjson.TransactionInput, len(c.Msg.Inputs))
-	for i, in := range c.Msg.Inputs {
-		inputs[i] = btcjson.TransactionInput{
-			Txid: in.Txid,
-			Vout: in.Vout,
-		}
+	if len(c.Outputs) == 0 {
+		return nil, newConnectError(connect.CodeInvalidArgument, errors.New("outputs are required"))
 	}
 
-	return withCancel(
-		ctx, b.conf,
+	return callRPC(
+		ctx,
 		func(ctx context.Context) (string, error) {
-			cmd, err := btcjson.NewCmd("createpsbt", inputs, c.Msg.Outputs, c.Msg.Locktime, c.Msg.Replaceable)
-			if err != nil {
-				return "", err
-			}
-
-			res, err := rpcclient.ReceiveFuture(b.rpc.SendCmd(ctx, cmd))
-			if err != nil {
-				return "", fmt.Errorf("send createpsbt: %w", err)
-			}
-			zerolog.Ctx(ctx).Err(err).
-				Msgf("createpsbt response: %s", string(res))
-
-			var psbt string
-			if err := json.Unmarshal(res, &psbt); err != nil {
-				return "", fmt.Errorf("unmarshal createpsbt response: %w", err)
-			}
-
-			return psbt, nil
+			return call[string](ctx, b.rpc, "createpsbt",
+				transactionInputs(c.Inputs), c.Outputs, c.Locktime, c.Replaceable)
 		},
 		func(r string) *pb.CreatePsbtResponse {
 			return &pb.CreatePsbtResponse{
@@ -1861,89 +1787,53 @@ func (b *Bitcoind) CreatePsbt(ctx context.Context, c *connect.Request[pb.CreateP
 		})
 }
 
-// CreateRawTransaction implements bitcoindv1alphaconnect.BitcoinServiceHandler.
-func (b *Bitcoind) CreateRawTransaction(ctx context.Context, c *connect.Request[pb.CreateRawTransactionRequest]) (*connect.Response[pb.CreateRawTransactionResponse], error) {
-	if len(c.Msg.Inputs) == 0 {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("inputs are required"))
+// CreateRawTransaction implements bitcoindv1connect.BitcoinServiceHandler.
+func (b *Bitcoind) CreateRawTransaction(ctx context.Context, c *pb.CreateRawTransactionRequest) (*pb.CreateRawTransactionResponse, error) {
+	if len(c.Inputs) == 0 {
+		return nil, newConnectError(connect.CodeInvalidArgument, errors.New("inputs are required"))
 	}
-	if len(c.Msg.Outputs) == 0 {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("outputs are required"))
-	}
-
-	// Convert inputs to btcjson.TransactionInput format
-	inputs := make([]btcjson.TransactionInput, len(c.Msg.Inputs))
-	for i, in := range c.Msg.Inputs {
-		inputs[i] = btcjson.TransactionInput{
-			Txid: in.Txid,
-			Vout: in.Vout,
-		}
+	if len(c.Outputs) == 0 {
+		return nil, newConnectError(connect.CodeInvalidArgument, errors.New("outputs are required"))
 	}
 
-	return withCancel(
-		ctx, b.conf,
+	return callRPC(
+		ctx,
 		func(ctx context.Context) (string, error) {
-			cmd, err := btcjson.NewCmd("createrawtransaction", inputs, c.Msg.Outputs, c.Msg.Locktime)
-			if err != nil {
-				return "", err
-			}
-
-			res, err := rpcclient.ReceiveFuture(b.rpc.SendCmd(ctx, cmd))
-			if err != nil {
-				return "", fmt.Errorf("send createrawtransaction: %w", err)
-			}
-			zerolog.Ctx(ctx).Err(err).
-				Msgf("createrawtransaction response: %s", string(res))
-
-			var hex string
-			if err := json.Unmarshal(res, &hex); err != nil {
-				return "", fmt.Errorf("unmarshal createrawtransaction response: %w", err)
-			}
-
-			return hex, nil
+			return call[string](ctx, b.rpc, "createrawtransaction",
+				transactionInputs(c.Inputs), c.Outputs, c.Locktime, c.Replaceable)
 		},
-		func(r string) *pb.CreateRawTransactionResponse {
+		func(txHex string) *pb.CreateRawTransactionResponse {
+			decoded, _ := hex.DecodeString(txHex)
 			return &pb.CreateRawTransactionResponse{
-				Tx: &pb.RawTransaction{
-					Hex: r,
-				},
+				Tx: rawTransaction(decoded),
 			}
 		})
 }
 
-// SendRawTransaction implements bitcoindv1alphaconnect.BitcoinServiceHandler.
-func (b *Bitcoind) SendRawTransaction(ctx context.Context, c *connect.Request[pb.SendRawTransactionRequest]) (*connect.Response[pb.SendRawTransactionResponse], error) {
-	data, err := getRawTransactionBytes(c.Msg.Tx)
+// transactionInputs converts inputs to what createrawtransaction and
+// createpsbt take.
+func transactionInputs(inputs []*pb.TransactionInput) []map[string]any {
+	return mapSlice(inputs, func(in *pb.TransactionInput, _ int) map[string]any {
+		out := map[string]any{"txid": in.Txid, "vout": in.Vout}
+		if in.Sequence != nil {
+			out["sequence"] = *in.Sequence
+		}
+		return out
+	})
+}
+
+// SendRawTransaction implements bitcoindv1connect.BitcoinServiceHandler.
+func (b *Bitcoind) SendRawTransaction(ctx context.Context, c *pb.SendRawTransactionRequest) (*pb.SendRawTransactionResponse, error) {
+	data, err := getRawTransactionBytes(c.Tx)
 	if err != nil {
 		return nil, err
 	}
 
-	return withCancel(
-		ctx, b.conf,
+	return callRPC(
+		ctx,
 		func(ctx context.Context) (string, error) {
-			args := []any{hex.EncodeToString(data)}
-			if c.Msg.MaxFeeRate != nil {
-				args = append(args, *c.Msg.MaxFeeRate)
-			}
-			if c.Msg.MaxBurnAmount != nil {
-				args = append(args, *c.Msg.MaxBurnAmount)
-			}
-
-			cmd, err := btcjson.NewCmd("sendrawtransaction", args...)
-			if err != nil {
-				return "", err
-			}
-
-			res, err := rpcclient.ReceiveFuture(b.rpc.SendCmd(ctx, cmd))
-			if err != nil {
-				return "", fmt.Errorf("send sendrawtransaction: %w", err)
-			}
-
-			var txid string
-			if err := json.Unmarshal(res, &txid); err != nil {
-				return "", fmt.Errorf("unmarshal sendrawtransaction response: %w", err)
-			}
-
-			return txid, nil
+			return call[string](ctx, b.rpc, "sendrawtransaction",
+				hex.EncodeToString(data), c.MaxFeeRate, c.MaxBurnAmount)
 		},
 		func(r string) *pb.SendRawTransactionResponse {
 			return &pb.SendRawTransactionResponse{
@@ -1952,21 +1842,21 @@ func (b *Bitcoind) SendRawTransaction(ctx context.Context, c *connect.Request[pb
 		})
 }
 
-// SignRawTransactionWithWallet implements bitcoindv1alphaconnect.BitcoinServiceHandler.
-func (b *Bitcoind) SignRawTransactionWithWallet(ctx context.Context, c *connect.Request[pb.SignRawTransactionWithWalletRequest]) (*connect.Response[pb.SignRawTransactionWithWalletResponse], error) {
-	if c.Msg.HexString == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("hex_string is required"))
+// SignRawTransactionWithWallet implements bitcoindv1connect.BitcoinServiceHandler.
+func (b *Bitcoind) SignRawTransactionWithWallet(ctx context.Context, c *pb.SignRawTransactionWithWalletRequest) (*pb.SignRawTransactionWithWalletResponse, error) {
+	if c.HexString == "" {
+		return nil, newConnectError(connect.CodeInvalidArgument, errors.New("hex_string is required"))
 	}
 
-	rpc, err := b.rpcForWallet(ctx, c.Msg)
+	rpc, err := b.rpcForWallet(ctx, c.Wallet)
 	if err != nil {
 		return nil, err
 	}
 
-	return withCancel(
-		ctx, b.conf,
+	return callRPC(
+		ctx,
 		func(ctx context.Context) (btcjson.SignRawTransactionWithWalletResult, error) {
-			cmd, err := btcjson.NewCmd("signrawtransactionwithwallet", c.Msg.HexString)
+			cmd, err := btcjson.NewCmd("signrawtransactionwithwallet", c.HexString)
 			if err != nil {
 				return btcjson.SignRawTransactionWithWalletResult{}, err
 			}
@@ -2002,16 +1892,16 @@ func (b *Bitcoind) SignRawTransactionWithWallet(ctx context.Context, c *connect.
 		})
 }
 
-// DecodePsbt implements bitcoindv1alphaconnect.BitcoinServiceHandler.
-func (b *Bitcoind) DecodePsbt(ctx context.Context, c *connect.Request[pb.DecodePsbtRequest]) (*connect.Response[pb.DecodePsbtResponse], error) {
-	if c.Msg.Psbt == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("psbt is required"))
+// DecodePsbt implements bitcoindv1connect.BitcoinServiceHandler.
+func (b *Bitcoind) DecodePsbt(ctx context.Context, c *pb.DecodePsbtRequest) (*pb.DecodePsbtResponse, error) {
+	if c.Psbt == "" {
+		return nil, newConnectError(connect.CodeInvalidArgument, errors.New("psbt is required"))
 	}
 
-	return withCancel(
-		ctx, b.conf,
+	return callRPC(
+		ctx,
 		func(ctx context.Context) (rawDecodePsbtResponse, error) {
-			cmd, err := btcjson.NewCmd("decodepsbt", c.Msg.Psbt)
+			cmd, err := btcjson.NewCmd("decodepsbt", c.Psbt)
 			if err != nil {
 				return rawDecodePsbtResponse{}, err
 			}
@@ -2020,8 +1910,7 @@ func (b *Bitcoind) DecodePsbt(ctx context.Context, c *connect.Request[pb.DecodeP
 			if err != nil {
 				return rawDecodePsbtResponse{}, fmt.Errorf("send decodepsbt: %w", err)
 			}
-			zerolog.Ctx(ctx).Err(err).
-				Msgf("decodepsbt response: %s", string(res))
+			logFrom(ctx).DebugContext(ctx, "decodepsbt response", "response", string(res))
 
 			var parsed rawDecodePsbtResponse
 			if err := json.Unmarshal(res, &parsed); err != nil {
@@ -2043,7 +1932,7 @@ func (b *Bitcoind) DecodePsbt(ctx context.Context, c *connect.Request[pb.DecodeP
 						Weight:      in.NonWitnessUtxo.Weight,
 						Version:     in.NonWitnessUtxo.Version,
 						Locktime:    in.NonWitnessUtxo.Locktime,
-						Inputs: lo.Map(in.NonWitnessUtxo.Vin, func(in input, _ int) *pb.Input {
+						Inputs: mapSlice(in.NonWitnessUtxo.Vin, func(in input, _ int) *pb.Input {
 							return &pb.Input{
 								Txid: in.Txid,
 								Vout: in.Vout,
@@ -2055,7 +1944,7 @@ func (b *Bitcoind) DecodePsbt(ctx context.Context, c *connect.Request[pb.DecodeP
 								Witness:  in.TxInWitness,
 							}
 						}),
-						Outputs: lo.Map(in.NonWitnessUtxo.Vout, func(out output, _ int) *pb.Output {
+						Outputs: mapSlice(in.NonWitnessUtxo.Vout, func(out output, _ int) *pb.Output {
 							return &pb.Output{
 								Amount: out.Value,
 								Vout:   out.N,
@@ -2064,7 +1953,6 @@ func (b *Bitcoind) DecodePsbt(ctx context.Context, c *connect.Request[pb.DecodeP
 									Hex:     out.ScriptPubKey.Hex,
 									Type:    out.ScriptPubKey.Type,
 									Address: out.ScriptPubKey.Address,
-									ReqSigs: lo.EmptyableToPtr(out.ScriptPubKey.ReqSigs),
 								},
 							}
 						}),
@@ -2072,7 +1960,7 @@ func (b *Bitcoind) DecodePsbt(ctx context.Context, c *connect.Request[pb.DecodeP
 				}
 
 				var witnessUtxo *pb.DecodePsbtResponse_WitnessUtxo
-				if in.WitnessUtxo.Amount != 0 {
+				if in.WitnessUtxo.ScriptPubKey.Hex != "" {
 					witnessUtxo = &pb.DecodePsbtResponse_WitnessUtxo{
 						Amount: in.WitnessUtxo.Amount,
 						ScriptPubKey: &pb.ScriptPubKey{
@@ -2117,7 +2005,7 @@ func (b *Bitcoind) DecodePsbt(ctx context.Context, c *connect.Request[pb.DecodeP
 					Sighash:           in.Sighash,
 					RedeemScript:      redeemScript,
 					WitnessScript:     witnessScript,
-					Bip32Derivs: lo.Map(in.Bip32Derivs, func(deriv rawBip32Deriv, _ int) *pb.DecodePsbtResponse_Bip32Deriv {
+					Bip32Derivs: mapSlice(in.Bip32Derivs, func(deriv rawBip32Deriv, _ int) *pb.DecodePsbtResponse_Bip32Deriv {
 						return &pb.DecodePsbtResponse_Bip32Deriv{
 							MasterFingerprint: deriv.MasterFingerprint,
 							Path:              deriv.Path,
@@ -2152,7 +2040,7 @@ func (b *Bitcoind) DecodePsbt(ctx context.Context, c *connect.Request[pb.DecodeP
 				outputs[i] = &pb.DecodePsbtResponse_Output{
 					RedeemScript:  redeemScript,
 					WitnessScript: witnessScript,
-					Bip32Derivs: lo.Map(output.Bip32Derivs, func(deriv rawBip32Deriv, _ int) *pb.DecodePsbtResponse_Bip32Deriv {
+					Bip32Derivs: mapSlice(output.Bip32Derivs, func(deriv rawBip32Deriv, _ int) *pb.DecodePsbtResponse_Bip32Deriv {
 						return &pb.DecodePsbtResponse_Bip32Deriv{
 							Pubkey:            deriv.Pubkey,
 							MasterFingerprint: deriv.MasterFingerprint,
@@ -2172,7 +2060,7 @@ func (b *Bitcoind) DecodePsbt(ctx context.Context, c *connect.Request[pb.DecodeP
 					Weight:      r.Tx.Weight,
 					Version:     r.Tx.Version,
 					Locktime:    r.Tx.Locktime,
-					Inputs: lo.Map(r.Tx.Vin, func(in input, _ int) *pb.Input {
+					Inputs: mapSlice(r.Tx.Vin, func(in input, _ int) *pb.Input {
 						return &pb.Input{
 							Txid: in.Txid,
 							Vout: in.Vout,
@@ -2184,7 +2072,7 @@ func (b *Bitcoind) DecodePsbt(ctx context.Context, c *connect.Request[pb.DecodeP
 							Witness:  in.TxInWitness,
 						}
 					}),
-					Outputs: lo.Map(r.Tx.Vout, func(out output, _ int) *pb.Output {
+					Outputs: mapSlice(r.Tx.Vout, func(out output, _ int) *pb.Output {
 						return &pb.Output{
 							Amount: out.Value,
 							Vout:   out.N,
@@ -2192,7 +2080,7 @@ func (b *Bitcoind) DecodePsbt(ctx context.Context, c *connect.Request[pb.DecodeP
 								Asm:     out.ScriptPubKey.Asm,
 								Hex:     out.ScriptPubKey.Hex,
 								Type:    out.ScriptPubKey.Type,
-								Address: lo.If(len(out.ScriptPubKey.Addresses) > 0, out.ScriptPubKey.Addresses[0]).Else(""),
+								Address: out.ScriptPubKey.Address,
 							},
 						}
 					}),
@@ -2205,16 +2093,16 @@ func (b *Bitcoind) DecodePsbt(ctx context.Context, c *connect.Request[pb.DecodeP
 		})
 }
 
-// JoinPsbts implements bitcoindv1alphaconnect.BitcoinServiceHandler.
-func (b *Bitcoind) JoinPsbts(ctx context.Context, c *connect.Request[pb.JoinPsbtsRequest]) (*connect.Response[pb.JoinPsbtsResponse], error) {
-	if len(c.Msg.Psbts) == 0 {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("at least one PSBT is required"))
+// JoinPsbts implements bitcoindv1connect.BitcoinServiceHandler.
+func (b *Bitcoind) JoinPsbts(ctx context.Context, c *pb.JoinPsbtsRequest) (*pb.JoinPsbtsResponse, error) {
+	if len(c.Psbts) == 0 {
+		return nil, newConnectError(connect.CodeInvalidArgument, errors.New("at least one PSBT is required"))
 	}
 
-	return withCancel(
-		ctx, b.conf,
+	return callRPC(
+		ctx,
 		func(ctx context.Context) (string, error) {
-			cmd, err := btcjson.NewCmd("joinpsbts", c.Msg.Psbts)
+			cmd, err := btcjson.NewCmd("joinpsbts", c.Psbts)
 			if err != nil {
 				return "", fmt.Errorf("create joinpsbts command: %w", err)
 			}
@@ -2238,93 +2126,67 @@ func (b *Bitcoind) JoinPsbts(ctx context.Context, c *connect.Request[pb.JoinPsbt
 		})
 }
 
-// TestMempoolAccept implements bitcoindv1alphaconnect.BitcoinServiceHandler.
-func (b *Bitcoind) TestMempoolAccept(ctx context.Context, c *connect.Request[pb.TestMempoolAcceptRequest]) (*connect.Response[pb.TestMempoolAcceptResponse], error) {
-	if len(c.Msg.Rawtxs) == 0 {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("at least one raw transaction is required"))
+// TestMempoolAccept implements bitcoindv1connect.BitcoinServiceHandler.
+func (b *Bitcoind) TestMempoolAccept(ctx context.Context, c *pb.TestMempoolAcceptRequest) (*pb.TestMempoolAcceptResponse, error) {
+	if len(c.Rawtxs) == 0 {
+		return nil, newConnectError(connect.CodeInvalidArgument, errors.New("at least one raw transaction is required"))
 	}
 
-	return withCancel(
-		ctx, b.conf,
+	return callRPC(
+		ctx,
 		func(ctx context.Context) ([]*btcjson.TestMempoolAcceptResult, error) {
-			msgTxs := make([]*wire.MsgTx, len(c.Msg.Rawtxs))
-			for i, tx := range c.Msg.Rawtxs {
+			msgTxs := make([]*wire.MsgTx, len(c.Rawtxs))
+			for i, tx := range c.Rawtxs {
+				rawTx, err := hex.DecodeString(tx)
+				if err != nil {
+					return nil, newConnectError(connect.CodeInvalidArgument, fmt.Errorf("raw transaction %d is not hex: %w", i, err))
+				}
 				msgTx := wire.NewMsgTx(wire.TxVersion)
-				if err := msgTx.Deserialize(bytes.NewReader([]byte(tx))); err != nil {
-					return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("could not deserialize raw transaction %d: %w", i, err))
+				if err := msgTx.Deserialize(bytes.NewReader(rawTx)); err != nil {
+					return nil, newConnectError(connect.CodeInvalidArgument, fmt.Errorf("could not deserialize raw transaction %d: %w", i, err))
 				}
 				msgTxs[i] = msgTx
 			}
-			return b.rpc.TestMempoolAccept(ctx, msgTxs, c.Msg.MaxFeeRate)
+			return b.rpc.TestMempoolAccept(ctx, msgTxs, c.MaxFeeRate)
 		},
 		func(results []*btcjson.TestMempoolAcceptResult) *pb.TestMempoolAcceptResponse {
 			return &pb.TestMempoolAcceptResponse{
-				Results: lo.Map(results, func(r *btcjson.TestMempoolAcceptResult, _ int) *pb.TestMempoolAcceptResponse_Result {
+				Results: mapSlice(results, func(r *btcjson.TestMempoolAcceptResult, _ int) *pb.TestMempoolAcceptResponse_Result {
+					var fees float64
+					if r.Fees != nil {
+						fees = r.Fees.Base
+					}
 					return &pb.TestMempoolAcceptResponse_Result{
 						Txid:         r.Txid,
 						Allowed:      r.Allowed,
 						RejectReason: r.RejectReason,
 						Vsize:        uint32(r.Vsize),
-						Fees:         r.Fees.Base,
+						Fees:         fees,
 					}
 				}),
 			}
 		})
 }
 
-// UtxoUpdatePsbt implements bitcoindv1alphaconnect.BitcoinServiceHandler.
-func (b *Bitcoind) UtxoUpdatePsbt(ctx context.Context, c *connect.Request[pb.UtxoUpdatePsbtRequest]) (*connect.Response[pb.UtxoUpdatePsbtResponse], error) {
-	if c.Msg.Psbt == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("psbt is required"))
+// UtxoUpdatePsbt implements bitcoindv1connect.BitcoinServiceHandler.
+func (b *Bitcoind) UtxoUpdatePsbt(ctx context.Context, c *pb.UtxoUpdatePsbtRequest) (*pb.UtxoUpdatePsbtResponse, error) {
+	if c.Psbt == "" {
+		return nil, newConnectError(connect.CodeInvalidArgument, errors.New("psbt is required"))
 	}
 
-	// Convert the proto descriptors to the format Bitcoin Core expects
-	var descriptors []interface{}
-	for _, desc := range c.Msg.Descriptors {
-		switch d := desc.Descriptor_.(type) {
-		case *pb.Descriptor_StringDescriptor:
-			// For plain string descriptors, just add the string
-			descriptors = append(descriptors, d.StringDescriptor)
-
-		case *pb.Descriptor_ObjectDescriptor:
-			obj := make(map[string]interface{})
-			obj["desc"] = d.ObjectDescriptor.Desc
-
-			// Handle the range if specified
-			if d.ObjectDescriptor.Range != nil {
-				switch r := d.ObjectDescriptor.Range.RangeType.(type) {
-				case *pb.DescriptorRange_End:
-					// Single number range (implicitly starts at 0)
-					obj["range"] = r.End
-
-				case *pb.DescriptorRange_Range:
-					// Begin/end range
-					obj["range"] = []int32{r.Range.Begin, r.Range.End}
-				}
-			}
-			descriptors = append(descriptors, obj)
+	var descriptors []map[string]any
+	for _, desc := range c.Descriptors {
+		obj := map[string]any{"desc": desc.Desc}
+		if desc.Range != nil {
+			obj["range"] = []uint32{desc.Range.Begin, desc.Range.End}
 		}
+		descriptors = append(descriptors, obj)
 	}
 
-	return withCancel(
-		ctx, b.conf,
+	return callRPC(
+		ctx,
 		func(ctx context.Context) (string, error) {
-			cmd, err := btcjson.NewCmd("utxoupdatepsbt", c.Msg.Psbt, descriptors)
-			if err != nil {
-				return "", fmt.Errorf("create utxoupdatepsbt command: %w", err)
-			}
-
-			res, err := rpcclient.ReceiveFuture(b.rpc.SendCmd(ctx, cmd))
-			if err != nil {
-				return "", fmt.Errorf("send utxoupdatepsbt: %w", err)
-			}
-
-			var psbt string
-			if err := json.Unmarshal(res, &psbt); err != nil {
-				return "", fmt.Errorf("unmarshal utxoupdatepsbt response: %w", err)
-			}
-
-			return psbt, nil
+			return call[string](ctx, b.rpc, "utxoupdatepsbt", c.Psbt, descriptors)
 		},
 		func(r string) *pb.UtxoUpdatePsbtResponse {
 			return &pb.UtxoUpdatePsbtResponse{
@@ -2333,92 +2195,74 @@ func (b *Bitcoind) UtxoUpdatePsbt(ctx context.Context, c *connect.Request[pb.Utx
 		})
 }
 
-// CreateWallet implements bitcoindv1alphaconnect.BitcoinServiceHandler.
-func (b *Bitcoind) CreateWallet(ctx context.Context, c *connect.Request[pb.CreateWalletRequest]) (*connect.Response[pb.CreateWalletResponse], error) {
-	if c.Msg.Name == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("wallet name is required"))
+// CreateWallet implements bitcoindv1connect.BitcoinServiceHandler.
+func (b *Bitcoind) CreateWallet(ctx context.Context, c *pb.CreateWalletRequest) (*pb.CreateWalletResponse, error) {
+	if c.Name == "" {
+		return nil, newConnectError(connect.CodeInvalidArgument, errors.New("wallet name is required"))
 	}
 
 	var opts []rpcclient.CreateWalletOpt
-	if c.Msg.Blank {
+	if c.Blank {
 		opts = append(opts, rpcclient.WithCreateWalletBlank())
 	}
-	if c.Msg.DisablePrivateKeys {
+	if c.DisablePrivateKeys {
 		opts = append(opts, rpcclient.WithCreateWalletDisablePrivateKeys())
 	}
-	if c.Msg.Passphrase != "" {
-		opts = append(opts, rpcclient.WithCreateWalletPassphrase(c.Msg.Passphrase))
+	if c.Passphrase != "" {
+		opts = append(opts, rpcclient.WithCreateWalletPassphrase(c.Passphrase))
 	}
-	if c.Msg.AvoidReuse {
+	if c.AvoidReuse {
 		opts = append(opts, rpcclient.WithCreateWalletAvoidReuse())
 	}
 
-	return withCancel(
-		ctx, b.conf,
+	return callRPC(
+		ctx,
 		func(ctx context.Context) (*btcjson.CreateWalletResult, error) {
-			return b.rpc.CreateWallet(ctx, c.Msg.Name, opts...)
+			return b.rpc.CreateWallet(ctx, c.Name, opts...)
 		},
 		func(r *btcjson.CreateWalletResult) *pb.CreateWalletResponse {
 			return &pb.CreateWalletResponse{
-				Name:    r.Name,
-				Warning: r.Warning,
+				Name:     r.Name,
+				Warnings: r.Warnings,
 			}
 		})
 }
 
-// GetAccount implements bitcoindv1alphaconnect.BitcoinServiceHandler.
-func (b *Bitcoind) GetAccount(ctx context.Context, c *connect.Request[pb.GetAccountRequest]) (*connect.Response[pb.GetAccountResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("GetAccount is deprecated in Bitcoin Core"))
-}
-
-// GetAddressesByAccount implements bitcoindv1alphaconnect.BitcoinServiceHandler.
-func (b *Bitcoind) GetAddressesByAccount(ctx context.Context, c *connect.Request[pb.GetAddressesByAccountRequest]) (*connect.Response[pb.GetAddressesByAccountResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("GetAddressesByAccount is deprecated in Bitcoin Core"))
-}
-
-// KeyPoolRefill implements bitcoindv1alphaconnect.BitcoinServiceHandler.
-func (b *Bitcoind) KeyPoolRefill(ctx context.Context, c *connect.Request[pb.KeyPoolRefillRequest]) (*connect.Response[pb.KeyPoolRefillResponse], error) {
-	rpc, err := b.rpcForWallet(ctx, c.Msg)
+// KeyPoolRefill implements bitcoindv1connect.BitcoinServiceHandler.
+func (b *Bitcoind) KeyPoolRefill(ctx context.Context, c *pb.KeyPoolRefillRequest) (*pb.KeyPoolRefillResponse, error) {
+	rpc, err := b.rpcForWallet(ctx, c.Wallet)
 	if err != nil {
 		return nil, err
 	}
 
-	return withCancel(
-		ctx, b.conf,
+	return callRPC(
+		ctx,
 		func(ctx context.Context) (struct{}, error) {
-			err := rpc.KeyPoolRefill(ctx)
-			return struct{}{}, err
+			if c.NewSize != 0 {
+				return struct{}{}, rpc.KeyPoolRefillSize(ctx, uint(c.NewSize))
+			}
+			return struct{}{}, rpc.KeyPoolRefill(ctx)
 		},
 		func(_ struct{}) *pb.KeyPoolRefillResponse {
 			return &pb.KeyPoolRefillResponse{}
 		})
 }
 
-// ListAccounts implements bitcoindv1alphaconnect.BitcoinServiceHandler.
-func (b *Bitcoind) ListAccounts(ctx context.Context, c *connect.Request[pb.ListAccountsRequest]) (*connect.Response[pb.ListAccountsResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ListAccounts is deprecated in Bitcoin Core"))
-}
-
-// SetAccount implements bitcoindv1alphaconnect.BitcoinServiceHandler.
-func (b *Bitcoind) SetAccount(ctx context.Context, c *connect.Request[pb.SetAccountRequest]) (*connect.Response[pb.SetAccountResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("SetAccount is deprecated in Bitcoin Core"))
-}
-
-// LoadWallet implements bitcoindv1alphaconnect.BitcoinServiceHandler.
-func (b *Bitcoind) LoadWallet(ctx context.Context, c *connect.Request[pb.LoadWalletRequest]) (*connect.Response[pb.LoadWalletResponse], error) {
-	if c.Msg.Filename == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("filename is required"))
+// LoadWallet implements bitcoindv1connect.BitcoinServiceHandler.
+func (b *Bitcoind) LoadWallet(ctx context.Context, c *pb.LoadWalletRequest) (*pb.LoadWalletResponse, error) {
+	if c.Filename == "" {
+		return nil, newConnectError(connect.CodeInvalidArgument, errors.New("filename is required"))
 	}
 
 	var loadOnStartup *bool
-	if c.Msg.LoadOnStartup {
-		loadOnStartup = &c.Msg.LoadOnStartup
+	if c.LoadOnStartup {
+		loadOnStartup = &c.LoadOnStartup
 	}
 
-	return withCancel(
-		ctx, b.conf,
+	return callRPC(
+		ctx,
 		func(ctx context.Context) (*btcjson.LoadWalletResult, error) {
-			return b.rpc.LoadWallet(ctx, c.Msg.Filename, loadOnStartup)
+			return b.rpc.LoadWallet(ctx, c.Filename, loadOnStartup)
 		},
 		func(r *btcjson.LoadWalletResult) *pb.LoadWalletResponse {
 			return &pb.LoadWalletResponse{
@@ -2428,14 +2272,14 @@ func (b *Bitcoind) LoadWallet(ctx context.Context, c *connect.Request[pb.LoadWal
 		})
 }
 
-// AbortRescan implements bitcoindv1alphaconnect.BitcoinServiceHandler.
-func (b *Bitcoind) AbortRescan(ctx context.Context, c *connect.Request[pb.AbortRescanRequest]) (*connect.Response[pb.AbortRescanResponse], error) {
-	rpc, err := b.rpcForWallet(ctx, c.Msg)
+// AbortRescan implements bitcoindv1connect.BitcoinServiceHandler.
+func (b *Bitcoind) AbortRescan(ctx context.Context, c *pb.AbortRescanRequest) (*pb.AbortRescanResponse, error) {
+	rpc, err := b.rpcForWallet(ctx, c.Wallet)
 	if err != nil {
 		return nil, err
 	}
 
-	return withCancel(ctx, b.conf,
+	return callRPC(ctx,
 		func(ctx context.Context) (bool, error) {
 			res, err := rpcclient.ReceiveFuture(rpc.SendCmd(ctx, &commands.AbortRescanCmd{}))
 			if err != nil {
@@ -2455,18 +2299,18 @@ func (b *Bitcoind) AbortRescan(ctx context.Context, c *connect.Request[pb.AbortR
 		})
 }
 
-// RescanBlockchain implements bitcoindv1alphaconnect.BitcoinServiceHandler.
-func (b *Bitcoind) RescanBlockchain(ctx context.Context, c *connect.Request[pb.RescanBlockchainRequest]) (*connect.Response[pb.RescanBlockchainResponse], error) {
-	rpc, err := b.rpcForWallet(ctx, c.Msg)
+// RescanBlockchain implements bitcoindv1connect.BitcoinServiceHandler.
+func (b *Bitcoind) RescanBlockchain(ctx context.Context, c *pb.RescanBlockchainRequest) (*pb.RescanBlockchainResponse, error) {
+	rpc, err := b.rpcForWallet(ctx, c.Wallet)
 	if err != nil {
 		return nil, err
 	}
 
-	return withCancel(ctx, b.conf,
+	return callRPC(ctx,
 		func(ctx context.Context) (*commands.RescanBlockchainResponse, error) {
 			cmd := commands.RescanBlockchainCmd{
-				StartHeight: lo.EmptyableToPtr(c.Msg.StartHeight),
-				EndHeight:   lo.EmptyableToPtr(c.Msg.EndHeight),
+				StartHeight: nonZeroPtr(c.StartHeight),
+				EndHeight:   nonZeroPtr(c.EndHeight),
 			}
 			res, err := rpcclient.ReceiveFuture(rpc.SendCmd(ctx, &cmd))
 			if err != nil {
@@ -2487,31 +2331,31 @@ func (b *Bitcoind) RescanBlockchain(ctx context.Context, c *connect.Request[pb.R
 		})
 }
 
-// UnloadWallet implements bitcoindv1alphaconnect.BitcoinServiceHandler.
-func (b *Bitcoind) UnloadWallet(ctx context.Context, c *connect.Request[pb.UnloadWalletRequest]) (*connect.Response[pb.UnloadWalletResponse], error) {
-	if c.Msg.WalletName == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("wallet name is required"))
+// UnloadWallet implements bitcoindv1connect.BitcoinServiceHandler.
+func (b *Bitcoind) UnloadWallet(ctx context.Context, c *pb.UnloadWalletRequest) (*pb.UnloadWalletResponse, error) {
+	if c.WalletName == "" {
+		return nil, newConnectError(connect.CodeInvalidArgument, errors.New("wallet name is required"))
 	}
 
-	rpc, err := b.rpcForWallet(ctx, c.Msg)
+	// On the wallet's own endpoint, Core takes the wallet from the URL.
+	// The default endpoint may name some other wallet.
+	rpc, err := b.rpcForWallet(ctx, c.WalletName)
 	if err != nil {
 		return nil, err
 	}
 
-	walletName := c.Msg.WalletName
-	return withCancel(
-		ctx, b.conf,
+	return callRPC(
+		ctx,
 		func(ctx context.Context) (struct{}, error) {
-			err := rpc.UnloadWallet(ctx, &walletName)
-			return struct{}{}, err
+			return struct{}{}, rpc.UnloadWallet(ctx, nil)
 		},
 		func(_ struct{}) *pb.UnloadWalletResponse {
 			return &pb.UnloadWalletResponse{}
 		})
 }
 
-func (b *Bitcoind) GetZmqNotifications(ctx context.Context, c *connect.Request[emptypb.Empty]) (*connect.Response[pb.GetZmqNotificationsResponse], error) {
-	return withCancel(ctx, b.conf,
+func (b *Bitcoind) GetZmqNotifications(ctx context.Context, c *emptypb.Empty) (*pb.GetZmqNotificationsResponse, error) {
+	return callRPC(ctx,
 		func(ctx context.Context) (btcjson.GetZmqNotificationResult, error) {
 			return b.rpc.GetZmqNotifications(ctx)
 		},
@@ -2529,198 +2373,99 @@ func (b *Bitcoind) GetZmqNotifications(ctx context.Context, c *connect.Request[e
 		})
 }
 
+// Shutdown ends the SSH tunnel and any background startup.
 func (b *Bitcoind) Shutdown(ctx context.Context) {
-	log := zerolog.Ctx(ctx)
-
+	logFrom(ctx).DebugContext(ctx, "shutting down")
 	b.stop()
-
-	if b.server == nil {
-		log.Warn().Msg("shutdown called on empty server")
-		return
-	}
-
-	log.Info().Msg("stopping server")
-	b.server.Shutdown(ctx)
-
-	b.walletClientsMu.Lock()
-	defer b.walletClientsMu.Unlock()
-	for wallet, rpc := range b.walletClients {
-		log.Debug().Str("wallet", wallet).Msg("stopping wallet client")
-		rpc.Shutdown(ctx)
-	}
-	b.walletClients = nil
 }
 
-func (b *Bitcoind) setupServer() {
-	const (
-		oldValue = false
-		newValue = true
-	)
-	if !b.setupDone.CompareAndSwap(oldValue, newValue) {
-		panic("PROGRAMMER ERROR: setupServer called twice")
-	}
-
-	b.server = connectserver.New(
-		logging.InterceptorConf{},
-		append([]connect.Interceptor{handleBtcJsonErrors()}, b.conf.interceptors...)...,
-	)
-	connectserver.Register(b.server, rpc.NewBitcoinServiceHandler, rpc.BitcoinServiceHandler(b))
-}
-
-func (b *Bitcoind) Listen(ctx context.Context, address string) error {
-	b.setupServer()
-
-	zerolog.Ctx(ctx).Info().
-		Str("address", address).
-		Msg("connect: serving")
-
-	return b.server.Serve(ctx, address)
-}
-
-// InProcessClient returns a Connect client that communicates with the Bitcoind
-// handler directly in memory, without any network I/O. All interceptors
-// (including error transformation) are applied.
+// Server returns the dispatcher for the Bitcoind API, with all interceptors
+// (including error transformation) applied. Call it in memory through
+// connectinprocess, or serve it over HTTP with connecthttp.Mount.
 //
-// Additional client-side interceptors can be passed as options.
-func (b *Bitcoind) InProcessClient(opts ...connect.ClientOption) Client {
-	b.setupServer()
-
-	httpClient := &http.Client{
-		Transport: &handlerTransport{handler: b.server.Handler()},
-	}
-
-	// The URL is not used for routing (requests go directly to the handler),
-	// but Connect requires a valid URL format.
-	return rpc.NewBitcoinServiceClient(httpClient, "http://in-memory", opts...)
-}
-
-// handlerTransport is an http.RoundTripper that routes requests directly
-// to an http.Handler without any network I/O.
-type handlerTransport struct {
-	handler http.Handler
-}
-
-func (t *handlerTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	rec := &responseRecorder{
-		header: make(http.Header),
-		body:   new(bytes.Buffer),
-		code:   http.StatusOK,
-	}
-	t.handler.ServeHTTP(rec, req)
-
-	return &http.Response{
-		Status:        http.StatusText(rec.code),
-		StatusCode:    rec.code,
-		Proto:         "HTTP/1.1",
-		ProtoMajor:    1,
-		ProtoMinor:    1,
-		Header:        rec.header,
-		Body:          io.NopCloser(rec.body),
-		ContentLength: int64(rec.body.Len()),
-		Request:       req,
-	}, nil
-}
-
-// responseRecorder captures HTTP responses for in-memory transport.
-type responseRecorder struct {
-	header http.Header
-	body   *bytes.Buffer
-	code   int
-}
-
-func (r *responseRecorder) Header() http.Header {
-	return r.header
-}
-
-func (r *responseRecorder) Write(b []byte) (int, error) {
-	return r.body.Write(b)
-}
-
-func (r *responseRecorder) WriteHeader(code int) {
-	r.code = code
+// Don't register further services on it after it's been mounted on HTTP:
+// they won't be served.
+func (b *Bitcoind) Server() *connect.Server {
+	return b.server
 }
 
 var _ rpc.BitcoinServiceHandler = new(Bitcoind)
 
-func handleBtcJsonErrors() connect.Interceptor {
-	return connect.UnaryInterceptorFunc(func(handler connect.UnaryFunc) connect.UnaryFunc {
-		return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
-			resp, err := handler(ctx, req)
+func newConnectError(code connect.Code, err error) *connect.Error {
+	return connect.NewError(code, err.Error()).WithCause(err)
+}
+
+func handleBtcJsonErrors() connect.ServerInterceptor {
+	return func(handler connect.ServerFunc) connect.ServerFunc {
+		return func(ctx context.Context, spec connect.Spec, stream connect.ServerStream) error {
+			err := handler(ctx, spec, stream)
 
 			rpcErr := new(btcjson.RPCError)
 
 			switch {
 			case err == nil:
-				return resp, nil
+				return nil
 
 			case strings.Contains(err.Error(), "Work queue depth exceeded"):
-				zerolog.Ctx(ctx).Info().
-					Strs("requests", loadPendingRequests()).
-					Msgf("handle error: work queue depth exceeded")
+				logFrom(ctx).InfoContext(ctx, "handle error: work queue depth exceeded")
 
-				err = connect.NewError(connect.CodeResourceExhausted, errors.New("RPC work queue depth exceeded"))
+				err = newConnectError(connect.CodeResourceExhausted, errors.New("RPC work queue depth exceeded"))
 
 			case errors.As(err, &rpcErr):
 				switch {
 				// This is a -4 in the btcd lib, but a -6 in Bitcoin Core...
 				case rpcErr.Message == "Insufficient funds":
-					err = connect.NewError(connect.CodeFailedPrecondition, errors.New(rpcErr.Message))
+					err = newConnectError(connect.CodeFailedPrecondition, errors.New(rpcErr.Message))
 
 				case rpcErr.Code == btcjson.ErrRPCWallet && strings.Contains(rpcErr.Message, "Wallet is currently rescanning"):
-					err = connect.NewError(connect.CodeAlreadyExists, errors.New(rpcErr.Message))
+					err = newConnectError(connect.CodeAlreadyExists, errors.New(rpcErr.Message))
 
 				case rpcErr.Code == btcjson.ErrRPCWallet && rpcErr.Message == "Transaction amount too small":
-					err = connect.NewError(connect.CodeInvalidArgument, errors.New(rpcErr.Message))
+					err = newConnectError(connect.CodeInvalidArgument, errors.New(rpcErr.Message))
 
 				case rpcErr.Code == btcjson.ErrRPCWallet && strings.Contains(rpcErr.Message, "which was already bumped by transaction"):
-					err = connect.NewError(connect.CodeAlreadyExists, errors.New(rpcErr.Message))
+					err = newConnectError(connect.CodeAlreadyExists, errors.New(rpcErr.Message))
 
 				case rpcErr.Code == btcjson.ErrRPCMisc && strings.Contains(rpcErr.Message, "is already spent"):
-					err = connect.NewError(connect.CodeAlreadyExists, errors.New(rpcErr.Message))
+					err = newConnectError(connect.CodeAlreadyExists, errors.New(rpcErr.Message))
 
 				case rpcErr.Code == btcjson.ErrRPCWalletNotSpecified:
-
-					// All wallet RPC requests should have a `wallet` string field.
-					type hasWalletParam interface{ GetWallet() string }
-					msg := "btc-buf must be started with the --bitcoind.wallet flag"
-					if _, ok := req.Any().(hasWalletParam); ok {
-						msg = `wallet must be specified either through the "wallet" parameter or the --bitcoind.wallet flag`
-					}
-					err = connect.NewError(connect.CodeFailedPrecondition, errors.New(msg))
+					msg := `wallet must be specified either through the "wallet" parameter or the --bitcoind.wallet flag`
+					err = newConnectError(connect.CodeFailedPrecondition, errors.New(msg))
 
 				case rpcErr.Code == btcjson.ErrRPCWalletNotFound:
-					err = connect.NewError(connect.CodeFailedPrecondition, errors.New(rpcErr.Message))
+					err = newConnectError(connect.CodeFailedPrecondition, errors.New(rpcErr.Message))
 
 				case rpcErr.Code == btcjson.ErrRPCInvalidAddressOrKey:
-					err = connect.NewError(connect.CodeNotFound, errors.New(rpcErr.Message))
+					err = newConnectError(connect.CodeNotFound, errors.New(rpcErr.Message))
 
 				case rpcErr.Code == btcjson.ErrRPCInvalidParameter:
-					err = connect.NewError(connect.CodeInvalidArgument, errors.New(rpcErr.Message))
+					err = newConnectError(connect.CodeInvalidArgument, errors.New(rpcErr.Message))
 
 				case rpcErr.Code == btcjson.ErrRPCDecodeHexString:
-					err = connect.NewError(connect.CodeInvalidArgument, errors.New(rpcErr.Message))
+					err = newConnectError(connect.CodeInvalidArgument, errors.New(rpcErr.Message))
 
 				case rpcErr.Code == btcjson.ErrRPCInWarmup:
-					err = connect.NewError(connect.CodeFailedPrecondition, errors.New(rpcErr.Message))
+					err = newConnectError(connect.CodeFailedPrecondition, errors.New(rpcErr.Message))
 
 				case rpcErr.Code == btcjson.ErrRPCMisc && strings.Contains(rpcErr.Message, "Block not available (not fully downloaded)"):
-					err = connect.NewError(connect.CodeUnavailable, errors.New(rpcErr.Message))
+					err = newConnectError(connect.CodeUnavailable, errors.New(rpcErr.Message))
 
 				case rpcErr.Code == btcjson.ErrRPCMethodNotFound.Code:
 
-					err = connect.NewError(
+					err = newConnectError(
 						connect.CodeFailedPrecondition,
 						errors.New("Bitcoin Core is running without wallet functionality"), // nolint:staticcheck
 					)
 
 				default:
-					zerolog.Ctx(ctx).Warn().Msgf("unknown btcjson error: %s", rpcErr)
+					logFrom(ctx).WarnContext(ctx, "unknown btcjson error", "error", rpcErr)
 				}
 			}
 
-			return resp, err
+			return err
 		}
-	})
+	}
 }
 
 func newChainHash(in string) (*chainhash.Hash, error) {
@@ -2730,7 +2475,7 @@ func newChainHash(in string) (*chainhash.Hash, error) {
 
 	hash, err := chainhash.NewHashFromStr(in)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+		return nil, newConnectError(connect.CodeInvalidArgument, err)
 	}
 
 	return hash, nil
@@ -2798,12 +2543,10 @@ type output struct {
 }
 
 type scriptPubKey struct {
-	Asm       string   `json:"asm"`
-	Hex       string   `json:"hex"`
-	ReqSigs   uint32   `json:"reqSigs,omitempty"`
-	Type      string   `json:"type"`
-	Addresses []string `json:"addresses,omitempty"`
-	Address   string   `json:"address,omitempty"`
+	Asm     string `json:"asm"`
+	Hex     string `json:"hex"`
+	Type    string `json:"type"`
+	Address string `json:"address,omitempty"`
 }
 
 type rawDecodePsbtResponse struct {
@@ -2873,14 +2616,14 @@ func newTimestamp(unix int64) *timestamppb.Timestamp {
 func getRawTransactionBytes(tx *pb.RawTransaction) ([]byte, error) {
 	if (len(tx.GetHex()) == 0) == (len(tx.GetData()) == 0) {
 		err := errors.New("must specify transaction bytes as either raw or hex-encoded")
-		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+		return nil, newConnectError(connect.CodeInvalidArgument, err)
 	}
 
 	if len(tx.GetHex()) > 0 {
 		decoded, err := hex.DecodeString(tx.GetHex())
 		if err != nil {
 			err := fmt.Errorf("invalid hex data: %w", err)
-			return nil, connect.NewError(connect.CodeInvalidArgument, err)
+			return nil, newConnectError(connect.CodeInvalidArgument, err)
 		}
 
 		return decoded, nil

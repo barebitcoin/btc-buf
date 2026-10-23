@@ -12,7 +12,6 @@ import (
 
 	"github.com/btcsuite/btcd/btcutil/v2"
 	"github.com/btcsuite/btcd/chainhash/v2"
-	"github.com/davecgh/go-spew/spew"
 
 	"github.com/barebitcoin/btc-buf/rpcclient/btcjson"
 )
@@ -167,8 +166,8 @@ func TestGetTxOutSetInfoResult(t *testing.T) {
 
 		if !reflect.DeepEqual(out, test.want) {
 			t.Errorf("Test #%d (%s) unexpected unmarshalled data - "+
-				"got %v, want %v", i, test.name, spew.Sdump(out),
-				spew.Sdump(test.want))
+				"got %+v, want %+v", i, test.name, out,
+				test.want)
 			continue
 		}
 	}

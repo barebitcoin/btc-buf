@@ -11,8 +11,8 @@ import (
 
 // CreateWalletResult models the result of the createwallet command.
 type CreateWalletResult struct {
-	Name    string `json:"name"`
-	Warning string `json:"warning"`
+	Name     string   `json:"name"`
+	Warnings []string `json:"warnings"`
 }
 
 // embeddedAddressInfo includes all getaddressinfo output fields, excluding
@@ -242,6 +242,7 @@ type ListUnspentResult struct {
 	Amount        float64 `json:"amount"`
 	Confirmations int64   `json:"confirmations"`
 	Spendable     bool    `json:"spendable"`
+	Safe          bool    `json:"safe"`
 }
 
 // SignRawTransactionError models the data that contains script verification

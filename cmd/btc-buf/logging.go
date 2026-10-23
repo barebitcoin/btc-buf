@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log" // nolint:depguard
-	"golang.org/x/exp/slices"
 )
 
 func configureLogging(cfg *config) error {
@@ -90,7 +90,7 @@ func (m messageEnhancerWriter) Write(p []byte) (int, error) {
 		}
 
 		// Skip all the boring fields.
-		if slices.Contains(uninterestingFields, key) { // nolint:govet
+		if slices.Contains(uninterestingFields, key) {
 			continue
 		}
 
@@ -102,7 +102,7 @@ func (m messageEnhancerWriter) Write(p []byte) (int, error) {
 		// field, the raw values are still present in the JSON object.
 		if fValue, ok := value.(json.Number); ok && key == "duration" {
 			millis, _ := fValue.Float64()
-			duration := time.Duration(millis) * time.Millisecond
+			duration := time.Duration(millis * float64(time.Millisecond))
 
 			// convert the value to a human-readable representation
 			value = duration.String()

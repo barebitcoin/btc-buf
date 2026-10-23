@@ -1,9 +1,15 @@
 package server
 
 import (
+	"bytes"
+	"encoding/hex"
 	"encoding/json"
+	"slices"
 	"testing"
 
+	"github.com/btcsuite/btcd/wire/v2"
+
+	pb "github.com/barebitcoin/btc-buf/gen/bitcoin/bitcoind/v1"
 	"github.com/barebitcoin/btc-buf/rpcclient/btcjson"
 )
 
@@ -94,5 +100,90 @@ func TestBlockTransactionProtoCoinbase(t *testing.T) {
 	}
 	if tx.Inputs[0].Coinbase != "03" {
 		t.Errorf("coinbase: got %q, want %q", tx.Inputs[0].Coinbase, "03")
+	}
+}
+
+// GetBlock decodes each of Core's getblock shapes.
+func TestGetBlock(t *testing.T) {
+	const hash = "00000000000000000001b8b5c9a3f8a1e2d3c4b5a69788796a5b4c3d2e1f0a9b"
+	getBlock := func(t *testing.T, result any, verbosity pb.GetBlockRequest_Verbosity) *pb.GetBlockResponse {
+		t.Helper()
+		core := &fakeCore{responses: map[string]fakeResponse{
+			"getblock": {result: result},
+		}}
+		b, err := newTestBitcoind(t, core)
+		if err != nil {
+			t.Fatal(err)
+		}
+		res, err := inProcessClient(b).GetBlock(t.Context(), &pb.GetBlockRequest{Hash: hash, Verbosity: verbosity})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return res
+	}
+
+	t.Run("raw data", func(t *testing.T) {
+		var block bytes.Buffer
+		if err := (&wire.MsgBlock{Header: wire.BlockHeader{Version: 1}}).Serialize(&block); err != nil {
+			t.Fatal(err)
+		}
+		blockHex := hex.EncodeToString(block.Bytes())
+
+		res := getBlock(t, blockHex, pb.GetBlockRequest_VERBOSITY_RAW_DATA)
+		if res.Hex != blockHex {
+			t.Errorf("hex: got %s, want %s", res.Hex, blockHex)
+		}
+	})
+
+	t.Run("block info", func(t *testing.T) {
+		res := getBlock(t, map[string]any{"hash": hash, "tx": []string{"t1", "t2"}},
+			pb.GetBlockRequest_VERBOSITY_BLOCK_INFO)
+		if res.Hash != hash || !slices.Equal(res.Txids, []string{"t1", "t2"}) {
+			t.Errorf("unexpected block: hash=%s txids=%v", res.Hash, res.Txids)
+		}
+	})
+
+	t.Run("transaction info", func(t *testing.T) {
+		res := getBlock(t, map[string]any{"hash": hash, "tx": []json.RawMessage{json.RawMessage(blockTransactionJSON)}},
+			pb.GetBlockRequest_VERBOSITY_BLOCK_TX_INFO)
+		if len(res.Transactions) != 1 || res.Transactions[0].Txid != "6c8a1a2d5f4f4d6a9b0f1e2c3d4a5b6c7d8e9f0a1b2c3d4e5f60718293a4b5c6" {
+			t.Errorf("unexpected transactions: %v", res.Transactions)
+		}
+	})
+}
+
+// Outputs get Core's single address, and an output without one, like
+// OP_RETURN, decodes to an empty address.
+func TestDecodePsbtOutputAddresses(t *testing.T) {
+	core := &fakeCore{responses: map[string]fakeResponse{
+		"decodepsbt": {result: map[string]any{
+			"tx": map[string]any{
+				"txid": "6c8a1a2d5f4f4d6a9b0f1e2c3d4a5b6c7d8e9f0a1b2c3d4e5f60718293a4b5c6",
+				"vout": []any{
+					map[string]any{
+						"value": 0.1, "n": 0,
+						"scriptPubKey": map[string]any{"type": "witness_v0_keyhash", "hex": "0014abcd", "address": "bc1qexample"},
+					},
+					map[string]any{
+						"value": 0, "n": 1,
+						"scriptPubKey": map[string]any{"type": "nulldata", "hex": "6a"},
+					},
+				},
+			},
+		}},
+	}}
+	b, err := newTestBitcoind(t, core)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := inProcessClient(b).DecodePsbt(t.Context(), &pb.DecodePsbtRequest{Psbt: "cHNidP8="})
+	if err != nil {
+		t.Fatal(err)
+	}
+	outputs := res.GetTx().GetOutputs()
+	if len(outputs) != 2 ||
+		outputs[0].GetScriptPubKey().GetAddress() != "bc1qexample" ||
+		outputs[1].GetScriptPubKey().GetAddress() != "" {
+		t.Fatalf("unexpected outputs: %v", outputs)
 	}
 }

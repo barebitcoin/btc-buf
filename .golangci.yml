@@ -9,8 +9,8 @@ linters:
       rules:
         all:
           deny:
-            - pkg: log
-              desc: use zerolog
+            - pkg: log$
+              desc: use log/slog
 
             - pkg: github.com/rs/zerolog/log
               desc: use context logger

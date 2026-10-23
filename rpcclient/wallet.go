@@ -7,6 +7,7 @@ package rpcclient
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"strconv"
 
 	"github.com/btcsuite/btcd/address/v2"
@@ -565,13 +566,13 @@ func (c *Client) WalletSendAsync(
 	for _, out := range outputs {
 		switch {
 		// Sending money
-		case out.Data == nil && (out.Address != "" && out.Amount != 0):
+		case out.Data == nil && (out.Address != "" && out.Amount > 0):
 
 		// Doing an OP_RETURN
 		case len(out.Data) != 0 && (out.Address == "" && out.Amount == 0):
 
 		default:
-			panic("programmer error: must EITHER set data OR address + amount")
+			return newFutureError(errors.New("each output must set either data, or an address and a positive amount"))
 		}
 	}
 
@@ -994,21 +995,16 @@ func (r FutureCreateMultisigResult) Receive() (*btcjson.CreateMultiSigResult, er
 // the returned instance.
 //
 // See CreateMultisig for the blocking version and more details.
-func (c *Client) CreateMultisigAsync(ctx context.Context, requiredSigs int, addresses []address.Address) FutureCreateMultisigResult {
-	addrs := make([]string, 0, len(addresses))
-	for _, addr := range addresses {
-		addrs = append(addrs, addr.String())
-	}
-
-	cmd := btcjson.NewCreateMultisigCmd(requiredSigs, addrs)
+func (c *Client) CreateMultisigAsync(ctx context.Context, requiredSigs int, pubKeys []string) FutureCreateMultisigResult {
+	cmd := btcjson.NewCreateMultisigCmd(requiredSigs, pubKeys)
 	return c.SendCmd(ctx, cmd)
 }
 
 // CreateMultisig creates a multisignature address that requires the specified
-// number of signatures for the provided addresses and returns the
+// number of signatures for the provided hex-encoded public keys and returns the
 // multisignature address and script needed to redeem it.
-func (c *Client) CreateMultisig(ctx context.Context, requiredSigs int, addresses []address.Address) (*btcjson.CreateMultiSigResult, error) {
-	return c.CreateMultisigAsync(ctx, requiredSigs, addresses).Receive()
+func (c *Client) CreateMultisig(ctx context.Context, requiredSigs int, pubKeys []string) (*btcjson.CreateMultiSigResult, error) {
+	return c.CreateMultisigAsync(ctx, requiredSigs, pubKeys).Receive()
 }
 
 // FutureCreateNewAccountResult is a future promise to deliver the result of a

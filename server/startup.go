@@ -7,10 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"connectrpc.com/connect"
-	"github.com/rs/zerolog"
+	"connectrpc.com/connect/v2"
 
-	pb "github.com/barebitcoin/btc-buf/gen/bitcoin/bitcoind/v1alpha"
+	pb "github.com/barebitcoin/btc-buf/gen/bitcoin/bitcoind/v1"
 	"github.com/barebitcoin/btc-buf/rpcclient/btcjson"
 )
 
@@ -58,21 +57,21 @@ func (b *Bitcoind) Ready(ctx context.Context) error {
 
 // startupInterceptor holds requests until startup has finished, bounded by
 // the caller's context, and fails them if startup did.
-func (b *Bitcoind) startupInterceptor() connect.Interceptor {
-	return connect.UnaryInterceptorFunc(func(next connect.UnaryFunc) connect.UnaryFunc {
-		return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
+func (b *Bitcoind) startupInterceptor() connect.ServerInterceptor {
+	return func(next connect.ServerFunc) connect.ServerFunc {
+		return func(ctx context.Context, spec connect.Spec, stream connect.ServerStream) error {
 			if err := b.Ready(ctx); err != nil {
 				// The caller gave up; connect maps this to Canceled or
 				// DeadlineExceeded.
 				if ctx.Err() != nil {
-					return nil, err
+					return err
 				}
-				return nil, connect.NewError(connect.CodeUnavailable,
+				return newConnectError(connect.CodeUnavailable,
 					fmt.Errorf("Bitcoin Core proxy failed to start: %w", err)) // nolint:staticcheck
 			}
-			return next(ctx, req)
+			return next(ctx, spec, stream)
 		}
-	})
+	}
 }
 
 // startup brings up the SSH tunnel, if any, and runs the startup checks.
@@ -87,7 +86,7 @@ func (b *Bitcoind) startup(lifetime, ctx context.Context, tunnel *tunnelGate) er
 	}
 
 	if b.conf.withoutInitialConnectionCheck {
-		zerolog.Ctx(ctx).Info().Msg("initial connection check disabled")
+		logFrom(ctx).InfoContext(ctx, "initial connection check disabled")
 	} else if err := b.checkConnection(ctx); err != nil {
 		return err
 	}
@@ -104,10 +103,10 @@ func (b *Bitcoind) startup(lifetime, ctx context.Context, tunnel *tunnelGate) er
 // checkConnection verifies that Bitcoin Core is reachable with our
 // credentials, and that a wallet named in the host exists and is loaded.
 func (b *Bitcoind) checkConnection(ctx context.Context) error {
-	log := zerolog.Ctx(ctx)
+	log := logFrom(ctx)
 
 	info, err := b.GetBlockchainInfo(
-		ctx, connect.NewRequest(&pb.GetBlockchainInfoRequest{}),
+		ctx, &pb.GetBlockchainInfoRequest{},
 	)
 	switch {
 	case connect.CodeOf(err) == connect.CodePermissionDenied:
@@ -117,9 +116,7 @@ func (b *Bitcoind) checkConnection(ctx context.Context) error {
 		return fmt.Errorf("get initial blockchain info: %w", err)
 	}
 
-	log.Debug().
-		Stringer("info", info.Msg).
-		Msg("got bitcoind info")
+	log.DebugContext(ctx, "got bitcoind info", "info", info.String())
 
 	// Means a specific wallet was specified in the config. Verify that it
 	// exists and is loaded.
@@ -129,22 +126,20 @@ func (b *Bitcoind) checkConnection(ctx context.Context) error {
 	}
 
 	_, wallet, _ := strings.Cut(host, "/wallet/")
-	log.Debug().
-		Str("host", host).
-		Str("wallet", wallet).
-		Msg("bitcoind host contains wallet, verifying wallet exists")
+	log.DebugContext(ctx, "bitcoind host contains wallet, verifying wallet exists",
+		"host", host, "wallet", wallet)
 
-	_, err = b.GetWalletInfo(ctx, connect.NewRequest(&pb.GetWalletInfoRequest{}))
+	_, err = b.GetWalletInfo(ctx, &pb.GetWalletInfoRequest{})
 	switch {
 	// Great stuff, wallet exists
 	case err == nil:
 		return nil
 
 	case bitcoindErrorCode(err) == btcjson.ErrRPCWalletNotFound:
-		log.Debug().Err(err).Msg("could not get wallet, trying loading")
+		log.DebugContext(ctx, "could not get wallet, trying loading", "error", err)
 
 		if _, err := b.rpc.LoadWallet(ctx, wallet, nil); err == nil {
-			log.Info().Msgf("loaded wallet: %s", wallet)
+			log.InfoContext(ctx, "loaded wallet", "wallet", wallet)
 			return nil
 		}
 
@@ -152,7 +147,7 @@ func (b *Bitcoind) checkConnection(ctx context.Context) error {
 
 	case bitcoindErrorCode(err) == btcjson.ErrRPCMethodNotFound.Code:
 		err := errors.New("Bitcoin Core is running without wallet functionality") // nolint:staticcheck
-		return connect.NewError(connect.CodeFailedPrecondition, err)
+		return newConnectError(connect.CodeFailedPrecondition, err)
 
 	default:
 		return fmt.Errorf("get wallet info: %w", err)
@@ -161,12 +156,12 @@ func (b *Bitcoind) checkConnection(ctx context.Context) error {
 
 // checkNoPrivateKeys verifies that no loaded wallet has private keys enabled.
 func (b *Bitcoind) checkNoPrivateKeys(ctx context.Context) error {
-	log := zerolog.Ctx(ctx)
+	log := logFrom(ctx)
 
 	wallets, err := b.rpc.ListWallets(ctx)
 	switch {
 	case bitcoindErrorCode(err) == btcjson.ErrRPCMethodNotFound.Code:
-		log.Info().Msg("verified Bitcoin Core holds no private keys: running without wallet functionality")
+		log.InfoContext(ctx, "verified Bitcoin Core holds no private keys: running without wallet functionality")
 		return nil
 
 	case err != nil:
@@ -175,7 +170,7 @@ func (b *Bitcoind) checkNoPrivateKeys(ctx context.Context) error {
 
 	var withKeys []string
 	for _, wallet := range wallets {
-		rpc, err := b.rpcForWallet(ctx, &pb.GetWalletInfoRequest{Wallet: wallet})
+		rpc, err := b.rpcForWallet(ctx, wallet)
 		if err != nil {
 			return err
 		}
@@ -196,8 +191,6 @@ func (b *Bitcoind) checkNoPrivateKeys(ctx context.Context) error {
 			strings.Join(withKeys, ", "))
 	}
 
-	log.Info().
-		Int("wallets", len(wallets)).
-		Msg("verified Bitcoin Core holds no private keys")
+	log.InfoContext(ctx, "verified Bitcoin Core holds no private keys", "wallets", len(wallets))
 	return nil
 }

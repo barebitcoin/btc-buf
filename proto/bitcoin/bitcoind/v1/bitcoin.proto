@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package bitcoin.bitcoind.v1alpha;
+package bitcoin.bitcoind.v1;
 
 import "google/protobuf/duration.proto";
 import "google/protobuf/empty.proto";
@@ -61,12 +61,6 @@ service BitcoinService {
 
   // Key/Address management
   rpc KeyPoolRefill(KeyPoolRefillRequest) returns (KeyPoolRefillResponse);
-
-  // Account operations
-  rpc GetAccount(GetAccountRequest) returns (GetAccountResponse);
-  rpc SetAccount(SetAccountRequest) returns (SetAccountResponse);
-  rpc GetAddressesByAccount(GetAddressesByAccountRequest) returns (GetAddressesByAccountResponse);
-  rpc ListAccounts(ListAccountsRequest) returns (ListAccountsResponse);
 
   // Multi-sig operations
   rpc CreateMultisig(CreateMultisigRequest) returns (CreateMultisigResponse);
@@ -325,23 +319,17 @@ message GetWalletInfoResponse {
   string wallet_name = 1;
   int64 wallet_version = 2;
   string format = 3;
-
-  // The following fields are left out, as they are deprecated.
-  // double balance = 4;
-  // double unconfirmed_balance = 5;
-  // double immature_balance = 6;
-
-  int64 tx_count = 7;
-  int64 key_pool_size = 8;
-  int64 key_pool_size_hd_internal = 9;
-  double pay_tx_fee = 10;
-  bool private_keys_enabled = 11;
-  bool avoid_reuse = 12;
+  int64 tx_count = 4;
+  int64 key_pool_size = 5;
+  int64 key_pool_size_hd_internal = 6;
+  double pay_tx_fee = 7;
+  bool private_keys_enabled = 8;
+  bool avoid_reuse = 9;
 
   // Not set if no scan is in progress.
-  WalletScan scanning = 13;
-  bool descriptors = 14;
-  bool external_signer = 15;
+  WalletScan scanning = 10;
+  bool descriptors = 11;
+  bool external_signer = 12;
 }
 
 message GetBalancesRequest {
@@ -388,15 +376,11 @@ message WalletScan {
 message GetTransactionRequest {
   string txid = 1;
 
-  // Removed in v30
-  reserved 2;
-  reserved 'include_watchonly';
-
-  bool verbose = 3;
-  string wallet = 4;
+  // Also return the decoded transaction.
+  bool verbose = 2;
+  string wallet = 3;
 }
 
-// Commented fields are not present in btcd/rpcclient
 message GetTransactionResponse {
   double amount = 1;
   double fee = 2;
@@ -405,19 +389,13 @@ message GetTransactionResponse {
   // confirmations means the transaction conflicted that many
   // blocks ago.
   int32 confirmations = 3;
-  // bool generated = 4;
-  // bool trusted = 5;
   string block_hash = 6;
-  // string block_height = 7;
   uint32 block_index = 8;
   google.protobuf.Timestamp block_time = 9;
   string txid = 10;
-  // string witness_txid = 11;
   repeated string wallet_conflicts = 12;
   string replaced_by_txid = 13;
   string replaces_txid = 14;
-  // string comment = 15;
-  // string to = 16;
   google.protobuf.Timestamp time = 17;
   google.protobuf.Timestamp time_received = 18;
 
@@ -428,8 +406,6 @@ message GetTransactionResponse {
   //
   // Note that this is always set to 'no' once the transaction is confirmed.
   Replaceable bip125_replaceable = 19;
-
-  // repeated string parent_descriptors = 20;
 
   enum Replaceable {
     REPLACEABLE_UNSPECIFIED = 0;
@@ -451,18 +427,16 @@ message GetTransactionResponse {
     string address = 2;
     Category category = 3;
     double amount = 4;
-    // string label = 5;
     uint32 vout = 6;
     double fee = 7;
-    // bool abandoned = 8;
-    // repeated string parent_descriptors = 9;
   }
 
   repeated Details details = 21;
 
   string hex = 22;
 
-  // TODO: add the 'decoded' field.
+  // Only set if the request is verbose.
+  DecodeRawTransactionResponse decoded = 23;
 }
 
 message GetRawTransactionRequest {
@@ -483,13 +457,14 @@ message GetRawTransactionRequest {
   }
 
   // Note: this does NOT map to the Bitcoin Core verbosity parameter.
-  // Core 0 -> VERBOSITY_RAW_DATA
-  // Core 1 -> VERBOSITY_UNSPECIFIED
-  // Core 2 -> VERBOSITY_TX_INFO
-  // Core 3 -> VERBOSITY_TX_PREVOUT_INFO
+  // VERBOSITY_UNSPECIFIED     -> Core 0
+  // VERBOSITY_RAW_DATA        -> Core 0
+  // VERBOSITY_TX_INFO         -> Core 1
+  // VERBOSITY_TX_PREVOUT_INFO -> Core 2
   Verbosity verbosity = 2;
 
-  // The block in which to look for the transaction
+  // The block in which to look for the transaction. Without -txindex, Core
+  // can only find transactions outside the mempool and the wallet this way.
   string blockhash = 3;
 }
 
@@ -526,12 +501,6 @@ message ScriptPubKey {
   string address = 2;
   string asm = 3;
   string hex = 4;
-
-  // Legacy, Core only sends a single address.
-  reserved 5;
-  reserved "addresses";
-
-  optional uint32 req_sigs = 6;
 }
 
 message Output {
@@ -539,33 +508,28 @@ message Output {
   uint32 vout = 2;
 
   ScriptPubKey script_pub_key = 3;
-  ScriptSig script_sig = 4;
 }
 
 message GetRawTransactionResponse {
   RawTransaction tx = 1;
-  string txid = 8;
-  string hash = 9;
-  int32 size = 10;
-  int32 vsize = 11;
-  int32 weight = 12;
-  uint32 version = 13;
-  uint32 locktime = 14;
+  string txid = 2;
+  string hash = 3;
+  int32 size = 4;
+  int32 vsize = 5;
+  int32 weight = 6;
+  uint32 version = 7;
+  uint32 locktime = 8;
 
-  repeated Input inputs = 2;
-  repeated Output outputs = 3;
+  repeated Input inputs = 9;
+  repeated Output outputs = 10;
 
-  string blockhash = 4;
-  uint32 confirmations = 5;
+  string blockhash = 11;
+  uint32 confirmations = 12;
 
-  // From docs: same as block time
-  reserved 6;
-  reserved "time";
-
-  google.protobuf.Timestamp block_time = 7;
+  google.protobuf.Timestamp block_time = 13;
 
   // Transaction fee in BTC. Only set for for TX info verbosity.
-  double fee = 15;
+  double fee = 14;
 }
 
 message SendRequest {
@@ -693,11 +657,6 @@ message ListDescriptorsRequest {
 }
 
 message ListDescriptorsResponse {
-  message Range {
-    uint32 start = 1;
-    uint32 end = 2;
-  }
-
   message Descriptor {
     // Can contain private keys. Sensitive!
     string descriptor = 1 [debug_redact = true];
@@ -706,7 +665,8 @@ message ListDescriptorsResponse {
     bool active = 3;
     bool internal = 4;
 
-    Range range = 5;
+    // Only present for ranged descriptors
+    DescriptorRange range = 5;
     // Only present for ranged descriptors
     uint32 next_index = 7;
   }
@@ -722,8 +682,8 @@ message ImportDescriptorsRequest {
     // Set this descriptor to be the active descriptor for the corresponding type/externality.
     bool active = 2;
 
-    uint32 range_start = 3;
-    uint32 range_end = 4;
+    // For a ranged descriptor, the range to import. Core picks one if unset.
+    DescriptorRange range = 3;
     // If a ranged descriptor is set to active, this specifies the next index to generate addresses from
     uint32 next_index = 8;
 
@@ -953,12 +913,9 @@ message ListUnspentRequest {
   // The bitcoin addresses to filter
   repeated string addresses = 4;
 
-  // Whether to include unsafe outputs
-  bool include_unsafe = 5;
-
-  // Removed in v30
-  reserved 6;
-  reserved 'include_watch_only';
+  // Whether to include outputs that are not safe to spend. See
+  // UnspentOutput.safe. Defaults to true.
+  optional bool include_unsafe = 5;
 
   // TODO: query_options. WTF bitcoin core, a random
   // pseudo-implementations of named arguments? Aaaah
@@ -974,10 +931,6 @@ message UnspentOutput {
   // The bitcoin address (optional)
   string address = 3;
 
-  // The associated label, or "" for the default label (optional)
-  // not in rpcclient
-  // string label = 4;
-
   // The output script
   string script_pub_key = 5;
 
@@ -987,45 +940,16 @@ message UnspentOutput {
   // The number of confirmations
   uint32 confirmations = 7;
 
-  // The number of in-mempool ancestor transactions, including this one (if transaction is in the mempool) (optional)
-  // not in rpcclient
-  // uint32 ancestor_count = 8;
-
-  // The virtual transaction size of in-mempool ancestors, including this one (if transaction is in the mempool) (optional)
-  // not in rpcclient
-  // uint32 ancestor_size = 9;
-
-  // The total fees of in-mempool ancestors (including this one) with fee deltas used for mining priority in sat (if transaction is in the mempool) (optional)
-  // not in rpcclient
-  // uint64 ancestor_fees = 10;
-
   // The redeem script if the output script is P2SH (optional)
   string redeem_script = 11;
 
-  // Witness script if the output script is P2WSH or P2SH-P2WSH (optional)
-  // not in rpcclient
-  // string witness_script = 12;
-
   // Whether we have the private keys to spend this output
   bool spendable = 13;
-  // Whether we know how to spend this output, ignoring the lack of keys
-  // not in rpcclient
-  // bool solvable = 14;
-  //  Whether this output is reused/dirty (sent to an address that was previously spent from) (optional)
-  // not in rpcclient
-  // bool reused = 15;
-  // (only when solvable) A descriptor for spending this output (optional)
-  // not in rpcclient
-  // string desc = 16;
-  // List of parent descriptors for the output script of this coin
-  // not in rpcclient
-  // repeated string parent_descs = 17;
 
   // Whether this output is considered safe to spend. Unconfirmed transactions from
   // outside keys and unconfirmed replacement transactions are considered unsafe and
   // are not eligible for spending by fundrawtransaction and sendtoaddress.
-  // not in rpcclient
-  // bool safe = 18;
+  bool safe = 18;
 }
 
 message ListUnspentResponse {
@@ -1046,28 +970,24 @@ message GetAddressInfoResponse {
 
   bool is_mine = 3;
 
-  // Removed in v30
-  reserved 4;
-  reserved 'is_watch_only';
-
   // If Core knows how to spend coins sent to this address, ignoring
   // possible lack of private keys.
-  bool solvable = 5;
+  bool solvable = 4;
 
-  bool is_script = 6;
+  bool is_script = 5;
 
-  bool is_change = 7;
+  bool is_change = 6;
 
-  bool is_witness = 8;
+  bool is_witness = 7;
 
-  uint32 witness_version = 9;
+  uint32 witness_version = 8;
 
   // Hex-encoded
-  string witness_program = 10;
+  string witness_program = 9;
 
-  string script_type = 11;
+  string script_type = 10;
 
-  bool is_compressed = 12;
+  bool is_compressed = 11;
 
   // TODO: bunch of other fields
 }
@@ -1083,7 +1003,8 @@ message CreateWalletRequest {
 
 message CreateWalletResponse {
   string name = 1;
-  string warning = 2;
+
+  repeated string warnings = 2;
 }
 
 message LoadWalletRequest {
@@ -1105,7 +1026,6 @@ message BackupWalletResponse {}
 
 message UnloadWalletRequest {
   string wallet_name = 1;
-  string wallet = 2;
 }
 
 message UnloadWalletResponse {}
@@ -1136,43 +1056,9 @@ message KeyPoolRefillRequest {
 
 message KeyPoolRefillResponse {}
 
-message GetAccountRequest {
-  string address = 1;
-  string wallet = 2;
-}
-
-message GetAccountResponse {
-  string account = 1;
-}
-
-message SetAccountRequest {
-  string address = 1;
-  string account = 2;
-  string wallet = 3;
-}
-
-message SetAccountResponse {}
-
-message GetAddressesByAccountRequest {
-  string account = 1;
-  string wallet = 2;
-}
-
-message GetAddressesByAccountResponse {
-  repeated string addresses = 1;
-}
-
-message ListAccountsRequest {
-  int32 min_conf = 1;
-  string wallet = 2;
-}
-
-message ListAccountsResponse {
-  map<string, double> accounts = 1;
-}
-
 message CreateMultisigRequest {
   int32 required_sigs = 1;
+  // Hex-encoded public keys.
   repeated string keys = 2;
 }
 
@@ -1182,15 +1068,22 @@ message CreateMultisigResponse {
 }
 
 // Transaction creation messages
+// An input to a transaction being created.
+message TransactionInput {
+  string txid = 1;
+  uint32 vout = 2;
+
+  // Core picks one from locktime and replaceable if unset.
+  optional uint32 sequence = 3;
+}
+
 message CreateRawTransactionRequest {
-  message Input {
-    string txid = 1;
-    uint32 vout = 2;
-    uint32 sequence = 3;
-  }
-  repeated Input inputs = 1;
+  repeated TransactionInput inputs = 1;
   map<string, double> outputs = 2; // address -> amount
   uint32 locktime = 3;
+
+  // Whether to signal BIP125 replaceability. Defaults to true.
+  optional bool replaceable = 4;
 }
 
 message CreateRawTransactionResponse {
@@ -1209,15 +1102,12 @@ message SendRawTransactionResponse {
 }
 
 message CreatePsbtRequest {
-  message Input {
-    string txid = 1;
-    uint32 vout = 2;
-    uint32 sequence = 3;
-  }
-  repeated Input inputs = 1;
+  repeated TransactionInput inputs = 1;
   map<string, double> outputs = 2; // address -> amount
   uint32 locktime = 3;
-  bool replaceable = 4;
+
+  // Whether to signal BIP125 replaceability. Defaults to true.
+  optional bool replaceable = 4;
 }
 
 message CreatePsbtResponse {
@@ -1339,32 +1229,17 @@ message TestMempoolAcceptResponse {
   repeated Result results = 1;
 }
 
-// Add a new message for descriptor range
+// The child indexes of a ranged descriptor, both ends inclusive.
 message DescriptorRange {
-  oneof range_type {
-    int32 end = 1; // Single number for end (begin defaults to 0)
-    Range range = 2; // Begin and end range
-  }
+  uint32 begin = 1;
+  uint32 end = 2;
 }
 
-// Add a new message for begin/end range
-message Range {
-  int32 begin = 1;
-  int32 end = 2;
-}
-
-// Add a new message for descriptor
 message Descriptor {
-  oneof descriptor {
-    string string_descriptor = 1 [debug_redact = true]; // Plain string descriptor
-    DescriptorObject object_descriptor = 2; // Descriptor object with range
-  }
-}
+  string desc = 1 [debug_redact = true];
 
-// Add a new message for descriptor objects
-message DescriptorObject {
-  string desc = 1 [debug_redact = true]; // The output descriptor
-  DescriptorRange range = 2; // Optional range, defaults to 1000 if not specified
+  // Up to what index HD chains should be explored. Defaults to [0, 1000].
+  DescriptorRange range = 2;
 }
 
 message GetZmqNotificationsResponse {

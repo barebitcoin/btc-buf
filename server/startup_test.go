@@ -7,11 +7,15 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2"
+	"connectrpc.com/connect/v2/connectinprocess"
 	"google.golang.org/protobuf/types/known/emptypb"
+
+	rpc "github.com/barebitcoin/btc-buf/gen/bitcoin/bitcoind/v1/bitcoindv1connect"
 )
 
 // fakeCore answers Bitcoin Core JSON-RPC calls from canned responses, keyed
@@ -20,6 +24,31 @@ type fakeCore struct {
 	responses map[string]fakeResponse
 	// gate, if set, holds every call until it is closed.
 	gate chan struct{}
+	// unauthorized, if set, rejects every call with HTTP 401, as Core does
+	// for bad credentials.
+	unauthorized bool
+
+	idsMu  sync.Mutex
+	ids    []string          // JSON-RPC ids received, in order
+	params map[string]string // last params received, as raw JSON, by response key
+}
+
+// lastParams returns the params of the last call for a response key, as raw
+// JSON.
+func (f *fakeCore) lastParams(key string) string {
+	f.idsMu.Lock()
+	defer f.idsMu.Unlock()
+	return f.params[key]
+}
+
+// lastID returns the JSON-RPC id of the last call received, as raw JSON.
+func (f *fakeCore) lastID() string {
+	f.idsMu.Lock()
+	defer f.idsMu.Unlock()
+	if len(f.ids) == 0 {
+		return ""
+	}
+	return f.ids[len(f.ids)-1]
 }
 
 type fakeResponse struct {
@@ -37,20 +66,32 @@ func (f *fakeCore) start(t *testing.T) string {
 		if f.gate != nil {
 			<-f.gate
 		}
+		if f.unauthorized {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 
 		var req struct {
 			Method string          `json:"method"`
 			ID     json.RawMessage `json:"id"`
+			Params json.RawMessage `json:"params"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			t.Errorf("decode request: %v", err)
 			return
 		}
-
 		key := req.Method
 		if _, wallet, ok := strings.Cut(r.URL.Path, "/wallet/"); ok {
 			key += "@" + wallet
 		}
+
+		f.idsMu.Lock()
+		f.ids = append(f.ids, string(req.ID))
+		if f.params == nil {
+			f.params = make(map[string]string)
+		}
+		f.params[key] = string(req.Params)
+		f.idsMu.Unlock()
 		res, ok := f.responses[key]
 		if !ok {
 			res = errMethodNotFound
@@ -80,6 +121,10 @@ func newTestBitcoind(t *testing.T, core *fakeCore, opts ...Option) (*Bitcoind, e
 		t.Cleanup(func() { b.Shutdown(ctx) })
 	}
 	return b, err
+}
+
+func inProcessClient(b *Bitcoind) rpc.BitcoinServiceClient {
+	return rpc.NewBitcoinServiceClient(connect.NewClient(connectinprocess.New(b.Server())))
 }
 
 func walletInfo(name string, privateKeys bool) fakeResponse {
@@ -150,11 +195,11 @@ func TestBackgroundStartup(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		client := b.InProcessClient()
+		client := inProcessClient(b)
 
 		done := make(chan error, 1)
 		go func() {
-			_, err := client.ListWallets(context.Background(), connect.NewRequest(&emptypb.Empty{}))
+			_, err := client.ListWallets(context.Background(), &emptypb.Empty{})
 			done <- err
 		}()
 
@@ -189,7 +234,7 @@ func TestBackgroundStartup(t *testing.T) {
 			t.Fatalf("expected a private keys error, got %v", err)
 		}
 
-		_, err = b.InProcessClient().ListWallets(context.Background(), connect.NewRequest(&emptypb.Empty{}))
+		_, err = inProcessClient(b).ListWallets(context.Background(), &emptypb.Empty{})
 		if connect.CodeOf(err) != connect.CodeUnavailable {
 			t.Fatalf("expected unavailable, got %v", err)
 		}
@@ -212,7 +257,7 @@ func TestBackgroundStartup(t *testing.T) {
 
 		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
 		defer cancel()
-		_, err = b.InProcessClient().ListWallets(ctx, connect.NewRequest(&emptypb.Empty{}))
+		_, err = inProcessClient(b).ListWallets(ctx, &emptypb.Empty{})
 		if connect.CodeOf(err) != connect.CodeDeadlineExceeded {
 			t.Fatalf("expected deadline exceeded, got %v", err)
 		}

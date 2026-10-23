@@ -9,8 +9,6 @@ import (
 	"errors"
 	"reflect"
 	"testing"
-
-	"github.com/davecgh/go-spew/spew"
 )
 
 // TestGetAddressInfoResult ensures that unmarshalling of GetAddressInfoResult
@@ -77,8 +75,8 @@ func TestGetAddressInfoResult(t *testing.T) {
 
 		if !reflect.DeepEqual(out, test.want) {
 			t.Errorf("Test #%d (%s) unexpected unmarshalled data - "+
-				"got %v, want %v", i, test.name, spew.Sdump(out),
-				spew.Sdump(test.want))
+				"got %+v, want %+v", i, test.name, out,
+				test.want)
 			continue
 		}
 	}
@@ -124,8 +122,8 @@ func TestGetWalletInfoResult(t *testing.T) {
 
 		if !reflect.DeepEqual(out, test.want) {
 			t.Errorf("Test #%d (%s) unexpected unmarshalled data - "+
-				"got %v, want %v", i, test.name, spew.Sdump(out),
-				spew.Sdump(test.want))
+				"got %+v, want %+v", i, test.name, out,
+				test.want)
 			continue
 		}
 	}
