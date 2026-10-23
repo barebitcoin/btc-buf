@@ -35,7 +35,7 @@ func startIDEchoServer(t *testing.T) (*httptest.Server, *[]json.RawMessage) {
 func newTestClient(t *testing.T, srv *httptest.Server, requestID func(context.Context) string) *Client {
 	t.Helper()
 
-	client, err := New(context.Background(), &ConnConfig{
+	client, err := New(&ConnConfig{
 		Host:       strings.TrimPrefix(srv.URL, "http://"),
 		User:       "user",
 		Pass:       "pass",
@@ -45,7 +45,6 @@ func newTestClient(t *testing.T, srv *httptest.Server, requestID func(context.Co
 	if err != nil {
 		t.Fatalf("new client: %v", err)
 	}
-	t.Cleanup(func() { client.Shutdown(context.Background()) })
 
 	return client
 }

@@ -3,16 +3,22 @@ bin := "btc-buf"
 gen:
     buf format -w proto
     buf generate --template buf.gen.yaml
-    cd gen && go mod tidy
+    go mod tidy
+    cd cmd/btc-buf && go mod tidy
 
 build: 
-	go build -v -o ./{{ bin }} .
+	go build -C cmd/btc-buf -v -o {{ justfile_directory() }}/{{ bin }} .
 
 run *args:
-	go run -v . {{ args }}
+	go run -C cmd/btc-buf -v . {{ args }}
+
+test *args:
+	go test -race {{ args }} ./...
+	go test -C cmd/btc-buf -race {{ args }} ./...
 
 lint args='': 
 	golangci-lint run {{ args }}
+	cd cmd/btc-buf && golangci-lint run {{ args }}
 
 format: format-go format-proto
 

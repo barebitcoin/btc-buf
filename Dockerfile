@@ -1,4 +1,4 @@
-FROM golang:1.27-alpine AS builder
+FROM golang:1.27.3-alpine AS builder
 
 WORKDIR /work
 
@@ -8,11 +8,12 @@ RUN GRPC_HEALTH_PROBE_VERSION=v0.4.56 && \
     chmod +x /work/grpc-health-probe
 
 COPY go.mod go.sum ./
-RUN go mod download
+COPY cmd/btc-buf/go.mod cmd/btc-buf/go.sum ./cmd/btc-buf/
+RUN go mod download && cd cmd/btc-buf && go mod download
 
 COPY . .
 
-RUN go build -v -o ./btc-buf .
+RUN go build -C cmd/btc-buf -v -o /work/btc-buf .
 
 FROM debian:trixie-slim
 RUN apt-get update && \

@@ -5,55 +5,61 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"strings"
 
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2"
+	"connectrpc.com/connect/v2/connectproto"
 	"github.com/rs/zerolog"
-	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
 
-// This is cribbed from upstream Connect, but with a few changes:
+// protoJsonCodec is the upstream Connect JSON codec, with a few changes:
 //
 // Unmarshalling:
-//  1. We're NOT allowing unknown enum values
+//  1. We're NOT allowing unknown fields or enum values
 //  2. We make sure to not leak internal details on unmarshalling errors
+//  3. An empty payload is the empty message, not an error
 //
 // Marshalling:
 //  1. Emit default values
-type protoJsonCodec struct{}
-
-func (p protoJsonCodec) Name() string {
-	return "json"
+type protoJsonCodec struct {
+	*connectproto.JSONCodec
 }
 
-func (p protoJsonCodec) Marshal(message any) ([]byte, error) {
-	protoMessage, ok := message.(proto.Message)
-	if !ok {
-		return nil, fmt.Errorf("%T doesn't implement proto.Message", message)
-	}
-	return protojson.MarshalOptions{
-		EmitDefaultValues: true,
-	}.Marshal(protoMessage)
+func newProtoJsonCodec() protoJsonCodec {
+	codec := connectproto.NewJSONCodec()
+	codec.MarshalOptions.EmitDefaultValues = true
+	codec.UnmarshalOptions.DiscardUnknown = false
+	return protoJsonCodec{codec}
 }
 
-func (p protoJsonCodec) Unmarshal(binary []byte, message any) error {
+// UnmarshalRead buffers the payload itself, rather than delegating to the
+// upstream codec, so that we have the raw bytes available when producing
+// error messages.
+func (p protoJsonCodec) UnmarshalRead(ctx context.Context, src io.Reader, message any) error {
 	protoMessage, ok := message.(proto.Message)
 	if !ok {
 		return fmt.Errorf("%T doesn't implement proto.Message", message)
 	}
-	if len(binary) == 0 {
-		return errors.New("zero-length payload is not a valid JSON object")
+	data, err := io.ReadAll(src)
+	if err != nil {
+		return err
+	}
+	// Treat an empty body as the empty message, so requests without fields
+	// can be sent without a body.
+	if len(data) == 0 {
+		data = []byte("{}")
 	}
 
-	options := protojson.UnmarshalOptions{}
-	err := options.Unmarshal(binary, protoMessage)
+	err = p.UnmarshalOptions.Unmarshal(data, protoMessage)
 	switch {
-	case !json.Valid(binary):
+	case !json.Valid(data):
 		return errors.New("invalid json")
 
 	// We want to hide internal details on unmarshalling errors, but still
-	// provide a meaningful error message.
+	// provide a meaningful error message. Connect wraps whatever we return
+	// here in a CodeInvalidArgument error.
 	case err != nil:
 		// Check specifically for enum errors and provide a clearer message
 		if strings.Contains(err.Error(), "invalid value for enum field") {
@@ -77,17 +83,17 @@ func (p protoJsonCodec) Unmarshal(binary []byte, message any) error {
 			}
 		}
 
-		// Get it in the logs. Unfortunate that we
-		// cannot correlate with the request...
-		zerolog.Ctx(context.Background()).Err(err).
+		zerolog.Ctx(ctx).Err(err).
 			Msgf("server: protojson codec: unable to unmarshal %T", message)
 
 		// For other errors, return a generic message
-		err := errors.New("unable to parse request")
-		return connect.NewError(connect.CodeInvalidArgument, err)
+		return errors.New("unable to parse request")
 	}
 
 	return nil
 }
 
-var _ connect.Codec = new(protoJsonCodec)
+var (
+	_ connect.Codec       = protoJsonCodec{}
+	_ connect.StableCodec = protoJsonCodec{}
+)

@@ -1,7 +1,6 @@
 version: v2
 modules:
   - path: proto
-    name: buf.build/bitcoin/bitcoind
 lint:
   use:
     - STANDARD

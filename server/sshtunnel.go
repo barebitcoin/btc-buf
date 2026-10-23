@@ -14,8 +14,8 @@ import (
 	"sync"
 	"time"
 
-	"connectrpc.com/connect"
-	"github.com/rs/zerolog"
+	"connectrpc.com/connect/v2"
+	"google.golang.org/protobuf/proto"
 )
 
 // SSHTunnel configures an ssh port forward to Bitcoin Core: LocalPort on this
@@ -147,9 +147,8 @@ func startTunnel(
 		return fmt.Errorf("close port check listener: %w", err)
 	}
 
-	zerolog.Ctx(ctx).Info().
-		Msgf("setting up SSH tunnel: %d:%s:%d -> %s",
-			conf.LocalPort, cmp.Or(conf.RemoteHost, "localhost"), conf.RemotePort, conf.Host)
+	logFrom(ctx).InfoContext(ctx, fmt.Sprintf("setting up SSH tunnel: %d:%s:%d -> %s",
+		conf.LocalPort, cmp.Or(conf.RemoteHost, "localhost"), conf.RemotePort, conf.Host))
 
 	tunnel, err := startSSHTunnel(ctx, args)
 	if err != nil {
@@ -236,9 +235,10 @@ func (g *tunnelGate) waitUp(ctx context.Context, after uint64) (uint64, error) {
 // interceptor holds requests while the tunnel is down, for at most wait. A
 // request refused by a tunnel that died under it never reached Bitcoin Core,
 // and is retried once on the next tunnel generation.
-func (g *tunnelGate) interceptor(wait time.Duration) connect.Interceptor {
-	return connect.UnaryInterceptorFunc(func(next connect.UnaryFunc) connect.UnaryFunc {
-		return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
+func (g *tunnelGate) interceptor(wait time.Duration) connect.ServerInterceptor {
+	return func(next connect.ServerFunc) connect.ServerFunc {
+		return func(ctx context.Context, spec connect.Spec, stream connect.ServerStream) error {
+			retryStream := &retryServerStream{ServerStream: stream}
 			waitCtx, cancel := context.WithTimeout(ctx, wait)
 			defer cancel()
 
@@ -250,26 +250,48 @@ func (g *tunnelGate) interceptor(wait time.Duration) connect.Interceptor {
 					// The caller gave up; connect maps this to Canceled or
 					// DeadlineExceeded.
 					if ctx.Err() != nil {
-						return nil, err
+						return err
 					}
-					zerolog.Ctx(ctx).Warn().
-						Dur("waited", wait).
-						Msg("SSH tunnel still down, giving up on request")
-					return nil, connect.NewError(connect.CodeUnavailable,
+					logFrom(ctx).WarnContext(ctx, "SSH tunnel still down, giving up on request", "waited", wait)
+					return newConnectError(connect.CodeUnavailable,
 						fmt.Errorf("SSH tunnel to Bitcoin Core is down: %w", err))
 				}
 
-				res, err := next(ctx, req)
+				err = next(ctx, spec, retryStream)
 				if !errors.Is(err, ErrUnreachable) || retried {
-					return res, err
+					return err
 				}
 
-				zerolog.Ctx(ctx).Warn().Err(err).
-					Msg("request hit a dead SSH tunnel, waiting for repair")
+				logFrom(ctx).WarnContext(ctx, "request hit a dead SSH tunnel, waiting for repair", "error", err)
 				seen, retried = gen, true
+				retryStream.replay = true
 			}
 		}
-	})
+	}
+}
+
+type retryServerStream struct {
+	connect.ServerStream
+	request proto.Message
+	replay  bool
+}
+
+func (s *retryServerStream) Receive(message any) error {
+	if s.replay {
+		if destination, ok := message.(proto.Message); ok && s.request != nil {
+			proto.Reset(destination)
+			proto.Merge(destination, s.request)
+			return nil
+		}
+		return connect.NewError(connect.CodeInternal, "unable to replay request")
+	}
+	if err := s.ServerStream.Receive(message); err != nil {
+		return err
+	}
+	if request, ok := message.(proto.Message); ok {
+		s.request = proto.Clone(request)
+	}
+	return nil
 }
 
 func startSSHTunnel(ctx context.Context, args []string) (*sshTunnel, error) {
@@ -315,8 +337,7 @@ func logSSHOutput(ctx context.Context, name string, r io.Reader) []string {
 	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {
 		line := scanner.Text()
-		zerolog.Ctx(ctx).Debug().
-			Msgf("SSH tunnel %s: %s", name, line)
+		logFrom(ctx).DebugContext(ctx, fmt.Sprintf("SSH tunnel %s: %s", name, line))
 
 		tail = append(tail, line)
 		if len(tail) > stderrTailLines {
@@ -355,7 +376,7 @@ func superviseSSHTunnel(
 	ctx context.Context, localPort int, args []string,
 	tunnel *sshTunnel, gate *tunnelGate, readyTimeout time.Duration,
 ) {
-	log := zerolog.Ctx(ctx)
+	log := logFrom(ctx)
 
 	// maxBackoff stays below tunnelRepairWait so a held request sees at
 	// least one reconnect attempt.
@@ -377,10 +398,8 @@ func superviseSSHTunnel(
 		if time.Since(started) > time.Minute {
 			backoff = minBackoff
 		}
-		log.Error().Err(tunnel.err).
-			Str("stderr", tunnel.stderr).
-			Dur("backoff", backoff).
-			Msg("SSH tunnel exited, restarting")
+		log.ErrorContext(ctx, "SSH tunnel exited, restarting",
+			"error", tunnel.err, "stderr", tunnel.stderr, "backoff", backoff)
 
 		select {
 		case <-ctx.Done():
@@ -391,7 +410,7 @@ func superviseSSHTunnel(
 
 		next, err := startSSHTunnel(ctx, args)
 		if err != nil {
-			log.Err(err).Msg("restart SSH tunnel")
+			log.ErrorContext(ctx, "restart SSH tunnel", "error", err)
 			continue
 		}
 		tunnel, started = next, time.Now()
@@ -401,9 +420,9 @@ func superviseSSHTunnel(
 		cancel()
 		if err != nil {
 			if errors.Is(err, context.DeadlineExceeded) {
-				log.Err(err).Msg("SSH tunnel not ready in time, killing it")
+				log.ErrorContext(ctx, "SSH tunnel not ready in time, killing it", "error", err)
 				if err := tunnel.kill(); err != nil {
-					log.Err(err).Msg("kill SSH tunnel")
+					log.ErrorContext(ctx, "kill SSH tunnel", "error", err)
 				}
 			}
 			continue

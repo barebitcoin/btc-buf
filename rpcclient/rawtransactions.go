@@ -15,7 +15,6 @@ import (
 	"github.com/btcsuite/btcd/btcutil/v2"
 	"github.com/btcsuite/btcd/chainhash/v2"
 	"github.com/btcsuite/btcd/wire/v2"
-	"github.com/rs/zerolog"
 
 	"github.com/barebitcoin/btc-buf/rpcclient/btcjson"
 )
@@ -929,7 +928,7 @@ func (c *Client) TestMempoolAcceptAsync(ctx context.Context, txns []*wire.MsgTx,
 		return newFutureError(err)
 	}
 
-	zerolog.Ctx(ctx).Debug().Msgf("TestMempoolAcceptAsync: backend version %s", version)
+	c.log(ctx).DebugContext(ctx, "TestMempoolAcceptAsync: backend version", "version", version)
 
 	// Exit early if the version is below 22.0.0.
 	//
@@ -1060,7 +1059,7 @@ func (c *Client) GetTxSpendingPrevOutAsync(ctx context.Context,
 		return newFutureError(err)
 	}
 
-	zerolog.Ctx(ctx).Debug().Msgf("GetTxSpendingPrevOutAsync: backend version %s", version)
+	c.log(ctx).DebugContext(ctx, "GetTxSpendingPrevOutAsync: backend version", "version", version)
 
 	// Exit early if the version is below 24.0.0.
 	if !version.SupportGetTxSpendingPrevOut() {
