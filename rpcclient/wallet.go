@@ -8,7 +8,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"strconv"
 
 	"github.com/btcsuite/btcd/address/v2"
 	"github.com/btcsuite/btcd/btcutil/v2"
@@ -1794,39 +1793,6 @@ func (r FutureGetBalanceResult) Receive() (btcutil.Amount, error) {
 	return amount, nil
 }
 
-// FutureGetBalanceParseResult is same as FutureGetBalanceResult except
-// that the result is expected to be a string which is then parsed into
-// a float64 value
-// This is required for compatibility with servers like blockchain.info
-type FutureGetBalanceParseResult chan *Response
-
-// Receive waits for the Response promised by the future and returns the
-// available balance from the server for the specified account.
-func (r FutureGetBalanceParseResult) Receive() (btcutil.Amount, error) {
-	res, err := ReceiveFuture(r)
-	if err != nil {
-		return 0, err
-	}
-
-	// Unmarshal result as a string
-	var balanceString string
-	err = json.Unmarshal(res, &balanceString)
-	if err != nil {
-		return 0, err
-	}
-
-	balance, err := strconv.ParseFloat(balanceString, 64)
-	if err != nil {
-		return 0, err
-	}
-	amount, err := btcutil.NewAmount(balance)
-	if err != nil {
-		return 0, err
-	}
-
-	return amount, nil
-}
-
 // GetBalanceAsync returns an instance of a type that can be used to get the
 // result of the RPC at some future time by invoking the Receive function on the
 // returned instance.
@@ -1862,10 +1828,6 @@ func (c *Client) GetBalanceMinConfAsync(ctx context.Context, account string, min
 //
 // See GetBalance to use the default minimum number of confirmations.
 func (c *Client) GetBalanceMinConf(ctx context.Context, account string, minConfirms int) (btcutil.Amount, error) {
-	if c.config.EnableBCInfoHacks {
-		response := c.GetBalanceMinConfAsync(ctx, account, minConfirms)
-		return FutureGetBalanceParseResult(response).Receive()
-	}
 	return c.GetBalanceMinConfAsync(ctx, account, minConfirms).Receive()
 }
 
