@@ -78,6 +78,7 @@ type config struct {
 	backgroundStartup             bool
 	requestID                     func(ctx context.Context) string
 	requestHeaders                func(ctx context.Context, header http.Header) error
+	proxy                         string
 }
 
 func newConfig(opts []Option) config {
@@ -160,6 +161,14 @@ func WithRequestHeaders(fn func(ctx context.Context, header http.Header) error) 
 	}
 }
 
+// WithProxy sends requests to Bitcoin Core through the proxy at proxyURL,
+// such as socks5://localhost:1055. Not compatible with WithSSHTunnel.
+func WithProxy(proxyURL string) Option {
+	return func(c *config) {
+		c.proxy = proxyURL
+	}
+}
+
 // WithLogging sets the logger to use. fn is called with the context passed to
 // NewBitcoind, and with the context of each request. Request logs are tagged
 // with the endpoint and request ID.
@@ -180,6 +189,9 @@ func NewBitcoind(
 	opts ...Option,
 ) (*Bitcoind, error) {
 	conf := newConfig(opts)
+	if conf.proxy != "" && conf.sshTunnel != nil {
+		return nil, errors.New("WithProxy and WithSSHTunnel can't be combined")
+	}
 
 	// Startup and the SSH tunnel log through ctx.
 	log := conf.logging(ctx)
@@ -198,6 +210,7 @@ func NewBitcoind(
 		RequestID:  conf.requestID,
 		Logger:     logFrom,
 		HeaderFunc: conf.requestHeaders,
+		Proxy:      conf.proxy,
 	}
 
 	client, err := rpcclient.New(&rpcConf)
