@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -218,6 +219,59 @@ func TestWithRequestHeaders(t *testing.T) {
 	}
 	if got := core.lastHeaders("getwalletinfo@watch").Get("X-Token"); got != "token-2" {
 		t.Errorf("getwalletinfo@watch X-Token = %q, want token-2", got)
+	}
+}
+
+func TestWithProxy(t *testing.T) {
+	core := &fakeCore{responses: map[string]fakeResponse{
+		"listwallets":         {result: []string{"watch"}},
+		"getwalletinfo@watch": walletInfo("watch", false),
+	}}
+	coreHost := core.start(t)
+
+	var mu sync.Mutex
+	var proxied []string
+	proxy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		proxied = append(proxied, r.URL.Host+r.URL.Path)
+		mu.Unlock()
+
+		out := r.Clone(r.Context())
+		out.RequestURI = ""
+		res, err := http.DefaultTransport.RoundTrip(out)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadGateway)
+			return
+		}
+		defer func() { _ = res.Body.Close() }()
+		w.WriteHeader(res.StatusCode)
+		_, _ = io.Copy(w, res.Body)
+	}))
+	t.Cleanup(proxy.Close)
+
+	ctx := context.Background()
+	b, err := NewBitcoind(ctx, coreHost, "user", "pass",
+		WithoutInitialConnectionCheck(), WithoutPrivateKeys(), WithProxy(proxy.URL))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { b.Shutdown(ctx) })
+
+	// Both the node's client and the wallet-specific one go through it.
+	mu.Lock()
+	defer mu.Unlock()
+	want := []string{coreHost + "/", coreHost + "/wallet/watch"}
+	if fmt.Sprint(proxied) != fmt.Sprint(want) {
+		t.Errorf("proxied %v, want %v", proxied, want)
+	}
+}
+
+func TestWithProxyAndSSHTunnel(t *testing.T) {
+	_, err := NewBitcoind(context.Background(), "localhost:8332", "user", "pass",
+		WithProxy("socks5://localhost:1055"),
+		WithSSHTunnel(SSHTunnel{Host: "user@host", LocalPort: 8332, RemotePort: 8332}))
+	if err == nil || !strings.Contains(err.Error(), "can't be combined") {
+		t.Fatalf("err = %v, want a refusal to combine them", err)
 	}
 }
 
