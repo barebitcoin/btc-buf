@@ -512,15 +512,23 @@ func (b *Bitcoind) ListSinceBlock(ctx context.Context, c *pb.ListSinceBlockReque
 		return nil, err
 	}
 
+	target := int(c.TargetConfirmations)
+	if target == 0 {
+		target = 1 // Core's default
+	}
+
+	toProto := func(tx btcjson.ListTransactionsResult, idx int) *pb.GetTransactionResponse {
+		return txListEntryToProto(tx)
+	}
 	return callRPC(ctx,
 		func(ctx context.Context) (*btcjson.ListSinceBlockResult, error) {
-			return rpc.ListSinceBlock(ctx, hash)
+			return rpc.ListSinceBlockOpts(ctx, hash, target, c.IncludeChange)
 		},
 		func(r *btcjson.ListSinceBlockResult) *pb.ListSinceBlockResponse {
 			return &pb.ListSinceBlockResponse{
-				Transactions: mapSlice(r.Transactions, func(tx btcjson.ListTransactionsResult, idx int) *pb.GetTransactionResponse {
-					return txListEntryToProto(tx)
-				}),
+				Transactions: mapSlice(r.Transactions, toProto),
+				LastBlock:    r.LastBlock,
+				Removed:      mapSlice(r.Removed, toProto),
 			}
 		},
 	)
@@ -541,6 +549,11 @@ func txListEntryToProto(tx btcjson.ListTransactionsResult) *pb.GetTransactionRes
 		Time:              newTimestamp(tx.Time),
 		TimeReceived:      newTimestamp(tx.TimeReceived),
 		Bip125Replaceable: parseReplaceable(tx.BIP125Replaceable),
+		BlockHeight:       tx.BlockHeight,
+		Trusted:           tx.Trusted,
+		Abandoned:         tx.Abandoned,
+		MempoolConflicts:  tx.MempoolConflicts,
+		Wtxid:             tx.WTxID,
 		// Clunk town...
 		Details: []*pb.GetTransactionResponse_Details{{
 			Address:           tx.Address,
@@ -549,6 +562,7 @@ func txListEntryToProto(tx btcjson.ListTransactionsResult) *pb.GetTransactionRes
 			Amount:            tx.Amount,
 			Vout:              tx.Vout,
 			Fee:               deref(tx.Fee),
+			ParentDescs:       tx.ParentDescs,
 		}},
 	}
 }

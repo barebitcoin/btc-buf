@@ -429,6 +429,10 @@ message GetTransactionResponse {
     double amount = 4;
     uint32 vout = 6;
     double fee = 7;
+
+    // Only for receive: the descriptors whose output script this pays to.
+    // Set from listsinceblock.
+    repeated string parent_descs = 8 [debug_redact = true];
   }
 
   repeated Details details = 21;
@@ -437,6 +441,23 @@ message GetTransactionResponse {
 
   // Only set if the request is verbose.
   DecodeRawTransactionResponse decoded = 23;
+
+  // The fields below are set from listsinceblock.
+
+  // Height of block_hash. Unset while unconfirmed.
+  optional int32 block_height = 24;
+
+  // Whether the wallet considers the transaction safe to spend from. Only set
+  // for 0 confirmations (or negative, if conflicted).
+  optional bool trusted = 25;
+
+  // Abandoned: its inputs are spendable again.
+  bool abandoned = 26;
+
+  // Mempool transactions that conflict with this one or an ancestor.
+  repeated string mempool_conflicts = 27;
+
+  string wtxid = 28;
 }
 
 message GetRawTransactionRequest {
@@ -831,10 +852,24 @@ message ListSinceBlockRequest {
 
   // If set, the block hash to list transactions since, otherwise list all transactions.
   string hash = 2;
+
+  // last_block in the response is this many blocks back from the tip, 1 being
+  // the tip itself. Not a filter. Unset is Core's default, 1.
+  uint32 target_confirmations = 3;
+
+  // Also list change outputs.
+  bool include_change = 4;
 }
 
 message ListSinceBlockResponse {
   repeated GetTransactionResponse transactions = 1;
+
+  // The block to pass as hash next time: target_confirmations-1 below the tip.
+  string last_block = 2;
+
+  // Wallet transactions in blocks detached by a reorg, when hash is no longer
+  // on the main chain. Re-added ones show here as-is, so may be confirmed.
+  repeated GetTransactionResponse removed = 3;
 }
 
 message GetRawMempoolRequest {

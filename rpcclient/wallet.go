@@ -382,6 +382,33 @@ func (c *Client) ListSinceBlockMinConfWatchOnly(ctx context.Context, blockHash *
 	return c.ListSinceBlockMinConfWatchOnlyAsync(ctx, blockHash, minConfirms, watchOnly).Receive()
 }
 
+// ListSinceBlockOptsAsync returns an instance of a type that can be used to get
+// the result of the RPC at some future time by invoking the Receive function on
+// the returned instance.
+//
+// See ListSinceBlockOpts for the blocking version and more details.
+func (c *Client) ListSinceBlockOptsAsync(ctx context.Context, blockHash *chainhash.Hash, targetConfirms int, includeChange bool) FutureListSinceBlockResult {
+	var hash *string
+	if blockHash != nil {
+		hash = btcjson.String(blockHash.String())
+	}
+
+	// Every positional param set, so none goes out as null. include_watchonly
+	// is a no-op since Core 28; removed transactions are always asked for.
+	cmd := btcjson.NewListSinceBlockCmd(hash, &targetConfirms, btcjson.Bool(false))
+	cmd.IncludeRemoved = btcjson.Bool(true)
+	cmd.IncludeChange = &includeChange
+	return c.SendCmd(ctx, cmd)
+}
+
+// ListSinceBlockOpts returns the transactions since blockHash (all if nil),
+// with the lastblock (targetConfirms-1 below the tip) to pass next time, the
+// transactions of any blocks detached since blockHash in Removed, and, if
+// includeChange, entries for change outputs too.
+func (c *Client) ListSinceBlockOpts(ctx context.Context, blockHash *chainhash.Hash, targetConfirms int, includeChange bool) (*btcjson.ListSinceBlockResult, error) {
+	return c.ListSinceBlockOptsAsync(ctx, blockHash, targetConfirms, includeChange).Receive()
+}
+
 // **************************
 // Transaction Send Functions
 // **************************

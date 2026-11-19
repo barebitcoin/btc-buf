@@ -817,6 +817,8 @@ func TestWalletSvrCmds(t *testing.T) {
 				BlockHash:           nil,
 				TargetConfirmations: btcjson.Int(1),
 				IncludeWatchOnly:    btcjson.Bool(false),
+				IncludeRemoved:      btcjson.Bool(true),
+				IncludeChange:       btcjson.Bool(false),
 			},
 		},
 		{
@@ -832,6 +834,8 @@ func TestWalletSvrCmds(t *testing.T) {
 				BlockHash:           btcjson.String("123"),
 				TargetConfirmations: btcjson.Int(1),
 				IncludeWatchOnly:    btcjson.Bool(false),
+				IncludeRemoved:      btcjson.Bool(true),
+				IncludeChange:       btcjson.Bool(false),
 			},
 		},
 		{
@@ -847,6 +851,8 @@ func TestWalletSvrCmds(t *testing.T) {
 				BlockHash:           btcjson.String("123"),
 				TargetConfirmations: btcjson.Int(6),
 				IncludeWatchOnly:    btcjson.Bool(false),
+				IncludeRemoved:      btcjson.Bool(true),
+				IncludeChange:       btcjson.Bool(false),
 			},
 		},
 		{
@@ -862,6 +868,8 @@ func TestWalletSvrCmds(t *testing.T) {
 				BlockHash:           btcjson.String("123"),
 				TargetConfirmations: btcjson.Int(6),
 				IncludeWatchOnly:    btcjson.Bool(true),
+				IncludeRemoved:      btcjson.Bool(true),
+				IncludeChange:       btcjson.Bool(false),
 			},
 		},
 		{
@@ -877,6 +885,8 @@ func TestWalletSvrCmds(t *testing.T) {
 				BlockHash:           nil,
 				TargetConfirmations: btcjson.Int(1),
 				IncludeWatchOnly:    btcjson.Bool(false),
+				IncludeRemoved:      btcjson.Bool(true),
+				IncludeChange:       btcjson.Bool(false),
 			},
 		},
 		{

@@ -501,6 +501,8 @@ type ListSinceBlockCmd struct {
 	BlockHash           *string
 	TargetConfirmations *int  `jsonrpcdefault:"1"`
 	IncludeWatchOnly    *bool `jsonrpcdefault:"false"`
+	IncludeRemoved      *bool `jsonrpcdefault:"true"`
+	IncludeChange       *bool `jsonrpcdefault:"false"`
 }
 
 // NewListSinceBlockCmd returns a new instance which can be used to issue a
