@@ -1570,6 +1570,12 @@ func (b *Bitcoind) GetAddressInfo(ctx context.Context, c *pb.GetAddressInfoReque
 				WitnessProgram: deref(r.WitnessProgram),
 				ScriptType:     deref(r.ScriptType),
 				IsCompressed:   deref(r.IsCompressed),
+
+				Desc:                deref(r.Descriptor),
+				ParentDesc:          deref(r.ParentDescriptor),
+				HdKeyPath:           deref(r.HDKeyPath),
+				HdMasterFingerprint: deref(r.HDMasterFingerprint),
+				Timestamp:           newOptionalTimestamp(r.Timestamp),
 			}
 		},
 	)
@@ -2651,6 +2657,14 @@ func newTimestamp(unix int64) *timestamppb.Timestamp {
 		return nil
 	}
 	return timestamppb.New(time.Unix(unix, 0))
+}
+
+// newOptionalTimestamp is newTimestamp for a field Core may leave out.
+func newOptionalTimestamp(unix *int) *timestamppb.Timestamp {
+	if unix == nil {
+		return nil
+	}
+	return newTimestamp(int64(*unix))
 }
 
 func getRawTransactionBytes(tx *pb.RawTransaction) ([]byte, error) {
