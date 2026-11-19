@@ -3,7 +3,7 @@ FROM golang:1.27.4-alpine AS builder
 WORKDIR /work
 
 ## We install grpc-health-probe tool for internal healtch checks
-RUN GRPC_HEALTH_PROBE_VERSION=v0.4.56 && \
+RUN GRPC_HEALTH_PROBE_VERSION=v0.4.63 && \
     wget -qO/work/grpc-health-probe https://github.com/grpc-ecosystem/grpc-health-probe/releases/download/${GRPC_HEALTH_PROBE_VERSION}/grpc_health_probe-linux-amd64 && \
     chmod +x /work/grpc-health-probe
 
