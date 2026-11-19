@@ -175,6 +175,28 @@ func TestRequestParams(t *testing.T) {
 			want: `[50]`,
 		},
 		{
+			// Every param positional and set, removed always asked for.
+			name: "listsinceblock", key: "listsinceblock@w",
+			result: map[string]any{"transactions": []any{}, "removed": []any{}, "lastblock": testBlockHash},
+			call: func(ctx context.Context, client rpc.BitcoinServiceClient) error {
+				_, err := client.ListSinceBlock(ctx, &pb.ListSinceBlockRequest{
+					Wallet: "w", Hash: testBlockHash, TargetConfirmations: 6, IncludeChange: true,
+				})
+				return err
+			},
+			want: `["` + testBlockHash + `",6,false,true,true]`,
+		},
+		{
+			// Unset target_confirmations is Core's default, 1.
+			name: "listsinceblock defaults", key: "listsinceblock@w",
+			result: map[string]any{"transactions": []any{}, "removed": []any{}, "lastblock": testBlockHash},
+			call: func(ctx context.Context, client rpc.BitcoinServiceClient) error {
+				_, err := client.ListSinceBlock(ctx, &pb.ListSinceBlockRequest{Wallet: "w"})
+				return err
+			},
+			want: `[null,1,false,true,false]`,
+		},
+		{
 			// The wallet's own endpoint, whatever wallet the default one names.
 			name: "unloadwallet", key: "unloadwallet@w", result: map[string]any{},
 			call: func(ctx context.Context, client rpc.BitcoinServiceClient) error {

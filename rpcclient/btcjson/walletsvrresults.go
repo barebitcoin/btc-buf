@@ -198,12 +198,17 @@ type ListTransactionsResult struct {
 	ReplacedByTXID    string   `json:"replaced_by_txid"`
 	Time              int64    `json:"time"`
 	TimeReceived      int64    `json:"timereceived"`
-	Trusted           bool     `json:"trusted"`
-	TxID              string   `json:"txid"`
-	Vout              uint32   `json:"vout"`
-	WalletConflicts   []string `json:"walletconflicts"`
-	Comment           string   `json:"comment,omitempty"`
-	OtherAccount      string   `json:"otheraccount,omitempty"`
+	// Only present for 0 (or negative, if conflicted) confirmations.
+	Trusted          *bool    `json:"trusted,omitempty"`
+	TxID             string   `json:"txid"`
+	WTxID            string   `json:"wtxid,omitempty"`
+	Vout             uint32   `json:"vout"`
+	WalletConflicts  []string `json:"walletconflicts"`
+	MempoolConflicts []string `json:"mempoolconflicts,omitempty"`
+	// Only for 'receive': the descriptors whose output script this pays to.
+	ParentDescs  []string `json:"parent_descs,omitempty"`
+	Comment      string   `json:"comment,omitempty"`
+	OtherAccount string   `json:"otheraccount,omitempty"`
 }
 
 // ListReceivedByAccountResult models the data from the listreceivedbyaccount
@@ -228,7 +233,10 @@ type ListReceivedByAddressResult struct {
 // ListSinceBlockResult models the data from the listsinceblock command.
 type ListSinceBlockResult struct {
 	Transactions []ListTransactionsResult `json:"transactions"`
-	LastBlock    string                   `json:"lastblock"`
+	// Wallet transactions in blocks detached by a reorg, when the given block
+	// is no longer on the main chain. Present only with include_removed.
+	Removed   []ListTransactionsResult `json:"removed,omitempty"`
+	LastBlock string                   `json:"lastblock"`
 }
 
 // ListUnspentResult models a successful response from the listunspent request.
