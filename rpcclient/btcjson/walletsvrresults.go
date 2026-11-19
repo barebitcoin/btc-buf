@@ -53,12 +53,14 @@ type embeddedAddressInfo struct {
 //     Same structure as (1).
 type GetAddressInfoResult struct {
 	embeddedAddressInfo
-	IsMine      bool                 `json:"ismine"`
-	IsWatchOnly bool                 `json:"iswatchonly"`
-	Timestamp   *int                 `json:"timestamp,omitempty"`
-	HDKeyPath   *string              `json:"hdkeypath,omitempty"`
-	HDSeedID    *string              `json:"hdseedid,omitempty"`
-	Embedded    *embeddedAddressInfo `json:"embedded,omitempty"`
+	IsMine      bool `json:"ismine"`
+	IsWatchOnly bool `json:"iswatchonly"`
+	// The descriptor whose derivation gave this address, if any.
+	ParentDescriptor *string              `json:"parent_desc,omitempty"`
+	Timestamp        *int                 `json:"timestamp,omitempty"`
+	HDKeyPath        *string              `json:"hdkeypath,omitempty"`
+	HDSeedID         *string              `json:"hdseedid,omitempty"`
+	Embedded         *embeddedAddressInfo `json:"embedded,omitempty"`
 }
 
 // GetTransactionDetailsResult models the details data from the gettransaction command.

@@ -1024,6 +1024,19 @@ message GetAddressInfoResponse {
 
   bool is_compressed = 11;
 
+  // The address's own descriptor, and the ranged descriptor it was derived
+  // from, if any, in Bitcoin Core's normalised form.
+  string desc = 12 [debug_redact = true];
+  string parent_desc = 13 [debug_redact = true];
+
+  // Derivation path (e.g. m/84h/0h/0h/1/7) and master key fingerprint, for an
+  // address derived from a ranged descriptor.
+  string hd_key_path = 14;
+  string hd_master_fingerprint = 15;
+
+  // When the key was added to the wallet. Unset if unknown.
+  google.protobuf.Timestamp timestamp = 16;
+
   // TODO: bunch of other fields
 }
 
