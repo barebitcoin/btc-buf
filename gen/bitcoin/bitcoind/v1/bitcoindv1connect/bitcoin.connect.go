@@ -82,6 +82,9 @@ const (
 	// BitcoinServiceGetRawMempoolProcedure is the procedure name of the BitcoinService's GetRawMempool
 	// RPC.
 	BitcoinServiceGetRawMempoolProcedure = "/bitcoin.bitcoind.v1.BitcoinService/GetRawMempool"
+	// BitcoinServiceGetMempoolEntryProcedure is the procedure name of the BitcoinService's
+	// GetMempoolEntry RPC.
+	BitcoinServiceGetMempoolEntryProcedure = "/bitcoin.bitcoind.v1.BitcoinService/GetMempoolEntry"
 	// BitcoinServiceGetRawTransactionProcedure is the procedure name of the BitcoinService's
 	// GetRawTransaction RPC.
 	BitcoinServiceGetRawTransactionProcedure = "/bitcoin.bitcoind.v1.BitcoinService/GetRawTransaction"
@@ -293,6 +296,13 @@ var (
 			Procedure:  BitcoinServiceGetRawMempoolProcedure,
 		}
 	})
+	bitcoinServiceGetMempoolEntrySpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_bitcoin_bitcoind_v1_bitcoin_proto.Services().ByName("BitcoinService").Methods().ByName("GetMempoolEntry"),
+			Procedure:  BitcoinServiceGetMempoolEntryProcedure,
+		}
+	})
 	bitcoinServiceGetRawTransactionSpec = sync.OnceValue(func() connect.Spec {
 		return connect.Spec{
 			StreamType: connect.StreamTypeUnary,
@@ -485,6 +495,7 @@ type BitcoinServiceClient interface {
 	GetAddressInfo(context.Context, *v1.GetAddressInfoRequest) (*v1.GetAddressInfoResponse, error)
 	// Mempool stuff
 	GetRawMempool(context.Context, *v1.GetRawMempoolRequest) (*v1.GetRawMempoolResponse, error)
+	GetMempoolEntry(context.Context, *v1.GetMempoolEntryRequest) (*v1.GetMempoolEntryResponse, error)
 	// Raw TX stuff
 	GetRawTransaction(context.Context, *v1.GetRawTransactionRequest) (*v1.GetRawTransactionResponse, error)
 	DecodeRawTransaction(context.Context, *v1.DecodeRawTransactionRequest) (*v1.DecodeRawTransactionResponse, error)
@@ -552,6 +563,7 @@ type BitcoinServiceHandler interface {
 	GetAddressInfo(context.Context, *v1.GetAddressInfoRequest) (*v1.GetAddressInfoResponse, error)
 	// Mempool stuff
 	GetRawMempool(context.Context, *v1.GetRawMempoolRequest) (*v1.GetRawMempoolResponse, error)
+	GetMempoolEntry(context.Context, *v1.GetMempoolEntryRequest) (*v1.GetMempoolEntryResponse, error)
 	// Raw TX stuff
 	GetRawTransaction(context.Context, *v1.GetRawTransactionRequest) (*v1.GetRawTransactionResponse, error)
 	DecodeRawTransaction(context.Context, *v1.DecodeRawTransactionRequest) (*v1.DecodeRawTransactionResponse, error)
@@ -610,6 +622,7 @@ func RegisterBitcoinServiceHandler(server *connect.Server, svc BitcoinServiceHan
 		connect.Method{Spec: bitcoinServiceGetDescriptorInfoSpec(), Handler: adapter.getDescriptorInfo},
 		connect.Method{Spec: bitcoinServiceGetAddressInfoSpec(), Handler: adapter.getAddressInfo},
 		connect.Method{Spec: bitcoinServiceGetRawMempoolSpec(), Handler: adapter.getRawMempool},
+		connect.Method{Spec: bitcoinServiceGetMempoolEntrySpec(), Handler: adapter.getMempoolEntry},
 		connect.Method{Spec: bitcoinServiceGetRawTransactionSpec(), Handler: adapter.getRawTransaction},
 		connect.Method{Spec: bitcoinServiceDecodeRawTransactionSpec(), Handler: adapter.decodeRawTransaction},
 		connect.Method{Spec: bitcoinServiceCreateRawTransactionSpec(), Handler: adapter.createRawTransaction},
@@ -721,6 +734,10 @@ func (UnimplementedBitcoinServiceHandler) GetAddressInfo(context.Context, *v1.Ge
 
 func (UnimplementedBitcoinServiceHandler) GetRawMempool(context.Context, *v1.GetRawMempoolRequest) (*v1.GetRawMempoolResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, "bitcoin.bitcoind.v1.BitcoinService.GetRawMempool is not implemented")
+}
+
+func (UnimplementedBitcoinServiceHandler) GetMempoolEntry(context.Context, *v1.GetMempoolEntryRequest) (*v1.GetMempoolEntryResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "bitcoin.bitcoind.v1.BitcoinService.GetMempoolEntry is not implemented")
 }
 
 func (UnimplementedBitcoinServiceHandler) GetRawTransaction(context.Context, *v1.GetRawTransactionRequest) (*v1.GetRawTransactionResponse, error) {
@@ -982,6 +999,14 @@ func (c *bitcoinServiceClient) GetAddressInfo(ctx context.Context, req *v1.GetAd
 func (c *bitcoinServiceClient) GetRawMempool(ctx context.Context, req *v1.GetRawMempoolRequest) (*v1.GetRawMempoolResponse, error) {
 	var res v1.GetRawMempoolResponse
 	if err := c.client.CallUnary(ctx, bitcoinServiceGetRawMempoolSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *bitcoinServiceClient) GetMempoolEntry(ctx context.Context, req *v1.GetMempoolEntryRequest) (*v1.GetMempoolEntryResponse, error) {
+	var res v1.GetMempoolEntryResponse
+	if err := c.client.CallUnary(ctx, bitcoinServiceGetMempoolEntrySpec(), req, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
@@ -1419,6 +1444,18 @@ func (h bitcoinServiceHandler) getRawMempool(ctx context.Context, _ connect.Spec
 		return err
 	}
 	res, err := h.svc.GetRawMempool(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h bitcoinServiceHandler) getMempoolEntry(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.GetMempoolEntryRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.GetMempoolEntry(ctx, &req)
 	if err != nil {
 		return err
 	}

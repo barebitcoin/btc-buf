@@ -1626,26 +1626,7 @@ func (b *Bitcoind) GetRawMempool(ctx context.Context, c *pb.GetRawMempoolRequest
 			return &pb.GetRawMempoolResponse{
 				Transactions: mapValues(res.transactions,
 					func(value btcjson.GetMempoolEntryResult, key string) *pb.MempoolEntry {
-						return &pb.MempoolEntry{
-							VirtualSize:     uint32(value.VSize),
-							Weight:          uint32(value.Weight),
-							Time:            newTimestamp(value.Time),
-							DescendantCount: uint32(value.DescendantCount),
-							DescendantSize:  uint32(value.DescendantSize),
-							AncestorCount:   uint32(value.AncestorCount),
-							AncestorSize:    uint32(value.AncestorSize),
-							WitnessTxid:     value.WTxId,
-							Fees: &pb.MempoolEntry_Fees{
-								Base:       value.Fees.Base,
-								Modified:   value.Fees.Modified,
-								Ancestor:   value.Fees.Ancestor,
-								Descendant: value.Fees.Descendant,
-							},
-							Depends:           value.Depends,
-							SpentBy:           value.SpentBy,
-							Bip125Replaceable: value.BIP125Replaceable,
-							Unbroadcast:       value.Unbroadcast,
-						}
+						return mempoolEntryToProto(value)
 					},
 				),
 				Txids: mapSlice(res.txids,
@@ -1655,6 +1636,47 @@ func (b *Bitcoind) GetRawMempool(ctx context.Context, c *pb.GetRawMempoolRequest
 			}
 		},
 	)
+}
+
+func (b *Bitcoind) GetMempoolEntry(ctx context.Context, c *pb.GetMempoolEntryRequest) (*pb.GetMempoolEntryResponse, error) {
+	if c.Txid == "" {
+		return nil, newConnectError(connect.CodeInvalidArgument, errors.New(`"txid" is a required argument`))
+	}
+	if _, err := newChainHash(c.Txid); err != nil {
+		return nil, err
+	}
+
+	return callRPC(
+		ctx, func(ctx context.Context) (*btcjson.GetMempoolEntryResult, error) {
+			return b.rpc.GetMempoolEntry(ctx, c.Txid)
+		},
+		func(r *btcjson.GetMempoolEntryResult) *pb.GetMempoolEntryResponse {
+			return &pb.GetMempoolEntryResponse{Entry: mempoolEntryToProto(*r)}
+		},
+	)
+}
+
+func mempoolEntryToProto(entry btcjson.GetMempoolEntryResult) *pb.MempoolEntry {
+	return &pb.MempoolEntry{
+		VirtualSize:     uint32(entry.VSize),
+		Weight:          uint32(entry.Weight),
+		Time:            newTimestamp(entry.Time),
+		DescendantCount: uint32(entry.DescendantCount),
+		DescendantSize:  uint32(entry.DescendantSize),
+		AncestorCount:   uint32(entry.AncestorCount),
+		AncestorSize:    uint32(entry.AncestorSize),
+		WitnessTxid:     entry.WTxId,
+		Fees: &pb.MempoolEntry_Fees{
+			Base:       entry.Fees.Base,
+			Modified:   entry.Fees.Modified,
+			Ancestor:   entry.Fees.Ancestor,
+			Descendant: entry.Fees.Descendant,
+		},
+		Depends:           entry.Depends,
+		SpentBy:           entry.SpentBy,
+		Bip125Replaceable: entry.BIP125Replaceable,
+		Unbroadcast:       entry.Unbroadcast,
+	}
 }
 
 // BackupWallet implements bitcoindv1connect.BitcoinServiceHandler.
