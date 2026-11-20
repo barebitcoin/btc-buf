@@ -97,6 +97,67 @@ func TestTestMempoolAccept(t *testing.T) {
 	}
 }
 
+func TestGetMempoolEntry(t *testing.T) {
+	const txid = "4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b"
+
+	t.Run("returns the entry of a transaction in the mempool", func(t *testing.T) {
+		core := &fakeCore{responses: map[string]fakeResponse{
+			"getmempoolentry": {result: map[string]any{
+				"vsize": 141, "weight": 561, "time": 1700000000, "height": 900000,
+				"descendantcount": 1, "descendantsize": 141, "ancestorcount": 2, "ancestorsize": 282,
+				"wtxid":   "wtxid",
+				"fees":    map[string]any{"base": 0.00001, "modified": 0.00001, "ancestor": 0.00002, "descendant": 0.00001},
+				"depends": []any{"parent"}, "spentby": []any{},
+				"bip125-replaceable": true, "unbroadcast": false,
+			}},
+		}}
+		b, err := newTestBitcoind(t, core)
+		if err != nil {
+			t.Fatal(err)
+		}
+		res, err := inProcessClient(b).GetMempoolEntry(t.Context(), &pb.GetMempoolEntryRequest{Txid: txid})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := core.lastParams("getmempoolentry"); got != `["`+txid+`"]` {
+			t.Errorf("params: got %s", got)
+		}
+		entry := res.GetEntry()
+		if entry.GetVirtualSize() != 141 || entry.GetAncestorCount() != 2 || entry.GetTime().GetSeconds() != 1700000000 {
+			t.Errorf("unexpected entry: %v", entry)
+		}
+		if entry.GetFees().GetAncestor() != 0.00002 || len(entry.GetDepends()) != 1 || !entry.GetBip125Replaceable() {
+			t.Errorf("unexpected entry: %v", entry)
+		}
+	})
+
+	// Core: RPC_INVALID_ADDRESS_OR_KEY, "Transaction not in mempool".
+	t.Run("a transaction outside the mempool is not found", func(t *testing.T) {
+		core := &fakeCore{responses: map[string]fakeResponse{"getmempoolentry": {code: -5}}}
+		b, err := newTestBitcoind(t, core)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, err = inProcessClient(b).GetMempoolEntry(t.Context(), &pb.GetMempoolEntryRequest{Txid: txid})
+		if connect.CodeOf(err) != connect.CodeNotFound {
+			t.Fatalf("expected not found, got %v", err)
+		}
+	})
+
+	t.Run("rejects a missing or malformed txid", func(t *testing.T) {
+		b, err := newTestBitcoind(t, &fakeCore{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, bad := range []string{"", "not a txid"} {
+			_, err = inProcessClient(b).GetMempoolEntry(t.Context(), &pb.GetMempoolEntryRequest{Txid: bad})
+			if connect.CodeOf(err) != connect.CodeInvalidArgument {
+				t.Errorf("txid %q: expected invalid argument, got %v", bad, err)
+			}
+		}
+	})
+}
+
 // Core reports ping times in decimal seconds. Its help text said ms until v30.
 func TestGetPeerInfoPingTimes(t *testing.T) {
 	core := &fakeCore{responses: map[string]fakeResponse{

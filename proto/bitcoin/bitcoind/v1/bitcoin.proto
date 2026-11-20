@@ -40,6 +40,7 @@ service BitcoinService {
 
   // Mempool stuff
   rpc GetRawMempool(GetRawMempoolRequest) returns (GetRawMempoolResponse);
+  rpc GetMempoolEntry(GetMempoolEntryRequest) returns (GetMempoolEntryResponse);
 
   // Raw TX stuff
   rpc GetRawTransaction(GetRawTransactionRequest) returns (GetRawTransactionResponse);
@@ -909,6 +910,14 @@ message GetRawMempoolResponse {
 
   // Only set if this is a verbose response
   map<string, MempoolEntry> transactions = 2;
+}
+
+message GetMempoolEntryRequest {
+  string txid = 1;
+}
+
+message GetMempoolEntryResponse {
+  MempoolEntry entry = 1;
 }
 
 message GetBlockHashRequest {
